@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { SendHorizontal, Paperclip, Globe, Mic } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { Button } from './ui/button';
-import { SlashCommandMenu, SlashCommand } from './ui/SlashCommandMenu';
+import { SlashCommandMenu, type SlashCommand } from './ui/SlashCommandMenu';
 
 interface ChatInputProps {
     onSend: (message: string) => void;

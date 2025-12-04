@@ -4,8 +4,6 @@ import {
     Trash2, 
     Bot, 
     Upload, 
-    Sun, 
-    Moon, 
     Search, 
     MessageSquare,
     Sparkles,

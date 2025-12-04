@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { MessageBubble } from './components/MessageBubble';
-import { ChatInput, SlashCommand } from './components/ChatInput';
+import { ChatInput, type SlashCommand } from './components/ChatInput';
 import { LandingPage } from './components/LandingPage';
 import { ModelSelector, MIRA_MODELS } from './components/ModelSelector';
 import { Plus, Settings, Trash2, MessageSquare, PanelRightOpen } from 'lucide-react';
