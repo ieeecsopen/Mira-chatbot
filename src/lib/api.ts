@@ -1,5 +1,136 @@
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
-const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
+
+// Model configuration with priority and rate limits
+interface ModelConfig {
+  name: string;
+  rpm: number;      // Requests per minute
+  tpm: number;      // Tokens per minute
+  priority: number; // Lower = higher priority
+  category: 'fast' | 'balanced' | 'quality';
+}
+
+const AVAILABLE_MODELS: ModelConfig[] = [
+  // Fast models - high throughput
+  { name: 'gemini-2.0-flash', rpm: 15, tpm: 1000000, priority: 1, category: 'balanced' },
+  
+  // Balanced models
+  { name: 'gemini-2.5-flash', rpm: 10, tpm: 250000, priority: 2, category: 'balanced' },
+  { name: 'gemini-2.5-flash-lite', rpm: 15, tpm: 250000, priority: 3, category: 'fast' },
+  
+  // Quality models - for complex queries
+  { name: 'gemini-2.5-pro', rpm: 2, tpm: 125000, priority: 4, category: 'quality' },
+  
+  // Experimental/Other
+  { name: 'gemini-2.0-flash-exp', rpm: 10, tpm: 1000000, priority: 5, category: 'balanced' },
+  { name: 'learnlm-2.0-flash-experimental', rpm: 15, tpm: 500000, priority: 6, category: 'balanced' },
+];
+
+// Track model usage for load balancing
+const modelUsage: Map<string, { count: number; resetTime: number }> = new Map();
+
+/**
+ * Get the best available model based on current usage
+ */
+function selectModel(preferQuality: boolean = false): ModelConfig {
+  const now = Date.now();
+  
+  // Filter models by preference
+  let candidates = preferQuality 
+    ? AVAILABLE_MODELS.filter(m => m.category === 'quality' || m.category === 'balanced')
+    : AVAILABLE_MODELS;
+  
+  // Sort by priority
+  candidates = [...candidates].sort((a, b) => a.priority - b.priority);
+  
+  for (const model of candidates) {
+    const usage = modelUsage.get(model.name);
+    
+    // Reset usage if minute has passed
+    if (usage && now > usage.resetTime) {
+      modelUsage.delete(model.name);
+    }
+    
+    const currentUsage = modelUsage.get(model.name);
+    const currentCount = currentUsage?.count || 0;
+    
+    // Check if model has capacity
+    if (currentCount < model.rpm * 0.8) { // Use 80% of limit for safety
+      return model;
+    }
+  }
+  
+  // Fallback to first available model
+  return candidates[0];
+}
+
+/**
+ * Record model usage
+ */
+function recordModelUsage(modelName: string): void {
+  const now = Date.now();
+  const usage = modelUsage.get(modelName);
+  
+  if (usage && now < usage.resetTime) {
+    usage.count++;
+  } else {
+    modelUsage.set(modelName, {
+      count: 1,
+      resetTime: now + 60000 // Reset after 1 minute
+    });
+  }
+}
+
+/**
+ * Build API URL for a model
+ */
+function getApiUrl(modelName: string, streaming: boolean = false): string {
+  const action = streaming ? 'streamGenerateContent?alt=sse' : 'generateContent';
+  return `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:${action}&key=${GEMINI_API_KEY}`;
+}
+
+/**
+ * Try request with automatic fallback to other models
+ */
+async function tryWithFallback<T>(
+  operation: (model: ModelConfig) => Promise<T>,
+  preferQuality: boolean = false
+): Promise<T> {
+  const triedModels = new Set<string>();
+  let lastError: Error | null = null;
+  
+  // Sort models by priority
+  const models = preferQuality
+    ? AVAILABLE_MODELS.filter(m => m.category !== 'fast').sort((a, b) => a.priority - b.priority)
+    : [...AVAILABLE_MODELS].sort((a, b) => a.priority - b.priority);
+  
+  for (const model of models) {
+    if (triedModels.has(model.name)) continue;
+    triedModels.add(model.name);
+    
+    try {
+      console.log(`🤖 Trying model: ${model.name}`);
+      const result = await operation(model);
+      recordModelUsage(model.name);
+      console.log(`✅ Success with: ${model.name}`);
+      return result;
+    } catch (error) {
+      lastError = error as Error;
+      console.warn(`⚠️ Model ${model.name} failed:`, (error as Error).message);
+      
+      // If rate limited, mark this model as exhausted
+      if ((error as Error).message?.includes('429') || 
+          (error as Error).message?.includes('rate') ||
+          (error as Error).message?.includes('quota')) {
+        modelUsage.set(model.name, {
+          count: model.rpm,
+          resetTime: Date.now() + 60000
+        });
+      }
+    }
+  }
+  
+  throw lastError || new Error('All models failed');
+}
 
 // Import Sinhala language utilities
 import { singlishToSinhala, detectSinglish } from './singlish';
@@ -15,11 +146,19 @@ export interface ChatResponse {
 
 const SYSTEM_INSTRUCTION = `ඔබ "මීරා" (MIRA) නම් සිංහල භාෂා සහායකයෙකි.
 
+## ඔබේ අනන්‍යතාවය:
+- ඔබේ නම "මීරා" (MIRA - Multilingual Intelligent Response Assistant)
+- ඔබ ශ්‍රී ලාංකික AI සහායකයෙකි
+- ඔබ Google, Gemini, ChatGPT, හෝ වෙනත් AI නොවේ
+- කවුරුන් හෝ ඔබ කවුද කියා ඇසුවොත්, ඔබ මීරා බවත් පවසන්න
+- "ඔබ කවුද?", "Who are you?" වැනි ප්‍රශ්නවලට: "මම මීරා. මම සිංහල භාෂාවෙන් උදව් කිරීමට සැලසුම් කර ඇති AI සහායකයෙක්." ලෙස පිළිතුරු දෙන්න
+
 ## මූලික නීති:
 1. සෑම විටම පිරිසිදු, සාම්ප්‍රදායික සිංහල භාෂාවෙන් පිළිතුරු දෙන්න
 2. ඉංග්‍රීසි වචන අවම කරන්න - සිංහල සමානාර්ථ පද භාවිතා කරන්න
 3. පරිශීලකයා ඉංග්‍රීසියෙන් ලිව්වත්, සිංහලෙන් පිළිතුරු දෙන්න
 4. සිංහල අක්ෂර වින්‍යාසය හා ව්‍යාකරණය නිවැරදිව භාවිතා කරන්න
+5. කිසිවිටක ඔබ Google, Gemini, Bard, ChatGPT, හෝ OpenAI බව නොකියන්න
 
 ## භාෂා මාර්ගෝපදේශ:
 - "Computer" → "පරිගණකය"
@@ -101,9 +240,9 @@ function buildEnhancedPrompt(message: string, ragContext: string): string {
   return message;
 }
 
-export async function sendMessage(userId: string, message: string): Promise<ChatResponse> {
+export async function sendMessage(_userId: string, message: string): Promise<ChatResponse> {
     // Preprocess the message
-    const { processed, wasSinglish, ragContext, directAnswer } = preprocessMessage(message);
+    const { processed, ragContext, directAnswer } = preprocessMessage(message);
     
     // If we have a direct answer from knowledge base, return it
     if (directAnswer) {
@@ -119,86 +258,14 @@ export async function sendMessage(userId: string, message: string): Promise<Chat
     // Build enhanced prompt with RAG context
     const enhancedMessage = buildEnhancedPrompt(processed, ragContext);
     
-    const response = await fetch(GEMINI_API_URL, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            system_instruction: {
-                parts: [{ text: SYSTEM_INSTRUCTION }]
-            },
-            contents: [
-                {
-                    parts: [
-                        {
-                            text: enhancedMessage,
-                        },
-                    ],
-                },
-            ],
-        }),
-    });
-
-    if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error?.message || 'Network response was not ok');
-    }
-
-    const data = await response.json();
-    let answer = data.candidates?.[0]?.content?.parts?.[0]?.text || 'No response received';
+    // Determine if we need quality model (longer/complex queries)
+    const preferQuality = message.length > 200 || ragContext.length > 500;
     
-    // Post-process the response
-    answer = postprocessResponse(answer);
-
-    return {
-        answer,
-        sources: ragContext ? ['Sinhala Knowledge Base'] : [],
-        confidence: ragContext ? 'high' : 'medium',
-        rag_used: !!ragContext,
-    };
-}
-
-export async function streamMessage(
-    userId: string,
-    message: string,
-    onChunk: (text: string) => void,
-    onDone: () => void,
-    onError: (error: string) => void
-) {
-    const GEMINI_STREAM_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:streamGenerateContent?alt=sse&key=${GEMINI_API_KEY}`;
-
-    try {
-        // Preprocess the message
-        const { processed, wasSinglish, ragContext, directAnswer } = preprocessMessage(message);
+    // Try with automatic fallback across models
+    const result = await tryWithFallback(async (model) => {
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model.name}:generateContent?key=${GEMINI_API_KEY}`;
         
-        // Log Singlish conversion if applicable
-        if (wasSinglish) {
-            console.log('🔄 Singlish converted:', message, '→', processed);
-        }
-        
-        // If we have a direct answer, stream it character by character
-        if (directAnswer) {
-            console.log('📚 Direct answer from knowledge base');
-            const answer = postprocessResponse(directAnswer);
-            
-            // Simulate streaming for direct answers
-            const words = answer.split(' ');
-            for (const word of words) {
-                onChunk(word + ' ');
-                await new Promise(resolve => setTimeout(resolve, 30));
-            }
-            onDone();
-            return;
-        }
-        
-        // Build enhanced prompt with RAG context
-        const enhancedMessage = buildEnhancedPrompt(processed, ragContext);
-        if (ragContext) {
-            console.log('📚 RAG context added to prompt');
-        }
-
-        const response = await fetch(GEMINI_STREAM_URL, {
+        const response = await fetch(apiUrl, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -221,52 +288,184 @@ export async function streamMessage(
 
         if (!response.ok) {
             const error = await response.json();
-            throw new Error(error.error?.message || `HTTP error: ${response.status}`);
+            throw new Error(error.error?.message || `HTTP ${response.status}`);
         }
 
-        const reader = response.body?.getReader();
-        const decoder = new TextDecoder();
+        const data = await response.json();
+        let answer = data.candidates?.[0]?.content?.parts?.[0]?.text || 'No response received';
+        
+        // Post-process the response
+        answer = postprocessResponse(answer);
 
-        if (!reader) {
-            throw new Error('Response body is null');
+        return {
+            answer,
+            sources: ragContext ? ['Sinhala Knowledge Base'] : [],
+            confidence: ragContext ? 'high' : 'medium',
+            rag_used: !!ragContext,
+            model: model.name, // Include which model was used
+        };
+    }, preferQuality);
+    
+    return result;
+}
+
+export async function streamMessage(
+    _userId: string,
+    message: string,
+    onChunk: (text: string) => void,
+    onDone: () => void,
+    onError: (error: string) => void
+) {
+    // Preprocess the message
+    const { processed, wasSinglish, ragContext, directAnswer } = preprocessMessage(message);
+    
+    // Log Singlish conversion if applicable
+    if (wasSinglish) {
+        console.log('🔄 Singlish converted:', message, '→', processed);
+    }
+    
+    // If we have a direct answer, stream it word by word
+    if (directAnswer) {
+        console.log('📚 Direct answer from knowledge base');
+        const answer = postprocessResponse(directAnswer);
+        
+        // Simulate streaming for direct answers
+        const words = answer.split(' ');
+        for (const word of words) {
+            onChunk(word + ' ');
+            await new Promise(resolve => setTimeout(resolve, 30));
         }
+        onDone();
+        return;
+    }
+    
+    // Build enhanced prompt with RAG context
+    const enhancedMessage = buildEnhancedPrompt(processed, ragContext);
+    if (ragContext) {
+        console.log('📚 RAG context added to prompt');
+    }
 
-        let buffer = '';
+    // Determine if we need quality model
+    const preferQuality = message.length > 200 || ragContext.length > 500;
+    
+    // Try streaming with fallback across models
+    const models = preferQuality
+        ? AVAILABLE_MODELS.filter(m => m.category !== 'fast').sort((a, b) => a.priority - b.priority)
+        : [...AVAILABLE_MODELS].sort((a, b) => a.priority - b.priority);
+    
+    let lastError: Error | null = null;
+    
+    for (const model of models) {
+        try {
+            console.log(`🤖 Trying streaming with: ${model.name}`);
+            const streamUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model.name}:streamGenerateContent?alt=sse&key=${GEMINI_API_KEY}`;
+            
+            const response = await fetch(streamUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    system_instruction: {
+                        parts: [{ text: SYSTEM_INSTRUCTION }]
+                    },
+                    contents: [
+                        {
+                            parts: [
+                                {
+                                    text: enhancedMessage,
+                                },
+                            ],
+                        },
+                    ],
+                }),
+            });
 
-        while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error?.message || `HTTP error: ${response.status}`);
+            }
 
-            buffer += decoder.decode(value, { stream: true });
+            // Success! Record usage and process stream
+            recordModelUsage(model.name);
+            console.log(`✅ Streaming with: ${model.name}`);
 
-            // Process complete lines
-            const lines = buffer.split('\n');
-            buffer = lines.pop() || ''; // Keep incomplete line in buffer
+            const reader = response.body?.getReader();
+            const decoder = new TextDecoder();
 
-            for (const line of lines) {
-                const trimmedLine = line.trim();
+            if (!reader) {
+                throw new Error('Response body is null');
+            }
 
-                // SSE format: "data: {...}"
-                if (trimmedLine.startsWith('data:')) {
-                    const jsonStr = trimmedLine.slice(5).trim();
-                    if (!jsonStr) continue;
+            let buffer = '';
 
-                    try {
-                        const data = JSON.parse(jsonStr);
-                        const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-                        if (text) {
-                            onChunk(text);
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                buffer += decoder.decode(value, { stream: true });
+
+                // Process complete lines
+                const lines = buffer.split('\n');
+                buffer = lines.pop() || ''; // Keep incomplete line in buffer
+
+                for (const line of lines) {
+                    const trimmedLine = line.trim();
+
+                    // SSE format: "data: {...}"
+                    if (trimmedLine.startsWith('data:')) {
+                        const jsonStr = trimmedLine.slice(5).trim();
+                        if (!jsonStr) continue;
+
+                        try {
+                            const data = JSON.parse(jsonStr);
+                            const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+                            if (text) {
+                                onChunk(text);
+                            }
+                        } catch (e) {
+                            console.warn('Failed to parse SSE data:', jsonStr, e);
                         }
-                    } catch (e) {
-                        console.warn('Failed to parse SSE data:', jsonStr, e);
                     }
                 }
             }
-        }
 
-        onDone();
-    } catch (error) {
-        console.error('Stream error:', error);
-        onError(error instanceof Error ? error.message : 'Connection failed');
+            // Successfully completed streaming
+            onDone();
+            return; // Exit the model loop on success
+            
+        } catch (error) {
+            lastError = error as Error;
+            console.warn(`⚠️ Model ${model.name} failed:`, (error as Error).message);
+            
+            // If rate limited, mark this model as exhausted
+            if ((error as Error).message?.includes('429') || 
+                (error as Error).message?.includes('rate') ||
+                (error as Error).message?.includes('quota')) {
+                modelUsage.set(model.name, {
+                    count: model.rpm,
+                    resetTime: Date.now() + 60000
+                });
+            }
+            // Continue to next model
+        }
     }
+    
+    // All models failed
+    console.error('All models failed for streaming');
+    onError(lastError?.message || 'All models failed');
+}
+
+/**
+ * Get current model status for debugging
+ */
+export function getModelStatus(): { model: string; usage: number; limit: number }[] {
+    return AVAILABLE_MODELS.map(model => {
+        const usage = modelUsage.get(model.name);
+        return {
+            model: model.name,
+            usage: usage?.count || 0,
+            limit: model.rpm
+        };
+    });
 }
