@@ -730,7 +730,7 @@ function App() {
                   </Button>
                 )}
                 {hasDocuments && (
-                  <span className="text-xs text-[#58a6ff] font-medium">
+                  <span className="text-xs text-orange-400 font-medium">
                     📄 Document context active
                   </span>
                 )}

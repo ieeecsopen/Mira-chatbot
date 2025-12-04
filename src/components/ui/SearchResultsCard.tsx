@@ -19,8 +19,8 @@ function SearchResultsCardComponent({ results, query, searchTime, isSearching }:
                 className="mb-4 p-4 rounded-xl border border-[#30363d] bg-[#161b22]/80 backdrop-blur-sm"
             >
                 <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-[#58a6ff]/10">
-                        <Loader2 size={18} className="text-[#58a6ff] animate-spin" />
+                    <div className="p-2 rounded-lg bg-orange-500/10">
+                        <Loader2 size={18} className="text-orange-400 animate-spin" />
                     </div>
                     <div>
                         <p className="text-sm text-[#c9d1d9]">Searching the web...</p>
@@ -43,8 +43,8 @@ function SearchResultsCardComponent({ results, query, searchTime, isSearching }:
             {/* Header */}
             <div className="px-4 py-3 border-b border-[#30363d] bg-[#0d1117]/50 flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                    <div className="p-1.5 rounded-md bg-[#58a6ff]/10">
-                        <Search size={14} className="text-[#58a6ff]" />
+                    <div className="p-1.5 rounded-md bg-orange-500/10">
+                        <Search size={14} className="text-orange-400" />
                     </div>
                     <span className="text-sm font-medium text-[#c9d1d9]">Web Search Results</span>
                 </div>
@@ -91,7 +91,7 @@ function SearchResultsCardComponent({ results, query, searchTime, isSearching }:
                                 </div>
 
                                 {/* Title */}
-                                <h4 className="text-sm font-medium text-[#58a6ff] group-hover:underline line-clamp-1">
+                                <h4 className="text-sm font-medium text-orange-400 group-hover:underline line-clamp-1">
                                     {result.title}
                                 </h4>
 
@@ -136,7 +136,7 @@ export function CitationBadge({ index, url, title }: CitationBadgeProps) {
             target="_blank"
             rel="noopener noreferrer"
             title={title || url}
-            className="inline-flex items-center justify-center w-4 h-4 mx-0.5 text-[10px] font-medium bg-[#58a6ff]/20 text-[#58a6ff] rounded hover:bg-[#58a6ff]/30 transition-colors cursor-pointer align-super"
+            className="inline-flex items-center justify-center w-4 h-4 mx-0.5 text-[10px] font-medium bg-orange-500/20 text-orange-400 rounded hover:bg-orange-500/30 transition-colors cursor-pointer align-super"
         >
             {index}
         </a>

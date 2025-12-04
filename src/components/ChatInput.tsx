@@ -114,7 +114,7 @@ export function ChatInput({ onSend, disabled, onSlashCommand, webSearchEnabled, 
                         className={cn(
                             "rounded-full w-9 h-9 transition-all",
                             webSearchEnabled
-                                ? "bg-[#58a6ff]/20 text-[#58a6ff] hover:bg-[#58a6ff]/30"
+                                ? "bg-orange-500/20 text-orange-400 hover:bg-orange-500/30"
                                 : "text-gray-400 hover:text-white hover:bg-white/10"
                         )}
                         title={webSearchEnabled ? "Web search enabled" : "Enable web search"}
@@ -145,9 +145,9 @@ export function ChatInput({ onSend, disabled, onSlashCommand, webSearchEnabled, 
             {/* Web search indicator */}
             {webSearchEnabled && (
                 <div className="flex items-center justify-center gap-2 mt-2">
-                    <div className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-[#58a6ff]/10 border border-[#58a6ff]/20">
-                        <Search size={12} className="text-[#58a6ff]" />
-                        <span className="text-[10px] text-[#58a6ff] font-medium">Web Search Active</span>
+                    <div className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-orange-500/10 border border-orange-500/20">
+                        <Search size={12} className="text-orange-400" />
+                        <span className="text-[10px] text-orange-400 font-medium">Web Search Active</span>
                     </div>
                 </div>
             )}

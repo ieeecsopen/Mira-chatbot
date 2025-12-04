@@ -72,7 +72,7 @@ function highlightCode(code: string, language: string): string {
   
   // Highlight keywords
   const keywordPattern = new RegExp(`\\b(${langKeywords.join('|')})\\b`, 'g');
-  highlighted = highlighted.replace(keywordPattern, '<span class="text-purple-400">$1</span>');
+  highlighted = highlighted.replace(keywordPattern, '<span class="text-orange-400">$1</span>');
   
   // Highlight numbers
   highlighted = highlighted.replace(/\b(\d+\.?\d*)\b/g, '<span class="text-orange-400">$1</span>');

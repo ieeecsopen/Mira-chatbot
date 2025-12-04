@@ -49,9 +49,9 @@ function getFileIcon(type: ParsedDocument['type']) {
         case 'pdf':
             return <FileText size={16} className="text-red-400" />;
         case 'docx':
-            return <FileType size={16} className="text-blue-400" />;
+            return <FileType size={16} className="text-orange-400" />;
         case 'md':
-            return <BookOpen size={16} className="text-purple-400" />;
+            return <BookOpen size={16} className="text-orange-400" />;
         default:
             return <File size={16} className="text-gray-400" />;
     }
@@ -290,10 +290,10 @@ function DocumentPanelComponent({ isOpen, onClose, onDocumentsChange }: Document
                         {/* Header */}
                         <div className="flex items-center justify-between px-4 py-3 border-b border-[#30363d]">
                             <div className="flex items-center gap-2">
-                                <BookOpen size={20} className="text-[#58a6ff]" />
+                                <BookOpen size={20} className="text-orange-400" />
                                 <h2 className="text-lg font-semibold text-white">Document Chat</h2>
                                 {documents.length > 0 && (
-                                    <span className="px-2 py-0.5 text-xs bg-[#58a6ff]/20 text-[#58a6ff] rounded-full">
+                                    <span className="px-2 py-0.5 text-xs bg-orange-500/20 text-orange-400 rounded-full">
                                         {documents.length}
                                     </span>
                                 )}
@@ -312,7 +312,7 @@ function DocumentPanelComponent({ isOpen, onClose, onDocumentsChange }: Document
                                 onClick={() => setActiveTab('documents')}
                                 className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors ${
                                     activeTab === 'documents'
-                                        ? 'text-[#58a6ff] border-b-2 border-[#58a6ff] bg-[#58a6ff]/5'
+                                        ? 'text-orange-400 border-b-2 border-orange-400 bg-orange-500/5'
                                         : 'text-[#8b949e] hover:text-[#c9d1d9]'
                                 }`}
                             >
@@ -324,7 +324,7 @@ function DocumentPanelComponent({ isOpen, onClose, onDocumentsChange }: Document
                                 disabled={documents.length === 0}
                                 className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors ${
                                     activeTab === 'chat'
-                                        ? 'text-[#58a6ff] border-b-2 border-[#58a6ff] bg-[#58a6ff]/5'
+                                        ? 'text-orange-400 border-b-2 border-orange-400 bg-orange-500/5'
                                         : documents.length === 0
                                             ? 'text-[#484f58] cursor-not-allowed'
                                             : 'text-[#8b949e] hover:text-[#c9d1d9]'
@@ -333,7 +333,7 @@ function DocumentPanelComponent({ isOpen, onClose, onDocumentsChange }: Document
                                 <MessageSquare size={16} />
                                 Chat
                                 {chatMessages.length > 0 && (
-                                    <span className="px-1.5 py-0.5 text-xs bg-[#58a6ff]/20 text-[#58a6ff] rounded-full">
+                                    <span className="px-1.5 py-0.5 text-xs bg-orange-500/20 text-orange-400 rounded-full">
                                         {chatMessages.length}
                                     </span>
                                 )}
@@ -350,12 +350,12 @@ function DocumentPanelComponent({ isOpen, onClose, onDocumentsChange }: Document
                                     onDragLeave={handleDragLeave}
                                     className={`m-4 p-6 border-2 border-dashed rounded-xl transition-all ${
                                         isDragging 
-                                            ? 'border-[#58a6ff] bg-[#58a6ff]/10' 
+                                            ? 'border-orange-400 bg-orange-500/10' 
                                             : 'border-[#30363d] hover:border-[#484f58]'
                                     }`}
                                 >
                                     <div className="text-center">
-                                        <Upload size={32} className={`mx-auto mb-3 ${isDragging ? 'text-[#58a6ff]' : 'text-[#484f58]'}`} />
+                                        <Upload size={32} className={`mx-auto mb-3 ${isDragging ? 'text-orange-400' : 'text-[#484f58]'}`} />
                                         <p className="text-sm text-[#c9d1d9] mb-1">
                                             Drag & drop documents here
                                         </p>
@@ -388,7 +388,7 @@ function DocumentPanelComponent({ isOpen, onClose, onDocumentsChange }: Document
                                         className="flex items-center gap-3 p-3 bg-[#161b22] rounded-lg"
                                     >
                                         {item.status === 'uploading' || item.status === 'parsing' ? (
-                                            <Loader2 size={16} className="text-[#58a6ff] animate-spin" />
+                                            <Loader2 size={16} className="text-orange-400 animate-spin" />
                                         ) : item.status === 'done' ? (
                                             <CheckCircle size={16} className="text-green-400" />
                                         ) : (
@@ -417,7 +417,7 @@ function DocumentPanelComponent({ isOpen, onClose, onDocumentsChange }: Document
                                         value={searchQuery}
                                         onChange={(e) => setSearchQuery(e.target.value)}
                                         placeholder="Search documents..."
-                                        className="w-full pl-9 pr-4 py-2 bg-[#161b22] border border-[#30363d] rounded-lg text-sm text-[#c9d1d9] placeholder-[#484f58] focus:outline-none focus:border-[#58a6ff]"
+                                        className="w-full pl-9 pr-4 py-2 bg-[#161b22] border border-[#30363d] rounded-lg text-sm text-[#c9d1d9] placeholder-[#484f58] focus:outline-none focus:border-orange-400"
                                     />
                                 </div>
                             </div>
@@ -513,7 +513,7 @@ function DocumentPanelComponent({ isOpen, onClose, onDocumentsChange }: Document
                                 </div>
                                 <button
                                     onClick={() => setActiveTab('chat')}
-                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-[#58a6ff] hover:bg-[#58a6ff]/80 text-white text-xs font-medium rounded-lg transition-colors"
+                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-500 hover:bg-orange-500/80 text-white text-xs font-medium rounded-lg transition-colors"
                                 >
                                     <MessageSquare size={12} />
                                     Start Chat
@@ -528,8 +528,8 @@ function DocumentPanelComponent({ isOpen, onClose, onDocumentsChange }: Document
                                 <div className="flex-1 overflow-y-auto p-4 space-y-4">
                                     {chatMessages.length === 0 ? (
                                         <div className="flex flex-col items-center justify-center h-full text-center">
-                                            <div className="w-16 h-16 rounded-full bg-[#58a6ff]/10 flex items-center justify-center mb-4">
-                                                <Sparkles size={28} className="text-[#58a6ff]" />
+                                            <div className="w-16 h-16 rounded-full bg-orange-500/10 flex items-center justify-center mb-4">
+                                                <Sparkles size={28} className="text-orange-400" />
                                             </div>
                                             <h3 className="text-lg font-medium text-[#c9d1d9] mb-2">
                                                 Chat with your documents
@@ -559,7 +559,7 @@ function DocumentPanelComponent({ isOpen, onClose, onDocumentsChange }: Document
                                                 <div
                                                     className={`max-w-[85%] px-4 py-2.5 rounded-2xl ${
                                                         msg.role === 'user'
-                                                            ? 'bg-[#58a6ff] text-white rounded-br-md'
+                                                            ? 'bg-orange-500 text-white rounded-br-md'
                                                             : 'bg-[#21262d] text-[#c9d1d9] rounded-bl-md'
                                                     }`}
                                                 >
@@ -581,12 +581,12 @@ function DocumentPanelComponent({ isOpen, onClose, onDocumentsChange }: Document
                                             onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSendMessage()}
                                             placeholder="Ask about your documents..."
                                             disabled={isStreaming}
-                                            className="flex-1 px-4 py-2.5 bg-[#21262d] border border-[#30363d] rounded-xl text-[#c9d1d9] text-sm placeholder-[#484f58] focus:outline-none focus:border-[#58a6ff] disabled:opacity-50"
+                                            className="flex-1 px-4 py-2.5 bg-[#21262d] border border-[#30363d] rounded-xl text-[#c9d1d9] text-sm placeholder-[#484f58] focus:outline-none focus:border-orange-400 disabled:opacity-50"
                                         />
                                         <button
                                             onClick={handleSendMessage}
                                             disabled={!chatInput.trim() || isStreaming}
-                                            className="p-2.5 bg-[#58a6ff] hover:bg-[#58a6ff]/80 disabled:bg-[#21262d] disabled:text-[#484f58] text-white rounded-xl transition-colors"
+                                            className="p-2.5 bg-orange-500 hover:bg-orange-500/80 disabled:bg-[#21262d] disabled:text-[#484f58] text-white rounded-xl transition-colors"
                                         >
                                             {isStreaming ? (
                                                 <Loader2 size={18} className="animate-spin" />
@@ -622,10 +622,10 @@ export function DocumentIndicator({ documents, onClick }: DocumentIndicatorProps
     return (
         <button
             onClick={onClick}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 bg-[#58a6ff]/10 hover:bg-[#58a6ff]/20 border border-[#58a6ff]/20 rounded-lg transition-colors"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/20 rounded-lg transition-colors"
         >
-            <BookOpen size={14} className="text-[#58a6ff]" />
-            <span className="text-xs text-[#58a6ff] font-medium">
+            <BookOpen size={14} className="text-orange-400" />
+            <span className="text-xs text-orange-400 font-medium">
                 {documents.length} doc{documents.length !== 1 ? 's' : ''}
             </span>
         </button>

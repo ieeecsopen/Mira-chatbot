@@ -137,7 +137,7 @@ function UrlPreviewComponent({ url }: UrlPreviewProps) {
                 href={url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-[#58a6ff] hover:underline inline-flex items-center gap-1"
+                className="text-orange-400 hover:underline inline-flex items-center gap-1"
             >
                 {url}
                 <ExternalLink size={12} />
@@ -166,7 +166,7 @@ function UrlPreviewComponent({ url }: UrlPreviewProps) {
                 href={url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-[#58a6ff] hover:underline inline-flex items-center gap-1"
+                className="text-orange-400 hover:underline inline-flex items-center gap-1"
             >
                 {url}
                 <ExternalLink size={12} />
@@ -179,7 +179,7 @@ function UrlPreviewComponent({ url }: UrlPreviewProps) {
             href={url}
             target="_blank"
             rel="noopener noreferrer"
-            className="group my-3 block rounded-lg border border-[#30363d] bg-[#161b22] hover:border-[#58a6ff] hover:bg-[#1c2128] transition-all duration-200 overflow-hidden"
+            className="group my-3 block rounded-lg border border-[#30363d] bg-[#161b22] hover:border-orange-400 hover:bg-[#1c2128] transition-all duration-200 overflow-hidden"
         >
             <div className="flex">
                 {/* Image preview */}
@@ -221,7 +221,7 @@ function UrlPreviewComponent({ url }: UrlPreviewProps) {
 
                     {/* Title */}
                     {data.title && (
-                        <h4 className="text-sm font-semibold text-[#c9d1d9] group-hover:text-[#58a6ff] line-clamp-1 mb-1 transition-colors">
+                        <h4 className="text-sm font-semibold text-[#c9d1d9] group-hover:text-orange-400 line-clamp-1 mb-1 transition-colors">
                             {data.title}
                         </h4>
                     )}
@@ -235,7 +235,7 @@ function UrlPreviewComponent({ url }: UrlPreviewProps) {
 
                     {/* URL display */}
                     {!data.title && !data.description && (
-                        <p className="text-sm text-[#58a6ff] truncate flex items-center gap-1">
+                        <p className="text-sm text-orange-400 truncate flex items-center gap-1">
                             {getDomain(url)}
                             <ExternalLink size={12} />
                         </p>

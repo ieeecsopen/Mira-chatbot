@@ -34,9 +34,9 @@ function getFileIcon(type: ParsedDocument['type']) {
         case 'pdf':
             return <FileText size={14} className="text-red-400" />;
         case 'docx':
-            return <FileType size={14} className="text-blue-400" />;
+            return <FileType size={14} className="text-orange-400" />;
         case 'md':
-            return <BookOpen size={14} className="text-purple-400" />;
+            return <BookOpen size={14} className="text-orange-400" />;
         default:
             return <File size={14} className="text-gray-400" />;
     }
@@ -157,7 +157,7 @@ function DocumentUploadBarComponent({ onDocumentsChange }: DocumentUploadBarProp
                 onDrop={handleDrop}
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
-                className={`transition-all ${isDragging ? 'ring-2 ring-[#58a6ff] ring-offset-2 ring-offset-[#0d1117]' : ''}`}
+                className={`transition-all ${isDragging ? 'ring-2 ring-orange-400 ring-offset-2 ring-offset-[#0d1117]' : ''}`}
             >
                 <button
                     onClick={() => fileInputRef.current?.click()}
@@ -184,14 +184,14 @@ function DocumentUploadBarComponent({ onDocumentsChange }: DocumentUploadBarProp
             onDrop={handleDrop}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
-            className={`transition-all ${isDragging ? 'ring-2 ring-[#58a6ff]' : ''}`}
+            className={`transition-all ${isDragging ? 'ring-2 ring-orange-400' : ''}`}
         >
             {/* Compact bar showing document count */}
             <div 
                 onClick={() => setIsExpanded(!isExpanded)}
                 className="flex items-center gap-2 px-3 py-2 bg-[#161b22] border border-[#30363d] rounded-lg cursor-pointer hover:border-[#484f58] transition-colors"
             >
-                <BookOpen size={16} className="text-[#58a6ff]" />
+                <BookOpen size={16} className="text-orange-400" />
                 <span className="text-sm text-[#c9d1d9]">
                     {documents.length} document{documents.length !== 1 ? 's' : ''} loaded
                 </span>
@@ -255,7 +255,7 @@ function DocumentUploadBarComponent({ onDocumentsChange }: DocumentUploadBarProp
                                     ) : uf.status === 'done' ? (
                                         <CheckCircle size={14} className="text-green-400" />
                                     ) : (
-                                        <Loader2 size={14} className="text-[#58a6ff] animate-spin" />
+                                        <Loader2 size={14} className="text-orange-400 animate-spin" />
                                     )}
                                     <span className="text-xs text-[#c9d1d9] truncate flex-1">
                                         {uf.file.name}

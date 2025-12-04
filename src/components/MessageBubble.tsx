@@ -46,7 +46,7 @@ const createMarkdownComponents = (onOpenInCanvas?: (code: string, language?: str
     ),
     // Italic text
     em: ({ children }: { children?: React.ReactNode }) => (
-        <em className="italic text-[#a5d6ff]">{children}</em>
+        <em className="italic text-orange-300">{children}</em>
     ),
     // Paragraphs
     p: ({ children }: { children?: React.ReactNode }) => (
@@ -70,7 +70,7 @@ const createMarkdownComponents = (onOpenInCanvas?: (code: string, language?: str
             <span className={cn(
                 "flex-shrink-0 mt-1",
                 ordered
-                    ? "text-[#58a6ff] font-medium min-w-[1.5rem]"
+                    ? "text-orange-400 font-medium min-w-[1.5rem]"
                     : "text-[#7ee787]"
             )}>
                 {ordered ? `${(index || 0) + 1}.` : '•'}
@@ -118,9 +118,9 @@ const createMarkdownComponents = (onOpenInCanvas?: (code: string, language?: str
     ),
     // Blockquotes with distinctive styling
     blockquote: ({ children }: { children?: React.ReactNode }) => (
-        <blockquote className="my-4 pl-4 py-2 border-l-4 border-[#58a6ff] bg-[#161b22] rounded-r-lg">
+        <blockquote className="my-4 pl-4 py-2 border-l-4 border-orange-500 bg-[#161b22] rounded-r-lg">
             <div className="flex gap-2">
-                <Quote size={16} className="text-[#58a6ff] flex-shrink-0 mt-1" />
+                <Quote size={16} className="text-orange-400 flex-shrink-0 mt-1" />
                 <div className="text-[#8b949e] italic">{children}</div>
             </div>
         </blockquote>
@@ -172,7 +172,7 @@ const createMarkdownComponents = (onOpenInCanvas?: (code: string, language?: str
                 href={href}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-[#58a6ff] hover:text-[#79c0ff] hover:underline transition-colors"
+                className="text-orange-400 hover:text-orange-300 hover:underline transition-colors"
             >
                 {children}
             </a>

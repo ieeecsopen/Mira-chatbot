@@ -147,7 +147,7 @@ export function SearchMessages({
                     border border-gray-200 dark:border-gray-700
                     text-gray-900 dark:text-white
                     placeholder-gray-500 dark:placeholder-gray-400
-                    focus:outline-none focus:ring-2 focus:ring-purple-500
+                    focus:outline-none focus:ring-2 focus:ring-orange-500
                     text-lg"
                 />
                 {query && (
@@ -206,7 +206,7 @@ export function SearchMessages({
                             >
                               <span className={`text-xs font-medium uppercase tracking-wide
                                 ${match.role === 'user' 
-                                  ? 'text-blue-500' 
+                                  ? 'text-orange-500' 
                                   : 'text-green-500'
                                 }`}
                               >

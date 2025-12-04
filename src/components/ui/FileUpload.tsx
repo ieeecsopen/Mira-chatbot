@@ -229,7 +229,7 @@ export function FileUpload({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-purple-500/10 backdrop-blur-sm z-50
+            className="fixed inset-0 bg-orange-500/10 backdrop-blur-sm z-50
               flex items-center justify-center pointer-events-none"
           >
             <div className="bg-white dark:bg-gray-800 rounded-2xl p-8 shadow-2xl

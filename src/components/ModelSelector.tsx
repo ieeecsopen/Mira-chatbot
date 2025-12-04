@@ -63,11 +63,11 @@ export function ModelSelector({ selectedModel, onModelChange, disabled }: ModelS
         className={cn(
           "flex items-center gap-2 px-3 py-2 h-auto rounded-lg",
           "bg-[#161b22] hover:bg-[#21262d] border border-[#30363d]",
-          "text-[#c9d1d9] hover:text-[#58a6ff] transition-all",
+          "text-[#c9d1d9] hover:text-orange-400 transition-all",
           disabled && "opacity-50 cursor-not-allowed"
         )}
       >
-        <Sparkles className="w-4 h-4 text-[#58a6ff]" />
+        <Sparkles className="w-4 h-4 text-orange-400" />
         <span className="text-sm font-medium">{currentModel.displayName}</span>
         <ChevronDown className={cn("w-3 h-3 opacity-50 transition-transform", isOpen && "rotate-180")} />
       </Button>
@@ -91,7 +91,7 @@ export function ModelSelector({ selectedModel, onModelChange, disabled }: ModelS
                   className={cn(
                     "w-full flex items-center justify-between px-4 py-3 transition-all",
                     "hover:bg-[#21262d] text-left",
-                    selectedModel === model.id ? "bg-[#58a6ff]/10 text-[#58a6ff]" : "text-[#c9d1d9]"
+                    selectedModel === model.id ? "bg-orange-500/10 text-orange-400" : "text-[#c9d1d9]"
                   )}
                 >
                   <div>
@@ -99,7 +99,7 @@ export function ModelSelector({ selectedModel, onModelChange, disabled }: ModelS
                     <span className="text-xs text-[#8b949e]">{model.description}</span>
                   </div>
                   {selectedModel === model.id && (
-                    <Check className="w-4 h-4 text-[#58a6ff]" />
+                    <Check className="w-4 h-4 text-orange-400" />
                   )}
                 </button>
               ))}
