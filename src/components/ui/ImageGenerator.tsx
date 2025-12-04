@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import type { GeneratedImage, ImageGenerationOptions } from '../../lib/imageGeneration';
 import { generateImage, getAvailableModels } from '../../lib/imageGeneration';
+import { ImageGenerationAnimation } from './ImageGenerationAnimation';
 
 interface ImageGeneratorProps {
     prompt: string;
@@ -26,36 +27,27 @@ interface ImageDisplayProps {
     showActions?: boolean;
 }
 
-// Image generation card that shows while generating
-export function ImageGeneratingCard({ prompt }: { prompt: string }) {
+// Image generation card that shows while generating - uses animated reveal effect
+export function ImageGeneratingCard({ prompt, imageUrl }: { prompt: string; imageUrl?: string }) {
+    // Use a placeholder image during generation if no URL provided yet
+    const displayUrl = imageUrl || `https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=512&h=512&fit=crop&auto=format`;
+    
     return (
         <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="my-4 p-4 bg-gradient-to-br from-[#1a1b26] to-[#24283b] border border-[#414868] rounded-xl max-w-md"
+            className="my-4"
         >
-            <div className="flex items-center gap-3 mb-3">
-                <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center">
-                    <Sparkles size={20} className="text-white" />
-                </div>
-                <div>
-                    <p className="text-sm font-medium text-white">Generating Image</p>
-                    <p className="text-xs text-gray-400">This may take a few seconds...</p>
-                </div>
-            </div>
-            
-            <div className="relative aspect-square bg-[#0d1117] rounded-lg overflow-hidden">
-                <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="text-center">
-                        <Loader2 size={40} className="text-orange-400 animate-spin mx-auto mb-3" />
-                        <p className="text-sm text-gray-400 max-w-[200px] mx-auto line-clamp-2">
-                            "{prompt}"
-                        </p>
-                    </div>
-                </div>
-                {/* Animated gradient border */}
-                <div className="absolute inset-0 rounded-lg bg-gradient-to-r from-orange-500 via-orange-400 to-orange-500 opacity-20 animate-pulse" />
-            </div>
+            <ImageGenerationAnimation duration={15000}>
+                <img
+                    className="aspect-square w-full max-w-md object-cover"
+                    src={displayUrl}
+                    alt={prompt || "AI generated image"}
+                />
+            </ImageGenerationAnimation>
+            <p className="text-xs text-gray-500 mt-2 max-w-md line-clamp-2">
+                "{prompt}"
+            </p>
         </motion.div>
     );
 }
