@@ -5,7 +5,9 @@ import {
   Search,
   Settings,
   User,
-  X
+  X,
+  Sparkles,
+  LogOut
 } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 
@@ -46,20 +48,24 @@ export function Navbar({
       initial={{ y: -20, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       className="fixed top-0 left-0 right-0 h-16 z-40
-        bg-background/80 backdrop-blur-xl
-        border-b border-white/5"
+        bg-[#0a0a0a]/95 backdrop-blur-xl
+        border-b border-white/[0.08]
+        shadow-lg shadow-black/20"
     >
-      <div className="h-full max-w-[1600px] mx-auto px-4 flex items-center justify-between">
+      {/* Subtle gradient overlay */}
+      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/[0.02] to-transparent pointer-events-none" />
+
+      <div className="relative h-full max-w-[1800px] mx-auto px-4 md:px-6 flex items-center justify-between">
         {/* Left section */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 md:gap-4">
           {showMenu && (
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               onClick={onMenuClick}
-              className="w-10 h-10 flex items-center justify-center rounded-lg
+              className="w-10 h-10 flex items-center justify-center rounded-xl
                 hover:bg-white/10 text-gray-400 hover:text-white transition-all duration-200
-                md:hidden"
+                md:hidden border border-transparent hover:border-white/10"
               aria-label="Toggle menu"
             >
               <Menu size={20} />
@@ -68,30 +74,40 @@ export function Navbar({
 
           {/* Logo */}
           <motion.div
-            className="flex items-center gap-2"
+            className="flex items-center gap-2.5"
             whileHover={{ scale: 1.02 }}
           >
-            <span className="text-xl font-bold text-white tracking-tight hidden sm:block">
-              MIRA
+            <div className="relative">
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center shadow-lg shadow-orange-500/25">
+                <Sparkles size={18} className="text-white" />
+              </div>
+              <div className="absolute -inset-0.5 bg-gradient-to-r from-orange-500 to-orange-600 rounded-xl blur opacity-30 -z-10" />
+            </div>
+            <span className="text-xl font-bold text-white tracking-tight hidden sm:block
+              bg-gradient-to-r from-white to-gray-300 bg-clip-text">
+              Mira
             </span>
           </motion.div>
 
           {/* Chat title */}
           {chatTitle && (
             <>
-              <div className="w-px h-5 bg-white/10 mx-2 hidden md:block" />
-              <span className="text-sm text-gray-400 truncate max-w-[200px] hidden md:block">
-                {chatTitle}
-              </span>
+              <div className="w-px h-6 bg-gradient-to-b from-transparent via-white/20 to-transparent mx-1 hidden md:block" />
+              <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10">
+                <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                <span className="text-sm text-gray-300 font-medium truncate max-w-[250px]">
+                  {chatTitle}
+                </span>
+              </div>
             </>
           )}
         </div>
 
-        {/* Center section - can be used for tabs or navigation */}
+        {/* Center section - Navigation tabs */}
         <div className="hidden lg:flex items-center gap-1">
           <NavTab active>Chat</NavTab>
           <NavTab disabled>Explore</NavTab>
-          <NavTab disabled>History</NavTab>
+          <NavTab disabled>Library</NavTab>
         </div>
 
         {/* Right section */}
@@ -101,12 +117,13 @@ export function Navbar({
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={onNewChat}
-            className="h-9 px-4 flex items-center gap-2 rounded-full
-              bg-white text-black hover:bg-gray-200 glow-hover
-              font-medium text-sm transition-all duration-200"
+            className="group h-10 px-4 md:px-5 flex items-center gap-2 rounded-xl
+              bg-gradient-to-r from-white to-gray-100 hover:from-gray-100 hover:to-white
+              text-black font-semibold text-sm transition-all duration-200
+              shadow-lg shadow-white/10 hover:shadow-white/20"
           >
-            <Plus size={16} />
-            <span className="hidden sm:inline">New Chat</span>
+            <Plus size={18} className="transition-transform group-hover:rotate-90" />
+            <span className="hidden sm:inline">New</span>
           </motion.button>
 
           {/* Search button */}
@@ -114,8 +131,9 @@ export function Navbar({
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={onSearchClick}
-            className="w-9 h-9 flex items-center justify-center rounded-full
-              hover:bg-white/10 text-gray-400 hover:text-white glow-hover transition-all duration-200"
+            className="w-10 h-10 flex items-center justify-center rounded-xl
+              hover:bg-white/10 text-gray-400 hover:text-white transition-all duration-200
+              border border-transparent hover:border-white/10"
             aria-label="Search"
           >
             <Search size={18} />
@@ -126,8 +144,9 @@ export function Navbar({
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={onSettingsClick}
-            className="w-9 h-9 flex items-center justify-center rounded-full
-              hover:bg-white/10 text-gray-400 hover:text-white glow-hover transition-all duration-200"
+            className="hidden sm:flex w-10 h-10 items-center justify-center rounded-xl
+              hover:bg-white/10 text-gray-400 hover:text-white transition-all duration-200
+              border border-transparent hover:border-white/10"
             aria-label="Settings"
           >
             <Settings size={18} />
@@ -139,12 +158,15 @@ export function Navbar({
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-              className="w-9 h-9 flex items-center justify-center rounded-full
-                bg-white/10 hover:bg-white/20
-                text-white transition-all duration-200"
+              className="relative w-10 h-10 flex items-center justify-center rounded-xl
+                bg-gradient-to-br from-gray-800 to-gray-900
+                hover:from-gray-700 hover:to-gray-800
+                text-white transition-all duration-200
+                border border-white/20 shadow-lg"
               aria-label="User menu"
             >
               <User size={18} />
+              <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-[#0a0a0a] rounded-full" />
             </motion.button>
 
             {/* User dropdown */}
@@ -152,36 +174,59 @@ export function Navbar({
               <motion.div
                 initial={{ opacity: 0, y: -10, scale: 0.95 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
-                className="absolute right-0 mt-2 w-56 rounded-xl overflow-hidden
-                  bg-[#161b22] border border-[#30363d]
-                  shadow-xl z-50"
+                className="absolute right-0 mt-3 w-64 rounded-2xl overflow-hidden
+                  bg-gradient-to-b from-[#1a1a1a] to-[#0f0f0f]
+                  border border-white/10
+                  shadow-2xl shadow-black/50 z-50"
               >
-                <div className="p-4 border-b border-white/10">
+                {/* User info header */}
+                <div className="p-4 border-b border-white/10 bg-white/5">
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-white/10
-                      flex items-center justify-center">
-                      <User size={16} className="text-white" />
+                    <div className="relative">
+                      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-gray-800 to-gray-900
+                        flex items-center justify-center border border-white/20 shadow-lg">
+                        <User size={20} className="text-white" />
+                      </div>
+                      <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-green-500 border-2 border-[#1a1a1a] rounded-full" />
                     </div>
-                    <div>
-                      <p className="font-medium text-white">Guest User</p>
-                      <p className="text-xs text-gray-500">Free Plan</p>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-white truncate">Guest User</p>
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        <span className="px-2 py-0.5 bg-orange-500/10 text-orange-400 rounded-md text-[10px] font-bold uppercase tracking-wide">
+                          Free
+                        </span>
+                        <span className="text-xs text-gray-500">·</span>
+                        <span className="text-xs text-gray-500">Active</span>
+                      </div>
                     </div>
                   </div>
                 </div>
 
+                {/* Menu items */}
                 <div className="p-2">
                   <UserMenuItem icon={User} label="Profile" />
                   <UserMenuItem icon={Settings} label="Settings" onClick={onSettingsClick} />
+                  <UserMenuItem icon={Sparkles} label="Upgrade to Pro" badge="New" variant="premium" />
                 </div>
 
+                {/* Danger zone */}
                 <div className="p-2 border-t border-white/10">
                   <button
-                    className="w-full flex items-center gap-3 px-3 py-2 rounded-lg
-                      text-red-400 hover:bg-white/5
-                      transition-colors duration-150 text-sm"
+                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl
+                      text-red-400 hover:text-red-300 hover:bg-red-500/10
+                      transition-all duration-150 text-sm font-medium
+                      border border-transparent hover:border-red-500/20"
                   >
                     <X size={16} />
                     <span>Clear All Data</span>
+                  </button>
+                  <button
+                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl
+                      text-gray-400 hover:text-white hover:bg-white/5
+                      transition-all duration-150 text-sm font-medium mt-1"
+                  >
+                    <LogOut size={16} />
+                    <span>Sign Out</span>
                   </button>
                 </div>
               </motion.div>
@@ -206,14 +251,21 @@ function NavTab({ children, active, disabled, onClick }: NavTabProps) {
     <button
       onClick={onClick}
       disabled={disabled}
-      className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-200
+      className={`relative px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200
         ${active
-          ? 'text-white bg-white/10'
+          ? 'text-white bg-white/10 shadow-lg border border-white/10'
           : disabled
             ? 'text-gray-600 cursor-not-allowed'
-            : 'text-gray-400 hover:text-white hover:bg-white/5'
+            : 'text-gray-400 hover:text-white hover:bg-white/5 border border-transparent hover:border-white/10'
         }`}
     >
+      {active && (
+        <motion.div
+          layoutId="activeTab"
+          className="absolute inset-0 bg-white/5 rounded-xl -z-10"
+          transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+        />
+      )}
       {children}
     </button>
   );
@@ -224,18 +276,28 @@ interface UserMenuItemProps {
   icon: React.ComponentType<{ size?: number }>;
   label: string;
   onClick?: () => void;
+  badge?: string;
+  variant?: 'default' | 'premium';
 }
 
-function UserMenuItem({ icon: Icon, label, onClick }: UserMenuItemProps) {
+function UserMenuItem({ icon: Icon, label, onClick, badge, variant = 'default' }: UserMenuItemProps) {
   return (
     <button
       onClick={onClick}
-      className="w-full flex items-center gap-3 px-3 py-2 rounded-lg
-        text-gray-300 hover:text-white hover:bg-white/5
-        transition-colors duration-150 text-sm"
+      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl
+        transition-all duration-150 text-sm font-medium
+        ${variant === 'premium'
+          ? 'text-orange-400 hover:text-orange-300 hover:bg-orange-500/10 border border-transparent hover:border-orange-500/20'
+          : 'text-gray-300 hover:text-white hover:bg-white/5'
+        }`}
     >
       <Icon size={16} />
-      <span>{label}</span>
+      <span className="flex-1 text-left">{label}</span>
+      {badge && (
+        <span className="px-1.5 py-0.5 bg-orange-500 text-white rounded text-[10px] font-bold uppercase">
+          {badge}
+        </span>
+      )}
     </button>
   );
 }
