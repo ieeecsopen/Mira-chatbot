@@ -166,7 +166,6 @@ function App() {
 
     setIsWaiting(true);
     setIsStreaming(true);
-    setCurrentSearchResults([]);
 
     try {
       const assistantMessage: Message = {
@@ -227,7 +226,6 @@ function App() {
             setIsSearchingWeb(true);
           },
           onSearchResults: (results) => {
-            setCurrentSearchResults(results);
             setIsSearchingWeb(false);
             // Update the assistant message with search results
             setMessages(prev => {
