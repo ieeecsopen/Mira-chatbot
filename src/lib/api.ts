@@ -29,41 +29,6 @@ const AVAILABLE_MODELS: ModelConfig[] = [
 const modelUsage: Map<string, { count: number; resetTime: number }> = new Map();
 
 /**
- * Get the best available model based on current usage
- */
-function selectModel(preferQuality: boolean = false): ModelConfig {
-  const now = Date.now();
-  
-  // Filter models by preference
-  let candidates = preferQuality 
-    ? AVAILABLE_MODELS.filter(m => m.category === 'quality' || m.category === 'balanced')
-    : AVAILABLE_MODELS;
-  
-  // Sort by priority
-  candidates = [...candidates].sort((a, b) => a.priority - b.priority);
-  
-  for (const model of candidates) {
-    const usage = modelUsage.get(model.name);
-    
-    // Reset usage if minute has passed
-    if (usage && now > usage.resetTime) {
-      modelUsage.delete(model.name);
-    }
-    
-    const currentUsage = modelUsage.get(model.name);
-    const currentCount = currentUsage?.count || 0;
-    
-    // Check if model has capacity
-    if (currentCount < model.rpm * 0.8) { // Use 80% of limit for safety
-      return model;
-    }
-  }
-  
-  // Fallback to first available model
-  return candidates[0];
-}
-
-/**
  * Record model usage
  */
 function recordModelUsage(modelName: string): void {
@@ -78,14 +43,6 @@ function recordModelUsage(modelName: string): void {
       resetTime: now + 60000 // Reset after 1 minute
     });
   }
-}
-
-/**
- * Build API URL for a model
- */
-function getApiUrl(modelName: string, streaming: boolean = false): string {
-  const action = streaming ? 'streamGenerateContent?alt=sse' : 'generateContent';
-  return `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:${action}&key=${GEMINI_API_KEY}`;
 }
 
 /**
@@ -136,12 +93,21 @@ async function tryWithFallback<T>(
 import { singlishToSinhala, detectSinglish } from './singlish';
 import { correctGrammar, enhanceSinhalaText } from './grammar';
 import { buildRAGContext, getDirectAnswer } from './rag';
+import { responseCache } from './cache';
 
 export interface ChatResponse {
     answer: string;
     sources: string[];
     confidence: string;
     rag_used: boolean;
+    cached?: boolean;
+    model?: string;
+}
+
+// Conversation history type for API
+export interface ConversationContext {
+    role: 'user' | 'model';
+    content: string;
 }
 
 const SYSTEM_INSTRUCTION = `ඔබ "මීරා" (MIRA) නම් සිංහල භාෂා සහායකයෙකි.
@@ -315,7 +281,8 @@ export async function streamMessage(
     onChunk: (text: string) => void,
     onDone: () => void,
     onError: (error: string) => void,
-    selectedModelId?: string
+    selectedModelId?: string,
+    conversationHistory?: Array<{ role: 'user' | 'assistant'; content: string }>
 ) {
     // Preprocess the message
     const { processed, wasSinglish, ragContext, directAnswer } = preprocessMessage(message);
@@ -325,10 +292,30 @@ export async function streamMessage(
         console.log('🔄 Singlish converted:', message, '→', processed);
     }
     
+    // Check cache for similar queries (only for simple queries without much context)
+    const cacheKey = processed.toLowerCase().trim();
+    if (!conversationHistory || conversationHistory.length === 0) {
+        const cachedResponse = responseCache.get(cacheKey);
+        if (cachedResponse) {
+            console.log('📦 Returning cached response');
+            // Stream cached response word by word
+            const words = cachedResponse.split(' ');
+            for (const word of words) {
+                onChunk(word + ' ');
+                await new Promise(resolve => setTimeout(resolve, 20));
+            }
+            onDone();
+            return;
+        }
+    }
+    
     // If we have a direct answer, stream it word by word
     if (directAnswer) {
         console.log('📚 Direct answer from knowledge base');
         const answer = postprocessResponse(directAnswer);
+        
+        // Cache the direct answer
+        responseCache.set(cacheKey, answer);
         
         // Simulate streaming for direct answers
         const words = answer.split(' ');
@@ -368,12 +355,30 @@ export async function streamMessage(
             : [...AVAILABLE_MODELS].sort((a, b) => a.priority - b.priority);
     }
     
+    // Build conversation history for API
+    const historyContents = conversationHistory 
+        ? conversationHistory.map(msg => ({
+            role: msg.role === 'assistant' ? 'model' : 'user',
+            parts: [{ text: msg.content }]
+        }))
+        : [];
+    
     let lastError: Error | null = null;
+    let fullResponse = ''; // Collect full response for caching
     
     for (const model of models) {
         try {
-            console.log(`🤖 Trying streaming with: ${model.name}`);
+            console.log(`🤖 Trying streaming with: ${model.name}${historyContents.length > 0 ? ` (with ${historyContents.length} history messages)` : ''}`);
             const streamUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model.name}:streamGenerateContent?alt=sse&key=${GEMINI_API_KEY}`;
+            
+            // Build contents array with history + current message
+            const contents = [
+                ...historyContents,
+                {
+                    role: 'user',
+                    parts: [{ text: enhancedMessage }]
+                }
+            ];
             
             const response = await fetch(streamUrl, {
                 method: 'POST',
@@ -384,15 +389,7 @@ export async function streamMessage(
                     system_instruction: {
                         parts: [{ text: SYSTEM_INSTRUCTION }]
                     },
-                    contents: [
-                        {
-                            parts: [
-                                {
-                                    text: enhancedMessage,
-                                },
-                            ],
-                        },
-                    ],
+                    contents: contents,
                 }),
             });
 
@@ -436,6 +433,7 @@ export async function streamMessage(
                             const data = JSON.parse(jsonStr);
                             const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
                             if (text) {
+                                fullResponse += text; // Collect for caching
                                 onChunk(text);
                             }
                         } catch (e) {
@@ -443,6 +441,11 @@ export async function streamMessage(
                         }
                     }
                 }
+            }
+
+            // Cache the response if it's a standalone query (no history)
+            if (fullResponse && (!conversationHistory || conversationHistory.length === 0)) {
+                responseCache.set(cacheKey, fullResponse);
             }
 
             // Successfully completed streaming

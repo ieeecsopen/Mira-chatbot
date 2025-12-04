@@ -1,14 +1,14 @@
 @import "tailwindcss";
 
-/* Google Font for better Sinhala rendering */
-@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Sinhala:wght@400;500;600;700&display=swap');
+/* Google Font for better Sinhala rendering and Tech look */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Noto+Sans+Sinhala:wght@400;500;600;700&display=swap');
 
 @theme {
-  --color-background: #09090b;
+  --color-background: #000000;
   --color-foreground: #ffffff;
 
-  --color-muted: #171717;
-  --color-muted-foreground: #737373;
+  --color-muted: #1a1a1a;
+  --color-muted-foreground: #888888;
 
   --color-border: #262626;
   --color-input: #262626;
@@ -16,13 +16,14 @@
   --color-primary: #ffffff;
   --color-primary-foreground: #000000;
 
-  --color-secondary: #171717;
+  --color-secondary: #1a1a1a;
   --color-secondary-foreground: #ffffff;
 
   --color-accent: #262626;
   --color-accent-foreground: #ffffff;
 
-  --font-sans: "Noto Sans Sinhala", "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Inter", "Noto Sans Sinhala", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
 }
 
 :root {
@@ -36,7 +37,7 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* Custom Scrollbar for Chrome/Safari/Edge */
+/* Custom Scrollbar for Chrome/Safari/Edge - Minimalist */
 ::-webkit-scrollbar {
   width: 6px;
 }
@@ -47,9 +48,22 @@ body {
 
 ::-webkit-scrollbar-thumb {
   background: #333;
-  border-radius: 3px;
+  border-radius: 0px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
   background: #555;
+}
+
+/* Utility for technical borders */
+.tech-border {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.tech-border-b {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.tech-border-r {
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
 }

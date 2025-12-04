@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { SendHorizontal, Paperclip, Globe, Mic, Sparkles } from 'lucide-react';
+import { SendHorizontal, Paperclip, Globe, Mic } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { Button } from './ui/button';
 
@@ -35,10 +35,10 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
     };
 
     return (
-        <div className="relative w-full max-w-4xl mx-auto">
-            <div className="relative flex items-end w-full p-2 bg-[#09090b]/90 backdrop-blur-xl border border-white/10 rounded-3xl focus-within:ring-1 focus-within:ring-orange-500/30 focus-within:border-orange-500/30 transition-all shadow-2xl">
-                <Button variant="ghost" size="icon" className="mb-1 text-gray-400 hover:text-white hover:bg-white/5 rounded-full w-11 h-11">
-                    <Paperclip size={24} />
+        <div className="relative w-full max-w-3xl mx-auto">
+            <div className="relative flex items-end w-full p-2 bg-[#111] border border-white/10 rounded-lg focus-within:border-white/20 transition-all">
+                <Button variant="ghost" size="icon" className="mb-1 text-gray-500 hover:text-white hover:bg-white/5 rounded-md w-9 h-9">
+                    <Paperclip size={18} />
                 </Button>
 
                 <textarea
@@ -46,18 +46,18 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     onKeyDown={handleKeyDown}
-                    placeholder="Ask Mira anything..."
+                    placeholder="Ask anything..."
                     rows={1}
                     disabled={disabled}
-                    className="flex-1 max-h-[200px] py-3 px-4 bg-transparent border-none resize-none focus:outline-none text-xl text-white placeholder-gray-500 disabled:opacity-50"
+                    className="flex-1 max-h-[200px] py-2 px-3 bg-transparent border-none resize-none focus:outline-none text-base text-white placeholder-gray-600 disabled:opacity-50 font-sans leading-relaxed"
                 />
 
-                <div className="flex items-center gap-2 mb-1 mr-1">
-                    <Button variant="ghost" size="icon" className="text-gray-400 hover:text-white hover:bg-white/10 rounded-full w-11 h-11">
-                        <Globe size={24} />
+                <div className="flex items-center gap-1 mb-1 mr-1">
+                    <Button variant="ghost" size="icon" className="text-gray-500 hover:text-white hover:bg-white/5 rounded-md w-9 h-9">
+                        <Globe size={18} />
                     </Button>
-                    <Button variant="ghost" size="icon" className="text-gray-400 hover:text-white hover:bg-white/10 rounded-full w-11 h-11">
-                        <Mic size={24} />
+                    <Button variant="ghost" size="icon" className="text-gray-500 hover:text-white hover:bg-white/5 rounded-md w-9 h-9">
+                        <Mic size={18} />
                     </Button>
                     <Button
                         onClick={() => {
@@ -69,19 +69,18 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
                         disabled={!input.trim() || disabled}
                         size="icon"
                         className={cn(
-                            "rounded-full transition-all duration-200 w-12 h-12",
+                            "rounded-md transition-all duration-200 w-9 h-9 ml-1",
                             input.trim()
-                                ? "bg-orange-600 text-white hover:bg-orange-700 shadow-[0_0_15px_rgba(234,88,12,0.3)]"
-                                : "bg-white/5 text-gray-500 cursor-not-allowed"
+                                ? "bg-white text-black hover:bg-gray-200"
+                                : "bg-white/5 text-gray-600 cursor-not-allowed"
                         )}
                     >
-                        <SendHorizontal size={24} />
+                        <SendHorizontal size={18} />
                     </Button>
                 </div>
             </div>
-            <div className="text-center mt-3 text-sm text-gray-500 flex items-center justify-center gap-2">
-                <Sparkles className="w-4 h-4 text-orange-500" />
-                Mira can make mistakes. Please verify important information.
+            <div className="text-center mt-2 text-[10px] text-gray-700 font-mono uppercase tracking-widest">
+                AI Generated Content
             </div>
         </div>
     );

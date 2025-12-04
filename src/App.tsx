@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { MessageBubble } from './components/MessageBubble';
 import { ChatInput } from './components/ChatInput';
 import { LandingPage } from './components/LandingPage';
@@ -13,6 +13,9 @@ interface Message {
   content: string;
 }
 
+// Maximum number of messages to include for context
+const MAX_CONTEXT_MESSAGES = 10;
+
 function App() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
@@ -20,15 +23,15 @@ function App() {
   const [selectedModel, setSelectedModel] = useState(MIRA_MODELS[0].id);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const scrollToBottom = () => {
+  const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
+  }, []);
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages, isStreaming]);
+  }, [messages, isStreaming, scrollToBottom]);
 
-  const handleSend = async (text: string) => {
+  const handleSend = useCallback(async (text: string) => {
     if (!text.trim()) return;
 
     if (!hasStarted) {
@@ -41,11 +44,17 @@ function App() {
       content: text
     };
 
+    // Get current history before adding new message
+    const currentHistory = messages
+      .filter(m => m.content.length > 0)
+      .slice(-MAX_CONTEXT_MESSAGES)
+      .map(m => ({ role: m.role, content: m.content }));
+
     setMessages(prev => [...prev, userMessage]);
     setIsStreaming(true);
 
     try {
-      let assistantMessage: Message = {
+      const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
         content: ''
@@ -78,15 +87,30 @@ function App() {
         (error: string) => {
           // onError callback
           console.error('Stream error:', error);
+          // Update the last message with error
+          setMessages(prev => {
+            const lastIndex = prev.length - 1;
+            if (lastIndex >= 0 && prev[lastIndex].role === 'assistant') {
+              return [
+                ...prev.slice(0, lastIndex),
+                {
+                  ...prev[lastIndex],
+                  content: prev[lastIndex].content || `දෝෂයක් සිදු විය: ${error}`
+                }
+              ];
+            }
+            return prev;
+          });
         },
-        selectedModel
+        selectedModel,
+        currentHistory // Pass conversation history for multi-turn context
       );
     } catch (error) {
       console.error('Error sending message:', error);
     } finally {
       setIsStreaming(false);
     }
-  };
+  }, [hasStarted, messages, selectedModel]);
 
   if (!hasStarted) {
     return (
@@ -99,16 +123,16 @@ function App() {
   }
 
   return (
-    <div className="flex h-screen bg-background text-white overflow-hidden font-sans selection:bg-orange-500/30">
+    <div className="flex h-screen bg-background text-white overflow-hidden font-sans selection:bg-white/20">
       {/* Sidebar - Hidden on mobile, visible on md+ */}
-      <div className="hidden md:flex flex-col w-[280px] border-r border-white/5 p-4 bg-[#09090b] relative z-20">
+      <div className="hidden md:flex flex-col w-[260px] tech-border-r p-4 bg-background relative z-20">
         <div className="flex items-center justify-between mb-8 px-2">
           <div className="flex items-center gap-2">
-            <Sparkles className="w-6 h-6 text-orange-500" strokeWidth={1.5} />
-            <div className="font-bold text-xl tracking-tight">MIRA</div>
+            <Sparkles className="w-5 h-5 text-white" strokeWidth={1.5} />
+            <div className="font-mono font-bold text-lg tracking-tight">MIRA</div>
           </div>
-          <Button variant="ghost" size="icon" className="hover:bg-white/5 text-gray-400 hover:text-white rounded-full">
-            <Settings size={20} />
+          <Button variant="ghost" size="icon" className="hover:bg-white/10 text-gray-400 hover:text-white rounded-md w-8 h-8">
+            <Settings size={18} />
           </Button>
         </div>
 
@@ -117,34 +141,34 @@ function App() {
             setMessages([]);
             setHasStarted(false);
           }}
-          className="flex items-center justify-start gap-3 w-full px-4 py-6 mb-6 bg-orange-600/90 hover:bg-orange-600 text-white rounded-xl transition-all shadow-[0_0_15px_rgba(234,88,12,0.2)] hover:shadow-[0_0_25px_rgba(234,88,12,0.4)] font-medium text-base"
+          className="flex items-center justify-start gap-3 w-full px-4 py-2 mb-6 bg-white/5 hover:bg-white/10 text-white rounded-md transition-all border border-white/10 font-medium text-sm"
         >
-          <Plus size={20} />
+          <Plus size={16} />
           New Chat
         </Button>
 
-        <div className="flex-1 overflow-y-auto space-y-2 pr-2">
-          <div className="text-xs font-medium text-gray-500 mb-3 px-2 uppercase tracking-wider">Recent</div>
+        <div className="flex-1 overflow-y-auto space-y-1 pr-2">
+          <div className="text-[10px] font-mono text-gray-600 mb-3 px-2 uppercase tracking-wider">Recent</div>
           {/* History items */}
           {['Project Planning', 'Code Review', 'Marketing Copy', 'React Components'].map((item, i) => (
             <Button
               key={i}
               variant="ghost"
-              className="w-full justify-start text-left px-3 py-2 text-gray-400 hover:text-white hover:bg-white/5 rounded-lg transition-all truncate text-sm font-normal"
+              className="w-full justify-start text-left px-3 py-2 text-gray-400 hover:text-white hover:bg-white/5 rounded-md transition-all truncate text-sm font-normal"
             >
               {item}
             </Button>
           ))}
         </div>
 
-        <div className="mt-auto pt-4 border-t border-white/5">
-          <Button variant="ghost" className="w-full flex items-center justify-start gap-3 px-2 py-3 hover:bg-white/5 rounded-xl transition-colors h-auto">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-orange-500 to-red-600 flex items-center justify-center text-white font-bold text-xs">
+        <div className="mt-auto pt-4 tech-border-t border-white/5">
+          <Button variant="ghost" className="w-full flex items-center justify-start gap-3 px-2 py-2 hover:bg-white/5 rounded-md transition-colors h-auto">
+            <div className="w-7 h-7 rounded-sm bg-white/10 flex items-center justify-center text-white font-mono text-xs border border-white/10">
               U
             </div>
             <div className="text-sm font-medium text-left">
               <div className="text-white">User Account</div>
-              <div className="text-xs text-gray-500">Free Plan</div>
+              <div className="text-xs text-gray-600 font-mono">Free Plan</div>
             </div>
           </Button>
         </div>
@@ -152,16 +176,14 @@ function App() {
 
       {/* Main Chat Area */}
       <div className="flex-1 flex flex-col h-full relative bg-background">
-        {/* Subtle Background Gradients */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-[500px] bg-orange-900/10 rounded-full blur-[120px] pointer-events-none opacity-20" />
 
         {/* Mobile Header */}
-        <div className="md:hidden flex items-center justify-between p-4 border-b border-white/5 bg-background/80 backdrop-blur-md sticky top-0 z-10">
-          <Button variant="ghost" size="icon" className="-ml-2 hover:bg-white/5 text-white">
+        <div className="md:hidden flex items-center justify-between p-4 tech-border-b bg-background sticky top-0 z-10">
+          <Button variant="ghost" size="icon" className="-ml-2 hover:bg-white/10 text-white rounded-md">
             <Menu size={20} />
           </Button>
-          <div className="font-bold flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-orange-500" />
+          <div className="font-mono font-bold flex items-center gap-2">
+            <Sparkles className="w-4 h-4 text-white" />
             MIRA
           </div>
           <Button
@@ -171,15 +193,15 @@ function App() {
               setMessages([]);
               setHasStarted(false);
             }}
-            className="-mr-2 hover:bg-white/5 text-white"
+            className="-mr-2 hover:bg-white/10 text-white rounded-md"
           >
             <Plus size={20} />
           </Button>
         </div>
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto p-4 md:p-8 scroll-smooth relative z-0">
-          <div className="max-w-4xl mx-auto pt-4 md:pt-10 pb-4">
+        <div className="flex-1 overflow-y-auto p-4 md:p-0 scroll-smooth relative z-0">
+          <div className="max-w-3xl mx-auto pt-4 md:pt-10 pb-4">
             {messages.map((msg, index) => (
               <MessageBubble
                 key={msg.id}
@@ -193,8 +215,8 @@ function App() {
         </div>
 
         {/* Input Area */}
-        <div className="p-4 md:p-6 bg-gradient-to-t from-background via-background to-transparent relative z-10">
-          <div className="max-w-4xl mx-auto">
+        <div className="p-4 md:p-6 bg-background relative z-10">
+          <div className="max-w-3xl mx-auto">
             <div className="flex items-center gap-3 mb-3">
               <ModelSelector
                 selectedModel={selectedModel}

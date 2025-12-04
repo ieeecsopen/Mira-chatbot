@@ -195,13 +195,6 @@ const SPECIAL_WORDS: Record<string, string> = {
 };
 
 /**
- * Check if character is a vowel letter
- */
-function isVowel(char: string): boolean {
-  return 'aeiou'.includes(char.toLowerCase());
-}
-
-/**
  * Find the longest matching pattern from position
  */
 function findLongestMatch(

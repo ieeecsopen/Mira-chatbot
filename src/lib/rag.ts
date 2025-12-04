@@ -284,7 +284,7 @@ export function buildRAGContext(query: string): string {
   
   let context = '### අදාළ තොරතුරු:\n\n';
   
-  for (const { entry, score } of results) {
+  for (const { entry } of results) {
     context += `**${entry.question}**\n${entry.answer}\n\n`;
   }
   
