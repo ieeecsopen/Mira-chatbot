@@ -322,10 +322,7 @@ function App() {
         </div>
 
         <Button
-          onClick={() => {
-            setMessages([]);
-            setHasStarted(false);
-          }}
+          onClick={handleNewChat}
           className="flex items-center justify-start gap-3 w-full px-4 py-2 mb-6 bg-white/5 hover:bg-white/10 text-white rounded-md transition-all border border-white/10 font-medium text-sm"
         >
           <Plus size={16} />
@@ -333,17 +330,37 @@ function App() {
         </Button>
 
         <div className="flex-1 overflow-y-auto space-y-1 pr-2">
-          <div className="text-[10px] font-mono text-gray-600 mb-3 px-2 uppercase tracking-wider">Recent</div>
-          {/* History items */}
-          {['Project Planning', 'Code Review', 'Marketing Copy', 'React Components'].map((item, i) => (
-            <Button
-              key={i}
-              variant="ghost"
-              className="w-full justify-start text-left px-3 py-2 text-gray-400 hover:text-white hover:bg-white/5 rounded-md transition-all truncate text-sm font-normal"
-            >
-              {item}
-            </Button>
-          ))}
+          <div className="text-[10px] font-mono text-gray-600 mb-3 px-2 uppercase tracking-wider">Recent Chats</div>
+          {/* Chat history items from storage */}
+          {chatSessions.length > 0 ? (
+            chatSessions.map((session) => (
+              <div
+                key={session.id}
+                onClick={() => handleSelectSession(session)}
+                className={`group w-full flex items-center justify-between px-3 py-2 text-left rounded-md transition-all cursor-pointer ${
+                  currentSessionId === session.id
+                    ? 'bg-white/10 text-white'
+                    : 'text-gray-400 hover:text-white hover:bg-white/5'
+                }`}
+              >
+                <div className="flex items-center gap-2 flex-1 min-w-0">
+                  <MessageSquare size={14} className="flex-shrink-0" />
+                  <span className="truncate text-sm font-normal">{session.title}</span>
+                </div>
+                <button
+                  onClick={(e) => handleDeleteSession(session.id, e)}
+                  className="opacity-0 group-hover:opacity-100 p-1 hover:bg-white/10 rounded transition-all"
+                  title="Delete chat"
+                >
+                  <Trash2 size={14} className="text-gray-500 hover:text-red-400" />
+                </button>
+              </div>
+            ))
+          ) : (
+            <div className="text-center text-gray-600 text-sm py-4">
+              No chat history yet
+            </div>
+          )}
         </div>
 
         <div className="mt-auto pt-4 tech-border-t border-white/5">
@@ -374,10 +391,7 @@ function App() {
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => {
-              setMessages([]);
-              setHasStarted(false);
-            }}
+            onClick={handleNewChat}
             className="-mr-2 hover:bg-white/10 text-white rounded-md"
           >
             <Plus size={20} />
@@ -393,6 +407,12 @@ function App() {
                 role={msg.role}
                 content={msg.content}
                 isStreaming={isStreaming && index === messages.length - 1 && msg.role === 'assistant'}
+                isWaiting={isWaiting && index === messages.length - 1 && msg.role === 'assistant'}
+                onRegenerate={
+                  !isStreaming && msg.role === 'assistant' && index === messages.length - 1
+                    ? handleRegenerate
+                    : undefined
+                }
               />
             ))}
             <div ref={messagesEndRef} className="h-4" />
@@ -408,6 +428,11 @@ function App() {
                 onModelChange={setSelectedModel}
                 disabled={isStreaming}
               />
+              {isStreaming && (
+                <span className="text-xs text-orange-500 font-mono animate-pulse">
+                  Generating response...
+                </span>
+              )}
             </div>
             <ChatInput onSend={handleSend} disabled={isStreaming} />
           </div>
