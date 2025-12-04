@@ -44,8 +44,17 @@ export function ChatInput({ onSend, disabled, onSlashCommand, webSearchEnabled, 
 
     const handleSlashSelect = useCallback((command: SlashCommand) => {
         setShowSlashMenu(false);
-        setInput('');
         setSlashQuery('');
+        
+        // For imagine command, insert the command prefix and let user type the prompt
+        if (command.id === 'imagine') {
+            setInput('/imagine ');
+            // Focus the textarea
+            textareaRef.current?.focus();
+            return;
+        }
+        
+        setInput('');
         onSlashCommand?.(command);
     }, [onSlashCommand]);
 
