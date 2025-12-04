@@ -13,11 +13,14 @@ import { Navbar } from './components/ui/Navbar';
 import { SearchMessages } from './components/ui/SearchMessages';
 import { VoiceInput } from './components/ui/VoiceInput';
 import { FileUpload, FilePreview, type UploadedFile } from './components/ui/FileUpload';
+import { SearchResultsCard } from './components/ui/SearchResultsCard';
+import type { SearchResult } from './lib/webSearch';
 
 interface Message {
   id: string;
   role: 'user' | 'assistant';
   content: string;
+  searchResults?: SearchResult[];
 }
 
 // Maximum number of messages to include for context
@@ -45,6 +48,11 @@ function App() {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [attachedFiles, setAttachedFiles] = useState<UploadedFile[]>([]);
+  
+  // Web search state
+  const [webSearchEnabled, setWebSearchEnabled] = useState(false);
+  const [isSearchingWeb, setIsSearchingWeb] = useState(false);
+  const [currentSearchResults, setCurrentSearchResults] = useState<SearchResult[]>([]);
 
   // Load chat sessions on mount
   useEffect(() => {
@@ -130,8 +138,10 @@ function App() {
     setChatSessions(chatStorage.getRecentSessions(20));
   }, []);
 
-  const handleSend = useCallback(async (text: string) => {
+  const handleSend = useCallback(async (text: string, options?: { enableWebSearch?: boolean }) => {
     if (!text.trim()) return;
+
+    const useWebSearch = options?.enableWebSearch || webSearchEnabled;
 
     if (!hasStarted) {
       setHasStarted(true);
@@ -157,12 +167,14 @@ function App() {
 
     setIsWaiting(true);
     setIsStreaming(true);
+    setCurrentSearchResults([]);
 
     try {
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: ''
+        content: '',
+        searchResults: []
       };
 
       setMessages(prev => [...prev, assistantMessage]);
@@ -183,12 +195,14 @@ function App() {
         () => {
           // onDone callback
           flushStreamBuffer();
+          setIsSearchingWeb(false);
           console.log('Stream completed');
         },
         (error: string) => {
           // onError callback
           console.error('Stream error:', error);
           flushStreamBuffer();
+          setIsSearchingWeb(false);
           // Update the last message with error
           setMessages(prev => {
             const lastIndex = prev.length - 1;
@@ -207,16 +221,41 @@ function App() {
           });
         },
         selectedModel,
-        currentHistory // Pass conversation history for multi-turn context
+        currentHistory, // Pass conversation history for multi-turn context
+        {
+          enableWebSearch: useWebSearch,
+          onSearchStart: () => {
+            setIsSearchingWeb(true);
+          },
+          onSearchResults: (results) => {
+            setCurrentSearchResults(results);
+            setIsSearchingWeb(false);
+            // Update the assistant message with search results
+            setMessages(prev => {
+              const lastIndex = prev.length - 1;
+              if (lastIndex >= 0 && prev[lastIndex].role === 'assistant') {
+                return [
+                  ...prev.slice(0, lastIndex),
+                  {
+                    ...prev[lastIndex],
+                    searchResults: results
+                  }
+                ];
+              }
+              return prev;
+            });
+          }
+        }
       );
     } catch (error) {
       console.error('Error sending message:', error);
       flushStreamBuffer();
+      setIsSearchingWeb(false);
     } finally {
       setIsStreaming(false);
       setIsWaiting(false);
     }
-  }, [hasStarted, messages, selectedModel, handleStreamChunk, flushStreamBuffer]);
+  }, [hasStarted, messages, selectedModel, webSearchEnabled, handleStreamChunk, flushStreamBuffer]);
 
   // Handle switching to a different chat session
   const handleSelectSession = useCallback((session: ChatSession) => {
@@ -289,6 +328,10 @@ function App() {
         const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
         if (fileInput) fileInput.click();
         break;
+      case 'web':
+        // Toggle web search
+        setWebSearchEnabled(prev => !prev);
+        break;
       case 'model':
         // Cycle through models or open model selector
         const currentIndex = MIRA_MODELS.findIndex(m => m.id === selectedModel);
@@ -326,7 +369,7 @@ function App() {
         break;
       case 'shortcuts':
         // Show keyboard shortcuts info
-        handleSend('/help - Show this help\n/clear - Clear current chat\n/new - Start new chat\n/search - Search messages\n/upload - Upload a file\n/model - Change AI model\n/code - Get coding help\n/summarize - Summarize conversation');
+        handleSend('/help - Show this help\n/clear - Clear current chat\n/new - Start new chat\n/search - Search messages\n/upload - Upload a file\n/web - Toggle web search\n/model - Change AI model\n/code - Get coding help\n/summarize - Summarize conversation');
         break;
       default:
         console.log('Unknown command:', command.id);
@@ -511,23 +554,39 @@ function App() {
           <div className="flex-1 overflow-y-auto p-4 md:p-0 scroll-smooth relative z-0">
             <div className="max-w-3xl mx-auto pt-4 md:pt-10 pb-4">
               {messages.map((msg, index) => (
-                <MessageBubble
-                  key={msg.id}
-                  role={msg.role}
-                  content={msg.content}
-                  isStreaming={isStreaming && index === messages.length - 1 && msg.role === 'assistant'}
-                  isWaiting={isWaiting && index === messages.length - 1 && msg.role === 'assistant'}
-                  onRegenerate={
-                    !isStreaming && msg.role === 'assistant' && index === messages.length - 1
-                      ? handleRegenerate
-                      : undefined
-                  }
-                  onOpenInCanvas={
-                    !isStreaming && msg.role === 'assistant'
-                      ? (code, language) => canvas.addItem(code, undefined, 'code', language)
-                      : undefined
-                  }
-                />
+                <div key={msg.id}>
+                  {/* Show search results before assistant message */}
+                  {msg.role === 'assistant' && msg.searchResults && msg.searchResults.length > 0 && (
+                    <SearchResultsCard
+                      results={msg.searchResults}
+                      query={messages[index - 1]?.content || ''}
+                    />
+                  )}
+                  {/* Show searching indicator */}
+                  {msg.role === 'assistant' && isSearchingWeb && index === messages.length - 1 && (
+                    <SearchResultsCard
+                      results={[]}
+                      query={messages[index - 1]?.content || ''}
+                      isSearching={true}
+                    />
+                  )}
+                  <MessageBubble
+                    role={msg.role}
+                    content={msg.content}
+                    isStreaming={isStreaming && index === messages.length - 1 && msg.role === 'assistant'}
+                    isWaiting={isWaiting && index === messages.length - 1 && msg.role === 'assistant'}
+                    onRegenerate={
+                      !isStreaming && msg.role === 'assistant' && index === messages.length - 1
+                        ? handleRegenerate
+                        : undefined
+                    }
+                    onOpenInCanvas={
+                      !isStreaming && msg.role === 'assistant'
+                        ? (code, language) => canvas.addItem(code, undefined, 'code', language)
+                        : undefined
+                    }
+                  />
+                </div>
               ))}
               <div ref={messagesEndRef} className="h-4" />
             </div>
@@ -585,6 +644,8 @@ function App() {
                     onSend={handleSend} 
                     disabled={isStreaming} 
                     onSlashCommand={handleSlashCommand}
+                    webSearchEnabled={webSearchEnabled}
+                    onToggleWebSearch={() => setWebSearchEnabled(prev => !prev)}
                   />
                 </div>
               </div>

@@ -69,6 +69,13 @@ export const defaultSlashCommands: SlashCommand[] = [
         category: 'tools'
     },
     {
+        id: 'web',
+        name: 'Web Search',
+        description: 'Toggle web search for real-time info',
+        icon: <Search size={16} />,
+        category: 'tools'
+    },
+    {
         id: 'code',
         name: 'Code Block',
         description: 'Insert a code snippet',
