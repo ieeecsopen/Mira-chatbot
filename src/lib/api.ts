@@ -288,6 +288,7 @@ export async function streamMessage(
     conversationHistory?: Array<{ role: 'user' | 'assistant'; content: string }>,
     options?: { 
         enableWebSearch?: boolean;
+        enableDocumentContext?: boolean;
         onSearchStart?: () => void;
         onSearchResults?: (results: SearchResult[]) => void;
     }
@@ -298,6 +299,18 @@ export async function streamMessage(
     // Log Singlish conversion if applicable
     if (wasSinglish) {
         console.log('🔄 Singlish converted:', message, '→', processed);
+    }
+
+    // Get document context if documents are loaded
+    let documentContext = '';
+    if (options?.enableDocumentContext !== false) {
+        const docStore = getDocumentStore();
+        if (docStore.getAll().length > 0) {
+            documentContext = docStore.getContextForQuery(message, 2000);
+            if (documentContext) {
+                console.log('📄 Document context added to prompt');
+            }
+        }
     }
 
     // Handle web search if enabled
@@ -325,8 +338,8 @@ export async function streamMessage(
     // Check cache for similar queries (only for simple queries without much context)
     const cacheKey = processed.toLowerCase().trim();
     if (!conversationHistory || conversationHistory.length === 0) {
-        // Don't use cache if web search is enabled (we want fresh results)
-        if (!options?.enableWebSearch) {
+        // Don't use cache if web search or document context is enabled
+        if (!options?.enableWebSearch && !documentContext) {
             const cachedResponse = responseCache.get(cacheKey);
             if (cachedResponse) {
                 console.log('📦 Returning cached response');
