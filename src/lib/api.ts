@@ -355,8 +355,8 @@ export async function streamMessage(
         }
     }
     
-    // If we have a direct answer and no web search, stream it word by word
-    if (directAnswer && !options?.enableWebSearch) {
+    // If we have a direct answer and no web search and no document context, stream it word by word
+    if (directAnswer && !options?.enableWebSearch && !documentContext) {
         console.log('📚 Direct answer from knowledge base');
         const answer = postprocessResponse(directAnswer);
         
@@ -375,6 +375,12 @@ export async function streamMessage(
     
     // Build enhanced prompt with RAG context and web search context
     let enhancedMessage = buildEnhancedPrompt(processed, ragContext);
+    
+    // Add document context if available
+    if (documentContext) {
+        enhancedMessage = `[DOCUMENT CONTEXT - Use this information to answer questions about the uploaded documents]\n${documentContext}\n[END DOCUMENT CONTEXT]\n\n${enhancedMessage}`;
+        console.log('📄 Document context added to prompt');
+    }
     
     // Add web search context if available
     if (webSearchContext) {

@@ -3,7 +3,7 @@ import { MessageBubble } from './components/MessageBubble';
 import { ChatInput, type SlashCommand } from './components/ChatInput';
 import { LandingPage } from './components/LandingPage';
 import { ModelSelector, MIRA_MODELS } from './components/ModelSelector';
-import { Plus, Settings, Trash2, MessageSquare, PanelRightOpen } from 'lucide-react';
+import { Plus, Settings, Trash2, MessageSquare, PanelRightOpen, FileText } from 'lucide-react';
 import { Button } from './components/ui/button';
 import { streamMessage } from './lib/api';
 import { chatStorage, type ChatSession } from './lib/chatStorage';
@@ -14,6 +14,8 @@ import { SearchMessages } from './components/ui/SearchMessages';
 import { VoiceInput } from './components/ui/VoiceInput';
 import { FileUpload, FilePreview, type UploadedFile } from './components/ui/FileUpload';
 import { SearchResultsCard } from './components/ui/SearchResultsCard';
+import { DocumentPanel } from './components/ui/DocumentPanel';
+import { getDocumentStore } from './lib/documentStore';
 import type { SearchResult } from './lib/webSearch';
 
 interface Message {
@@ -52,6 +54,16 @@ function App() {
   // Web search state
   const [webSearchEnabled, setWebSearchEnabled] = useState(false);
   const [isSearchingWeb, setIsSearchingWeb] = useState(false);
+
+  // Document panel state
+  const [isDocumentPanelOpen, setIsDocumentPanelOpen] = useState(false);
+  const [documentCount, setDocumentCount] = useState(0);
+
+  // Update document count when store changes
+  const updateDocumentCount = useCallback(() => {
+    const store = getDocumentStore();
+    setDocumentCount(store.getAll().length);
+  }, []);
 
   // Load chat sessions on mount
   useEffect(() => {
@@ -360,6 +372,11 @@ function App() {
       case 'settings':
         // Could open a settings modal - for now just toggle sidebar
         setIsSidebarOpen(true);
+        break;
+      case 'docs':
+      case 'documents':
+        // Toggle document panel
+        setIsDocumentPanelOpen(true);
         break;
       case 'help':
         handleSend('What can you help me with? Please list your capabilities.');
