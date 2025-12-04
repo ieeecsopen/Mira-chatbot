@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { MessageBubble } from './components/MessageBubble';
-import { ChatInput } from './components/ChatInput';
+import { ChatInput, SlashCommand } from './components/ChatInput';
 import { LandingPage } from './components/LandingPage';
 import { ModelSelector, MIRA_MODELS } from './components/ModelSelector';
 import { Plus, Settings, Trash2, MessageSquare, PanelRightOpen } from 'lucide-react';
@@ -263,6 +263,76 @@ function App() {
     setChatSessions(chatStorage.getRecentSessions(20));
   }, []);
 
+  // Handle clearing current chat (keeps session but clears messages)
+  const handleClearChat = useCallback(() => {
+    setMessages([]);
+    if (currentSessionId) {
+      // Clear messages in storage too
+      chatStorage.clearCurrentSession();
+    }
+  }, [currentSessionId]);
+
+  // Handle slash commands
+  const handleSlashCommand = useCallback((command: SlashCommand) => {
+    switch (command.id) {
+      case 'clear':
+        handleClearChat();
+        break;
+      case 'new':
+        handleNewChat();
+        break;
+      case 'search':
+        setIsSearchOpen(true);
+        break;
+      case 'upload':
+        // Trigger file upload - we'll need to programmatically click the file input
+        const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+        if (fileInput) fileInput.click();
+        break;
+      case 'model':
+        // Cycle through models or open model selector
+        const currentIndex = MIRA_MODELS.findIndex(m => m.id === selectedModel);
+        const nextIndex = (currentIndex + 1) % MIRA_MODELS.length;
+        setSelectedModel(MIRA_MODELS[nextIndex].id);
+        break;
+      case 'creative':
+        // Switch to a creative model if available
+        const creativeModel = MIRA_MODELS.find(m => m.id.includes('creative') || m.id.includes('gemini-2'));
+        if (creativeModel) setSelectedModel(creativeModel.id);
+        break;
+      case 'fast':
+        // Switch to a fast model if available
+        const fastModel = MIRA_MODELS.find(m => m.id.includes('flash') || m.id.includes('fast'));
+        if (fastModel) setSelectedModel(fastModel.id);
+        break;
+      case 'code':
+        // Send a code-focused prompt
+        handleSend('Please help me write some code. What would you like me to create?');
+        break;
+      case 'summarize':
+        if (messages.length > 0) {
+          handleSend('Please summarize our conversation so far.');
+        }
+        break;
+      case 'image':
+        handleSend('Please generate an image for me. What would you like me to create?');
+        break;
+      case 'settings':
+        // Could open a settings modal - for now just toggle sidebar
+        setIsSidebarOpen(true);
+        break;
+      case 'help':
+        handleSend('What can you help me with? Please list your capabilities.');
+        break;
+      case 'shortcuts':
+        // Show keyboard shortcuts info
+        handleSend('/help - Show this help\n/clear - Clear current chat\n/new - Start new chat\n/search - Search messages\n/upload - Upload a file\n/model - Change AI model\n/code - Get coding help\n/summarize - Summarize conversation');
+        break;
+      default:
+        console.log('Unknown command:', command.id);
+    }
+  }, [handleClearChat, handleNewChat, selectedModel, messages, handleSend]);
+
   // Handle deleting a session
   const handleDeleteSession = useCallback((sessionId: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -511,7 +581,11 @@ function App() {
                   language="si-LK"
                 />
                 <div className="flex-1">
-                  <ChatInput onSend={handleSend} disabled={isStreaming} />
+                  <ChatInput 
+                    onSend={handleSend} 
+                    disabled={isStreaming} 
+                    onSlashCommand={handleSlashCommand}
+                  />
                 </div>
               </div>
             </div>
