@@ -285,7 +285,7 @@ export function SlashCommandMenu({
                             <Command size={12} />
                             <span>Slash Commands</span>
                             {searchQuery.length > 1 && (
-                                <span className="ml-auto text-[#58a6ff]">
+                                <span className="ml-auto text-orange-400">
                                     {flatCommands.length} result{flatCommands.length !== 1 ? 's' : ''}
                                 </span>
                             )}
@@ -318,13 +318,13 @@ export function SlashCommandMenu({
                                                 onMouseEnter={() => setSelectedIndex(currentIndex)}
                                                 className={`w-full px-3 py-2 flex items-center gap-3 text-left transition-colors ${
                                                     isSelected 
-                                                        ? 'bg-[#58a6ff]/10 text-white' 
+                                                        ? 'bg-orange-500/10 text-white' 
                                                         : 'text-[#c9d1d9] hover:bg-[#21262d]'
                                                 }`}
                                             >
                                                 <span className={`flex-shrink-0 p-1.5 rounded-md ${
                                                     isSelected 
-                                                        ? 'bg-[#58a6ff]/20 text-[#58a6ff]' 
+                                                        ? 'bg-orange-500/20 text-orange-400' 
                                                         : 'bg-[#21262d] text-[#8b949e]'
                                                 }`}>
                                                     {command.icon}

@@ -35,7 +35,7 @@ export function ImageGeneratingCard({ prompt }: { prompt: string }) {
             className="my-4 p-4 bg-gradient-to-br from-[#1a1b26] to-[#24283b] border border-[#414868] rounded-xl max-w-md"
         >
             <div className="flex items-center gap-3 mb-3">
-                <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
+                <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center">
                     <Sparkles size={20} className="text-white" />
                 </div>
                 <div>
@@ -47,14 +47,14 @@ export function ImageGeneratingCard({ prompt }: { prompt: string }) {
             <div className="relative aspect-square bg-[#0d1117] rounded-lg overflow-hidden">
                 <div className="absolute inset-0 flex items-center justify-center">
                     <div className="text-center">
-                        <Loader2 size={40} className="text-purple-400 animate-spin mx-auto mb-3" />
+                        <Loader2 size={40} className="text-orange-400 animate-spin mx-auto mb-3" />
                         <p className="text-sm text-gray-400 max-w-[200px] mx-auto line-clamp-2">
                             "{prompt}"
                         </p>
                     </div>
                 </div>
                 {/* Animated gradient border */}
-                <div className="absolute inset-0 rounded-lg bg-gradient-to-r from-purple-500 via-pink-500 to-purple-500 opacity-20 animate-pulse" />
+                <div className="absolute inset-0 rounded-lg bg-gradient-to-r from-orange-500 via-orange-400 to-orange-500 opacity-20 animate-pulse" />
             </div>
         </motion.div>
     );
@@ -107,7 +107,7 @@ export const ImageDisplay = memo(function ImageDisplay({
                 <div className="relative aspect-square bg-[#0d1117]">
                     {isLoading && !imageError && (
                         <div className="absolute inset-0 flex items-center justify-center">
-                            <Loader2 size={32} className="text-purple-400 animate-spin" />
+                            <Loader2 size={32} className="text-orange-400 animate-spin" />
                         </div>
                     )}
                     {imageError ? (
@@ -119,7 +119,7 @@ export const ImageDisplay = memo(function ImageDisplay({
                                         setImageError(false);
                                         setIsLoading(true);
                                     }}
-                                    className="text-sm text-purple-400 hover:text-purple-300"
+                                    className="text-sm text-orange-400 hover:text-orange-300"
                                 >
                                     Try again
                                 </button>
@@ -176,7 +176,7 @@ export const ImageDisplay = memo(function ImageDisplay({
                             {onRegenerate && (
                                 <button
                                     onClick={() => onRegenerate(image.prompt)}
-                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-500/20 hover:bg-purple-500/30 rounded-lg text-xs text-purple-300 transition-colors"
+                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-500/20 hover:bg-orange-500/30 rounded-lg text-xs text-orange-300 transition-colors"
                                 >
                                     <RefreshCw size={14} />
                                     Regenerate
@@ -260,7 +260,7 @@ export function ImageGenerator({ prompt: initialPrompt, onImageGenerated, onClos
         >
             <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
-                    <Sparkles size={20} className="text-purple-400" />
+                    <Sparkles size={20} className="text-orange-400" />
                     <h3 className="font-medium text-white">Image Generator</h3>
                 </div>
                 {onClose && (
@@ -275,7 +275,7 @@ export function ImageGenerator({ prompt: initialPrompt, onImageGenerated, onClos
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
                 placeholder="Describe the image you want to generate..."
-                className="w-full px-3 py-2 bg-[#0d1117] border border-[#30363d] rounded-lg text-white text-sm resize-none focus:outline-none focus:border-purple-500"
+                className="w-full px-3 py-2 bg-[#0d1117] border border-[#30363d] rounded-lg text-white text-sm resize-none focus:outline-none focus:border-orange-500"
                 rows={3}
             />
             
@@ -287,7 +287,7 @@ export function ImageGenerator({ prompt: initialPrompt, onImageGenerated, onClos
                         onClick={() => setSelectedModel(model.id as ImageGenerationOptions['model'])}
                         className={`px-3 py-1.5 rounded-lg text-xs transition-colors ${
                             selectedModel === model.id
-                                ? 'bg-purple-500 text-white'
+                                ? 'bg-orange-500 text-white'
                                 : 'bg-[#21262d] text-gray-400 hover:text-white hover:bg-[#30363d]'
                         }`}
                         title={model.description}
@@ -301,7 +301,7 @@ export function ImageGenerator({ prompt: initialPrompt, onImageGenerated, onClos
             <button
                 onClick={handleGenerate}
                 disabled={!prompt.trim() || isGenerating}
-                className="w-full mt-4 py-2.5 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 disabled:from-gray-600 disabled:to-gray-600 text-white font-medium rounded-lg transition-all flex items-center justify-center gap-2"
+                className="w-full mt-4 py-2.5 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 disabled:from-gray-600 disabled:to-gray-600 text-white font-medium rounded-lg transition-all flex items-center justify-center gap-2"
             >
                 {isGenerating ? (
                     <>
