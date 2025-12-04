@@ -4,22 +4,22 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Noto+Sans+Sinhala:wght@400;500;600;700&display=swap');
 
 @theme {
-  --color-background: #000000;
+  --color-background: #0a0a0a;
   --color-foreground: #ffffff;
 
-  --color-muted: #121212;
+  --color-muted: #1a1a1a;
   --color-muted-foreground: #888888;
 
   --color-border: #333333;
-  --color-input: #1a1a1a;
+  --color-input: #212121;
 
   --color-primary: #ffffff;
   --color-primary-foreground: #000000;
 
-  --color-secondary: #121212;
+  --color-secondary: #1a1a1a;
   --color-secondary-foreground: #ffffff;
 
-  --color-accent: #1a1a1a;
+  --color-accent: #212121;
   --color-accent-foreground: #ffffff;
 
   --font-sans: "Inter", "Noto Sans Sinhala", ui-sans-serif, system-ui, sans-serif;
