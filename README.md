@@ -1,182 +1,73 @@
-# MIRA - සිංහල AI සහායකයා
+# React + TypeScript + Vite
 
-**MIRA** (Multilingual Intelligent Response Assistant) - Sinhala AI chatbot with RAG, caching, rate limiting, and conversation memory.
+This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
-## ✨ Features
+Currently, two official plugins are available:
 
-- 🔍 **RAG Pipeline** - Document retrieval with vector search
-- 🧠 **Conversation Memory** - 30-day Redis persistence  
-- ⚡ **Caching** - Multi-level (embeddings, LLM, documents, chat)
-- 🚦 **Rate Limiting** - 10/min, 100/hour per user
-- 🌊 **SSE Streaming** - Real-time response streaming
-- 🛡️ **Safety Layer** - Content moderation
-- ✍️ **Grammar Polish** - Sinhala text correction
+- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
+- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
 
-## 📁 Project Structure
+## React Compiler
 
-```
-MIRA/
-├── api/
-│   ├── server.py              # FastAPI application
-│   ├── models.py              # Request/response models
-│   └── routers/
-│       ├── chat.py            # Main chat endpoint
-│       └── chat_stream.py     # SSE streaming endpoint
-├── core/
-│   ├── cache.py               # Redis caching
-│   ├── rate_limiter.py        # Rate limiting
-│   ├── memory.py              # Conversation memory
-│   ├── retriever.py           # Vector search
-│   ├── prompt_builder.py      # Prompt generation
-│   ├── safety.py              # Content moderation
-│   ├── grammar_polish.py      # Text correction
-│   └── preprocess.py          # Text preprocessing
-├── models/
-│   └── llm_client.py          # Gemini API wrapper
-├── rag/
-│   ├── ingest.py              # Document ingestion
-│   └── documents/             # PDF/TXT files
-├── tests/                     # Test scripts
-├── config/
-│   └── .env                   # Configuration
-└── docker-compose.yml         # Redis + Qdrant
-```
+The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
 
-## 🚀 First Time Setup
+## Expanding the ESLint configuration
 
-### 1. Prerequisites
-- Python 3.10+
-- Docker Desktop
-- Gemini API key ([Get here](https://aistudio.google.com/app/apikey))
+If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
 
-### 2. Install Dependencies
+```js
+export default defineConfig([
+  globalIgnores(['dist']),
+  {
+    files: ['**/*.{ts,tsx}'],
+    extends: [
+      // Other configs...
 
-```powershell
-# Create virtual environment
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
+      // Remove tseslint.configs.recommended and replace with this
+      tseslint.configs.recommendedTypeChecked,
+      // Alternatively, use this for stricter rules
+      tseslint.configs.strictTypeChecked,
+      // Optionally, add this for stylistic rules
+      tseslint.configs.stylisticTypeChecked,
 
-# Install packages
-pip install -r requirements.txt
+      // Other configs...
+    ],
+    languageOptions: {
+      parserOptions: {
+        project: ['./tsconfig.node.json', './tsconfig.app.json'],
+        tsconfigRootDir: import.meta.dirname,
+      },
+      // other options...
+    },
+  },
+])
 ```
 
-### 3. Configure Environment
+You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
 
-Edit `config/.env`:
-```env
-GEMINI_API_KEY=your_api_key_here
-GEMINI_MODEL=gemini-2.5-flash
-```
+```js
+// eslint.config.js
+import reactX from 'eslint-plugin-react-x'
+import reactDom from 'eslint-plugin-react-dom'
 
-### 4. Start Services
-
-```powershell
-# Start Redis + Qdrant
-docker-compose up -d
-
-# Verify services running
-docker ps
-```
-
-### 5. Ingest Documents (Optional)
-
-```powershell
-# Place PDF/TXT files in rag/documents/
-python rag/ingest.py
-```
-
-### 6. Start Server
-
-```powershell
-python -m uvicorn api.server:app --port 8000
-```
-
-Server runs at: `http://localhost:8000`
-
-## 🎯 Quick Start
-
-### Test API
-
-```powershell
-# Test Gemini API key
-python gemini_test.py
-
-# Test chat endpoint
-python tests/test_chat_api.py
-
-# Test conversation memory
-python tests/test_simple_conversation.py
-```
-
-### API Request (Postman/curl)
-
-**Endpoint:** `POST http://localhost:8000/chat/`
-
-**Request:**
-```json
-{
-  "user_id": "user123",
-  "message": "හෙලෝ"
-}
-```
-
-**Response:**
-```json
-{
-  "answer": "ආයුබෝවන්! මම MIRA...",
-  "sources": [],
-  "confidence": "Medium",
-  "rag_used": false
-}
-```
-
-### Continue Conversation
-
-Use the **same `user_id`** to continue the conversation:
-
-```json
-{"user_id": "user123", "message": "මගේ නම සාමන්"}
-{"user_id": "user123", "message": "මගේ නම මොකද්ද?"} 
-```
-→ MIRA will remember "සාමන්"
-
-## 📚 Documentation
-
-- **Tests:** See [tests/README.md](tests/README.md)
-- **API Docs:** `http://localhost:8000/docs` (Swagger UI)
-
-## 🔧 Configuration
-
-Key settings in `config/.env`:
-
-```env
-# Gemini
-GEMINI_MODEL=gemini-2.5-flash
-
-# Rate Limits
-RATE_LIMIT_PER_MINUTE=10
-RATE_LIMIT_PER_HOUR=100
-
-# Cache TTL (seconds)
-CACHE_CHAT_TTL=1800
-
-# Memory
-MEMORY_WINDOW=4
-```
-
-## 🛠️ Troubleshooting
-
-**Quota exceeded:**
-```powershell
-python gemini_test.py  # Check API status
-```
-
-**Redis connection failed:**
-```powershell
-docker-compose up -d redis
-```
-
-**Port 8000 in use:**
-```powershell
-taskkill /F /IM python.exe
+export default defineConfig([
+  globalIgnores(['dist']),
+  {
+    files: ['**/*.{ts,tsx}'],
+    extends: [
+      // Other configs...
+      // Enable lint rules for React
+      reactX.configs['recommended-typescript'],
+      // Enable lint rules for React DOM
+      reactDom.configs.recommended,
+    ],
+    languageOptions: {
+      parserOptions: {
+        project: ['./tsconfig.node.json', './tsconfig.app.json'],
+        tsconfigRootDir: import.meta.dirname,
+      },
+      // other options...
+    },
+  },
+])
 ```
