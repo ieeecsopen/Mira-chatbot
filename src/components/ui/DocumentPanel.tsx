@@ -499,10 +499,18 @@ function DocumentPanelComponent({ isOpen, onClose, onDocumentsChange }: Document
                         {/* Footer for Documents Tab */}
                         {documents.length > 0 && (
                             <div className="px-4 py-3 border-t border-[#30363d] flex items-center justify-between">
-                                <p className="text-xs text-[#8b949e]">
-                                    {documents.length} document{documents.length !== 1 ? 's' : ''} • {' '}
-                                    {documents.reduce((acc, doc) => acc + doc.metadata.wordCount, 0).toLocaleString()} total words
-                                </p>
+                                <div className="flex items-center gap-3">
+                                    <p className="text-xs text-[#8b949e]">
+                                        {documents.length} doc{documents.length !== 1 ? 's' : ''} • {' '}
+                                        {documents.reduce((acc, doc) => acc + doc.metadata.wordCount, 0).toLocaleString()} words
+                                    </p>
+                                    <button
+                                        onClick={handleClearAll}
+                                        className="text-xs text-red-400 hover:text-red-300 transition-colors"
+                                    >
+                                        Clear
+                                    </button>
+                                </div>
                                 <button
                                     onClick={() => setActiveTab('chat')}
                                     className="flex items-center gap-1.5 px-3 py-1.5 bg-[#58a6ff] hover:bg-[#58a6ff]/80 text-white text-xs font-medium rounded-lg transition-colors"
