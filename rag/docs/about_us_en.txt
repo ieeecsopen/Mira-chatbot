@@ -1,0 +1,17 @@
+MIRA is a Sinhala-focused Artificial Intelligence Assistant designed to deliver accurate, formal, and grammar-perfect Sinhala responses. The system combines advanced Large Language Model reasoning with a Retrieval-Augmented Generation (RAG) pipeline, enabling MIRA to provide highly reliable, document-grounded answers.
+
+MIRA is built to support Sinhala-speaking users across education, business, research, and daily-life assistance. The assistant understands Sinhala, English, and mixed-language inputs, ensuring flexibility for all types of questions.
+
+MIRA uses:
+- Gemini LLM for reasoning and natural language generation
+- Gemini Embeddings for semantic understanding
+- Qdrant vector database for fast retrieval
+- A Sinhala grammar polishing layer to ensure professional and correct output
+
+MIRA’s core goals:
+- Provide high-quality Sinhala language assistance
+- Improve clarity, correctness, and professionalism of Sinhala text
+- Enable organizations to build Sinhala-capable AI systems safely
+- Support education, technical subjects, and general problem solving
+
+MIRA is modular and extendable, allowing new tools, datasets, and features to be integrated as needed.
