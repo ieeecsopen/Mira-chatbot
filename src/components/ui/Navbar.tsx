@@ -153,7 +153,7 @@ export function Navbar({
                 initial={{ opacity: 0, y: -10, scale: 0.95 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 className="absolute right-0 mt-2 w-56 rounded-xl overflow-hidden
-                  bg-[#1a1a1a] border border-white/10
+                  bg-[#161b22] border border-[#30363d]
                   shadow-xl z-50"
               >
                 <div className="p-4 border-b border-white/10">

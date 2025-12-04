@@ -69,8 +69,8 @@ const createMarkdownComponents = (onOpenInCanvas?: (code: string, language?: str
         <li className="flex gap-3 text-[#c9d1d9]">
             <span className={cn(
                 "flex-shrink-0 mt-1",
-                ordered 
-                    ? "text-[#58a6ff] font-medium min-w-[1.5rem]" 
+                ordered
+                    ? "text-[#58a6ff] font-medium min-w-[1.5rem]"
                     : "text-[#7ee787]"
             )}>
                 {ordered ? `${(index || 0) + 1}.` : '•'}
@@ -82,17 +82,17 @@ const createMarkdownComponents = (onOpenInCanvas?: (code: string, language?: str
     code: ({ className, children }: { className?: string; children?: React.ReactNode }) => {
         const match = /language-(\w+)/.exec(className || '');
         const isInline = !match && !className;
-        
+
         if (isInline) {
             return <InlineCode>{children}</InlineCode>;
         }
-        
+
         const language = match ? match[1] : 'plaintext';
         const codeString = String(children).replace(/\n$/, '');
-        
+
         return (
-            <CodeBlock 
-                language={language} 
+            <CodeBlock
+                language={language}
                 onOpenInCanvas={onOpenInCanvas}
             >
                 {codeString}
@@ -162,11 +162,11 @@ const createMarkdownComponents = (onOpenInCanvas?: (code: string, language?: str
     a: ({ href, children }: { href?: string; children?: React.ReactNode }) => {
         // Check if this is a standalone URL that should show a preview
         const isStandaloneUrl = href && children && String(children) === href;
-        
+
         if (isStandaloneUrl && href) {
             return <UrlPreview url={href} />;
         }
-        
+
         return (
             <a
                 href={href}
@@ -184,10 +184,10 @@ const createMarkdownComponents = (onOpenInCanvas?: (code: string, language?: str
     ),
     // Images
     img: ({ src, alt }: { src?: string; alt?: string }) => (
-        <img 
-            src={src} 
-            alt={alt || ''} 
-            className="my-4 max-w-full rounded-lg border border-[#30363d]" 
+        <img
+            src={src}
+            alt={alt || ''}
+            className="my-4 max-w-full rounded-lg border border-[#30363d]"
         />
     ),
 });
@@ -244,7 +244,7 @@ function MessageBubbleComponent({ role, content, isStreaming, isWaiting, onRegen
             <div className={cn(
                 "max-w-[90%] md:max-w-[80%] text-lg leading-relaxed relative",
                 role === 'user'
-                    ? "bg-[#1a1a1a] text-white px-5 py-3 rounded-2xl"
+                    ? "bg-[#161b22] text-[#c9d1d9] px-5 py-3 rounded-2xl border border-[#30363d]"
                     : "text-gray-100 px-0 py-2"
             )}>
                 {/* Removed MIRA label for cleaner look */}
@@ -256,7 +256,7 @@ function MessageBubbleComponent({ role, content, isStreaming, isWaiting, onRegen
                         <TypingIndicator />
                     ) : (
                         <>
-                            <ReactMarkdown 
+                            <ReactMarkdown
                                 remarkPlugins={[remarkGfm]}
                                 components={markdownComponents}
                             >

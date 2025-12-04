@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { SendHorizontal, Paperclip, Globe, Mic, Search } from 'lucide-react';
+import { SendHorizontal, Search } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { Button } from './ui/button';
 import { SlashCommandMenu, type SlashCommand } from './ui/SlashCommandMenu';
@@ -45,7 +45,7 @@ export function ChatInput({ onSend, disabled, onSlashCommand, webSearchEnabled, 
     const handleSlashSelect = useCallback((command: SlashCommand) => {
         setShowSlashMenu(false);
         setSlashQuery('');
-        
+
         // For imagine command, insert the command prefix and let user type the prompt
         if (command.id === 'imagine') {
             setInput('/imagine ');
@@ -53,7 +53,7 @@ export function ChatInput({ onSend, disabled, onSlashCommand, webSearchEnabled, 
             textareaRef.current?.focus();
             return;
         }
-        
+
         setInput('');
         onSlashCommand?.(command);
     }, [onSlashCommand]);
@@ -93,11 +93,7 @@ export function ChatInput({ onSend, disabled, onSlashCommand, webSearchEnabled, 
             />
 
             {/* Glassmorphism input container */}
-            <div className="relative flex items-end w-full p-2 bg-[#1a1a1a]/80 backdrop-blur-xl rounded-2xl transition-all border border-white/[0.08] shadow-lg shadow-black/20">
-                <Button variant="ghost" size="icon" className="mb-1 text-gray-400 hover:text-white hover:bg-white/10 rounded-full w-9 h-9">
-                    <Paperclip size={18} />
-                </Button>
-
+            <div className="relative flex items-end w-full p-2 bg-[#161b22]/80 backdrop-blur-xl rounded-2xl transition-all border border-[#30363d] shadow-lg shadow-black/20">
                 <textarea
                     ref={textareaRef}
                     value={input}
@@ -111,25 +107,19 @@ export function ChatInput({ onSend, disabled, onSlashCommand, webSearchEnabled, 
 
                 <div className="flex items-center gap-1 mb-1 mr-1">
                     {/* Web Search Toggle */}
-                    <Button 
-                        variant="ghost" 
-                        size="icon" 
+                    <Button
+                        variant="ghost"
+                        size="icon"
                         onClick={onToggleWebSearch}
                         className={cn(
                             "rounded-full w-9 h-9 transition-all",
-                            webSearchEnabled 
-                                ? "bg-[#58a6ff]/20 text-[#58a6ff] hover:bg-[#58a6ff]/30" 
+                            webSearchEnabled
+                                ? "bg-[#58a6ff]/20 text-[#58a6ff] hover:bg-[#58a6ff]/30"
                                 : "text-gray-400 hover:text-white hover:bg-white/10"
                         )}
                         title={webSearchEnabled ? "Web search enabled" : "Enable web search"}
                     >
                         <Search size={18} />
-                    </Button>
-                    <Button variant="ghost" size="icon" className="text-gray-400 hover:text-white hover:bg-white/10 rounded-full w-9 h-9">
-                        <Globe size={18} />
-                    </Button>
-                    <Button variant="ghost" size="icon" className="text-gray-400 hover:text-white hover:bg-white/10 rounded-full w-9 h-9">
-                        <Mic size={18} />
                     </Button>
                     <Button
                         onClick={() => {
@@ -151,7 +141,7 @@ export function ChatInput({ onSend, disabled, onSlashCommand, webSearchEnabled, 
                     </Button>
                 </div>
             </div>
-            
+
             {/* Web search indicator */}
             {webSearchEnabled && (
                 <div className="flex items-center justify-center gap-2 mt-2">
@@ -161,7 +151,7 @@ export function ChatInput({ onSend, disabled, onSlashCommand, webSearchEnabled, 
                     </div>
                 </div>
             )}
-            
+
             {!webSearchEnabled && (
                 <div className="text-center mt-2 text-[10px] text-gray-600 font-mono uppercase tracking-widest">
                     AI Generated Content

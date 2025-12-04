@@ -61,25 +61,25 @@ export function ModelSelector({ selectedModel, onModelChange, disabled }: ModelS
         onClick={() => !disabled && setIsOpen(!isOpen)}
         disabled={disabled}
         className={cn(
-          "flex items-center gap-2 px-4 py-2 h-auto rounded-lg",
-          "bg-black/50 hover:bg-black/70 border border-orange-500/20",
-          "text-gray-400 hover:text-orange-400 transition-all",
+          "flex items-center gap-2 px-3 py-2 h-auto rounded-lg",
+          "bg-[#161b22] hover:bg-[#21262d] border border-[#30363d]",
+          "text-[#c9d1d9] hover:text-[#58a6ff] transition-all",
           disabled && "opacity-50 cursor-not-allowed"
         )}
       >
-        <Sparkles className="w-5 h-5 text-orange-500" />
-        <span className="text-base font-medium">{currentModel.displayName}</span>
-        <ChevronDown className={cn("w-4 h-4 opacity-50 transition-transform", isOpen && "rotate-180")} />
+        <Sparkles className="w-4 h-4 text-[#58a6ff]" />
+        <span className="text-sm font-medium">{currentModel.displayName}</span>
+        <ChevronDown className={cn("w-3 h-3 opacity-50 transition-transform", isOpen && "rotate-180")} />
       </Button>
 
       {isOpen && (
         <>
-          <div 
-            className="fixed inset-0 z-40" 
+          <div
+            className="fixed inset-0 z-40"
             onClick={() => setIsOpen(false)}
           />
-          
-          <div className="absolute bottom-full left-0 mb-2 w-56 bg-black border border-orange-500/20 rounded-lg shadow-xl z-50 overflow-hidden">
+
+          <div className="absolute bottom-full left-0 mb-2 w-64 bg-[#161b22] border border-[#30363d] rounded-lg shadow-xl z-50 overflow-hidden">
             <div className="py-1">
               {MIRA_MODELS.map((model) => (
                 <button
@@ -90,16 +90,16 @@ export function ModelSelector({ selectedModel, onModelChange, disabled }: ModelS
                   }}
                   className={cn(
                     "w-full flex items-center justify-between px-4 py-3 transition-all",
-                    "hover:bg-orange-500/10 text-left",
-                    selectedModel === model.id ? "bg-orange-500/10 text-orange-400" : "text-gray-400"
+                    "hover:bg-[#21262d] text-left",
+                    selectedModel === model.id ? "bg-[#58a6ff]/10 text-[#58a6ff]" : "text-[#c9d1d9]"
                   )}
                 >
                   <div>
-                    <span className="text-base font-medium block">{model.displayName}</span>
-                    <span className="text-sm text-gray-600">{model.description}</span>
+                    <span className="text-sm font-medium block">{model.displayName}</span>
+                    <span className="text-xs text-[#8b949e]">{model.description}</span>
                   </div>
                   {selectedModel === model.id && (
-                    <Check className="w-5 h-5 text-orange-500" />
+                    <Check className="w-4 h-4 text-[#58a6ff]" />
                   )}
                 </button>
               ))}
