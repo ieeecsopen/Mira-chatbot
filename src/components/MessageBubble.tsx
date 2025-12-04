@@ -5,7 +5,7 @@ import remarkGfm from 'remark-gfm';
 import { Copy, Check, RefreshCw, Maximize2, Quote } from 'lucide-react';
 import { useState, useCallback, memo, useMemo } from 'react';
 import { CodeBlock, InlineCode } from './ui/CodeBlock';
-import { UrlPreview, extractUrls } from './ui/UrlPreview';
+import { UrlPreview } from './ui/UrlPreview';
 
 interface MessageBubbleProps {
     role: 'user' | 'assistant';
@@ -79,7 +79,7 @@ const createMarkdownComponents = (onOpenInCanvas?: (code: string, language?: str
         </li>
     ),
     // Code blocks with syntax highlighting
-    code: ({ className, children, ...props }: { className?: string; children?: React.ReactNode; node?: unknown }) => {
+    code: ({ className, children }: { className?: string; children?: React.ReactNode }) => {
         const match = /language-(\w+)/.exec(className || '');
         const isInline = !match && !className;
         
