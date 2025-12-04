@@ -16,7 +16,7 @@ function App() {
     {
       id: '1',
       role: 'assistant',
-      content: 'Hello! I am MIRA. How can I help you today?'
+      content: 'ආයුබෝවන්! මම මීරා. අද ඔබට මට කෙසේ උදව් කළ හැකිද? 🙏'
     }
   ]);
   const [isStreaming, setIsStreaming] = useState(false);
@@ -84,17 +84,17 @@ function App() {
 
         <button className="flex items-center gap-3 w-full px-3 py-2 mb-4 bg-white text-black rounded-md hover:bg-gray-200 transition-colors font-medium text-sm">
           <Plus size={18} />
-          New Chat
+          නව සංවාදය
         </button>
 
         <div className="flex-1 overflow-y-auto">
-          <div className="text-xs font-medium text-muted-foreground mb-3 px-2">Recent</div>
+          <div className="text-xs font-medium text-muted-foreground mb-3 px-2">මෑත සංවාද</div>
           {/* History items would go here */}
           <div className="px-2 py-2 text-sm text-muted-foreground hover:bg-muted rounded-md cursor-pointer truncate">
-            Project Planning
+            ව්‍යාපෘති සැලසුම්
           </div>
           <div className="px-2 py-2 text-sm text-muted-foreground hover:bg-muted rounded-md cursor-pointer truncate">
-            Code Review
+            කේත සමාලෝචනය
           </div>
         </div>
 
@@ -103,7 +103,7 @@ function App() {
             <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
               <User size={16} />
             </div>
-            <div className="text-sm font-medium">User</div>
+            <div className="text-sm font-medium">පරිශීලකයා</div>
           </div>
         </div>
       </div>

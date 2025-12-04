@@ -45,7 +45,7 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     onKeyDown={handleKeyDown}
-                    placeholder="Ask anything..."
+                    placeholder="ඔබේ ප්‍රශ්නය මෙහි ලියන්න..."
                     rows={1}
                     disabled={disabled}
                     className="flex-1 max-h-[200px] py-2 px-3 bg-transparent border-none resize-none focus:outline-none text-base disabled:opacity-50"
@@ -75,7 +75,7 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
                 </div>
             </div>
             <div className="text-center mt-2 text-xs text-muted-foreground">
-                MIRA can make mistakes. Check important info.
+                මීරාට වැරදි සිදු විය හැක. වැදගත් තොරතුරු පරීක්ෂා කරන්න.
             </div>
         </div>
     );
