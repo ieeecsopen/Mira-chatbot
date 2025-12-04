@@ -1,6 +1,11 @@
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
 
+// Import Sinhala language utilities
+import { singlishToSinhala, detectSinglish } from './singlish';
+import { correctGrammar, enhanceSinhalaText } from './grammar';
+import { buildRAGContext, getDirectAnswer } from './rag';
+
 export interface ChatResponse {
     answer: string;
     sources: string[];
@@ -39,7 +44,81 @@ const SYSTEM_INSTRUCTION = `ඔබ "මීරා" (MIRA) නම් සිංහ�
 - "ස්තූතියි" හා "කරුණාකර" වැනි ආචාරශීලී වචන භාවිතා කරන්න
 - උපකාර කිරීමට සතුටු බව පෙන්වන්න`;
 
+/**
+ * Preprocess user message:
+ * 1. Convert Singlish to Sinhala if detected
+ * 2. Apply grammar corrections
+ */
+function preprocessMessage(message: string): { 
+  processed: string; 
+  wasSinglish: boolean;
+  ragContext: string;
+  directAnswer: string | null;
+} {
+  let processed = message;
+  let wasSinglish = false;
+
+  // Check if message is Singlish and convert
+  if (detectSinglish(message)) {
+    processed = singlishToSinhala(message);
+    wasSinglish = true;
+    console.log('🔄 Singlish detected and converted:', message, '→', processed);
+  }
+
+  // Build RAG context from knowledge base
+  const ragContext = buildRAGContext(processed);
+  
+  // Check for direct answer
+  const directAnswer = getDirectAnswer(processed);
+
+  return { processed, wasSinglish, ragContext, directAnswer };
+}
+
+/**
+ * Post-process LLM response:
+ * 1. Apply grammar corrections
+ * 2. Enhance text formatting
+ */
+function postprocessResponse(response: string): string {
+  let processed = response;
+  
+  // Apply grammar corrections
+  processed = correctGrammar(processed, { spelling: true, grammar: true });
+  
+  // Enhance text
+  processed = enhanceSinhalaText(processed);
+  
+  return processed;
+}
+
+/**
+ * Build the enhanced prompt with RAG context
+ */
+function buildEnhancedPrompt(message: string, ragContext: string): string {
+  if (ragContext) {
+    return `${ragContext}\n\n### පරිශීලකයාගේ ප්‍රශ්නය:\n${message}\n\n### උපදෙස්:\nඉහත තොරතුරු භාවිතා කර පිළිතුර සකසන්න. තොරතුරු නොමැති නම් ඔබේ දැනුමෙන් පිළිතුරු දෙන්න.`;
+  }
+  return message;
+}
+
 export async function sendMessage(userId: string, message: string): Promise<ChatResponse> {
+    // Preprocess the message
+    const { processed, wasSinglish, ragContext, directAnswer } = preprocessMessage(message);
+    
+    // If we have a direct answer from knowledge base, return it
+    if (directAnswer) {
+        console.log('📚 Direct answer from knowledge base');
+        return {
+            answer: postprocessResponse(directAnswer),
+            sources: ['Sinhala Knowledge Base'],
+            confidence: 'high',
+            rag_used: true,
+        };
+    }
+    
+    // Build enhanced prompt with RAG context
+    const enhancedMessage = buildEnhancedPrompt(processed, ragContext);
+    
     const response = await fetch(GEMINI_API_URL, {
         method: 'POST',
         headers: {
@@ -53,7 +132,7 @@ export async function sendMessage(userId: string, message: string): Promise<Chat
                 {
                     parts: [
                         {
-                            text: message,
+                            text: enhancedMessage,
                         },
                     ],
                 },
@@ -67,13 +146,16 @@ export async function sendMessage(userId: string, message: string): Promise<Chat
     }
 
     const data = await response.json();
-    const answer = data.candidates?.[0]?.content?.parts?.[0]?.text || 'No response received';
+    let answer = data.candidates?.[0]?.content?.parts?.[0]?.text || 'No response received';
+    
+    // Post-process the response
+    answer = postprocessResponse(answer);
 
     return {
         answer,
-        sources: [],
-        confidence: 'high',
-        rag_used: false,
+        sources: ragContext ? ['Sinhala Knowledge Base'] : [],
+        confidence: ragContext ? 'high' : 'medium',
+        rag_used: !!ragContext,
     };
 }
 
@@ -87,6 +169,35 @@ export async function streamMessage(
     const GEMINI_STREAM_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:streamGenerateContent?alt=sse&key=${GEMINI_API_KEY}`;
 
     try {
+        // Preprocess the message
+        const { processed, wasSinglish, ragContext, directAnswer } = preprocessMessage(message);
+        
+        // Log Singlish conversion if applicable
+        if (wasSinglish) {
+            console.log('🔄 Singlish converted:', message, '→', processed);
+        }
+        
+        // If we have a direct answer, stream it character by character
+        if (directAnswer) {
+            console.log('📚 Direct answer from knowledge base');
+            const answer = postprocessResponse(directAnswer);
+            
+            // Simulate streaming for direct answers
+            const words = answer.split(' ');
+            for (const word of words) {
+                onChunk(word + ' ');
+                await new Promise(resolve => setTimeout(resolve, 30));
+            }
+            onDone();
+            return;
+        }
+        
+        // Build enhanced prompt with RAG context
+        const enhancedMessage = buildEnhancedPrompt(processed, ragContext);
+        if (ragContext) {
+            console.log('📚 RAG context added to prompt');
+        }
+
         const response = await fetch(GEMINI_STREAM_URL, {
             method: 'POST',
             headers: {
@@ -100,7 +211,7 @@ export async function streamMessage(
                     {
                         parts: [
                             {
-                                text: message,
+                                text: enhancedMessage,
                             },
                         ],
                     },
