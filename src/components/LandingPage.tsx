@@ -29,16 +29,16 @@ export function LandingPage({ onStartChat, selectedModel, onModelChange }: Landi
             {/* Header */}
             <header className="flex items-center justify-between px-8 py-6 relative z-10">
                 <div className="flex items-center">
-                    <Sparkles className="w-10 h-10 text-orange-500" strokeWidth={1.5} />
+                    <Sparkles className="w-12 h-12 text-orange-500" strokeWidth={1.5} />
                 </div>
                 <div className="flex items-center gap-6">
-                    <Button variant="ghost" size="icon" className="rounded-full hover:bg-white/5 text-gray-400 hover:text-white">
-                        <Settings className="w-6 h-6" />
+                    <Button variant="ghost" size="icon" className="rounded-full hover:bg-white/5 text-gray-400 hover:text-white w-12 h-12">
+                        <Settings className="w-7 h-7" />
                     </Button>
-                    <Button variant="ghost" className="text-base font-medium text-white/80 hover:text-white hover:bg-white/5 rounded-full px-6">
+                    <Button variant="ghost" className="text-lg font-medium text-white/80 hover:text-white hover:bg-white/5 rounded-full px-7 py-3">
                         Sign in
                     </Button>
-                    <Button className="text-base font-medium bg-white text-black hover:bg-gray-100 rounded-full px-6 shadow-[0_0_20px_rgba(255,165,0,0.1)]">
+                    <Button className="text-lg font-medium bg-white text-black hover:bg-gray-100 rounded-full px-7 py-3 shadow-[0_0_20px_rgba(255,165,0,0.1)]">
                         Sign up
                     </Button>
                 </div>
@@ -47,10 +47,10 @@ export function LandingPage({ onStartChat, selectedModel, onModelChange }: Landi
             {/* Main Content */}
             <main className="flex-1 flex flex-col items-center justify-center px-4 -mt-20 relative z-10">
                 {/* Logo */}
-                <div className="flex items-center gap-4 mb-16 relative group cursor-default">
+                <div className="flex items-center gap-5 mb-16 relative group cursor-default">
                     <div className="absolute inset-0 bg-orange-500/10 blur-3xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
-                    <Sparkles className="w-16 h-16 text-orange-500 relative z-10" strokeWidth={1.5} />
-                    <h1 className="text-7xl font-bold tracking-tight relative z-10 bg-gradient-to-b from-white to-white/80 bg-clip-text text-transparent">Mira</h1>
+                    <Sparkles className="w-20 h-20 text-orange-500 relative z-10" strokeWidth={1.5} />
+                    <h1 className="text-8xl font-bold tracking-tight relative z-10 bg-gradient-to-b from-white to-white/80 bg-clip-text text-transparent">Mira</h1>
                 </div>
 
                 {/* Search Bar */}
@@ -58,14 +58,14 @@ export function LandingPage({ onStartChat, selectedModel, onModelChange }: Landi
                     <div className="absolute -inset-0.5 bg-gradient-to-r from-orange-500/10 to-red-500/10 rounded-2xl blur opacity-0 group-hover:opacity-100 transition duration-500" />
                     <form onSubmit={handleSubmit} className="relative">
                         <div className="absolute left-6 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-orange-500 transition-colors duration-300">
-                            <Search className="w-6 h-6" />
+                            <Search className="w-7 h-7" />
                         </div>
                         <Input
                             type="text"
                             value={inputValue}
                             onChange={(e) => setInputValue(e.target.value)}
                             placeholder="What do you want to know?"
-                            className="w-full h-16 bg-[#09090b]/80 backdrop-blur-xl text-white text-xl placeholder-gray-500 rounded-2xl pl-16 pr-40 border-white/5 focus-visible:ring-orange-500/30 focus-visible:border-orange-500/30 transition-all duration-300 shadow-2xl"
+                            className="w-full h-18 bg-[#09090b]/80 backdrop-blur-xl text-white text-2xl placeholder-gray-500 rounded-2xl pl-16 pr-44 border-white/5 focus-visible:ring-orange-500/30 focus-visible:border-orange-500/30 transition-all duration-300 shadow-2xl"
                         />
                         <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-3">
                             <ModelSelector
@@ -90,17 +90,17 @@ export function LandingPage({ onStartChat, selectedModel, onModelChange }: Landi
                         <Button
                             key={index}
                             variant="outline"
-                            className="flex items-center gap-3 px-6 py-6 bg-[#111]/50 backdrop-blur-md hover:bg-[#222] rounded-full text-base text-gray-400 hover:text-white transition-all duration-200 border-white/5 hover:border-orange-500/20 group h-auto"
+                            className="flex items-center gap-3 px-7 py-7 bg-[#111]/50 backdrop-blur-md hover:bg-[#222] rounded-full text-lg text-gray-400 hover:text-white transition-all duration-200 border-white/5 hover:border-orange-500/20 group h-auto"
                         >
-                            <action.icon className={`w-5 h-5 ${action.color} opacity-70 group-hover:opacity-100 transition-opacity`} />
+                            <action.icon className={`w-6 h-6 ${action.color} opacity-70 group-hover:opacity-100 transition-opacity`} />
                             {action.label}
-                            {action.hasDropdown && <ChevronDown className="w-4 h-4 ml-1 opacity-50 group-hover:opacity-100" />}
+                            {action.hasDropdown && <ChevronDown className="w-5 h-5 ml-1 opacity-50 group-hover:opacity-100" />}
                         </Button>
                     ))}
                 </div>
 
                 {/* Footer */}
-                <div className="text-center text-gray-600 text-base">
+                <div className="text-center text-gray-600 text-lg">
                     <p>By messaging Mira, you agree to our <a href="#" className="underline hover:text-orange-500 transition-colors">Terms</a> and <a href="#" className="underline hover:text-orange-500 transition-colors">Privacy Policy</a>.</p>
                 </div>
             </main>

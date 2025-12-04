@@ -61,15 +61,15 @@ export function ModelSelector({ selectedModel, onModelChange, disabled }: ModelS
         onClick={() => !disabled && setIsOpen(!isOpen)}
         disabled={disabled}
         className={cn(
-          "flex items-center gap-2 px-3 py-1.5 h-auto rounded-lg",
+          "flex items-center gap-2 px-4 py-2 h-auto rounded-lg",
           "bg-black/50 hover:bg-black/70 border border-orange-500/20",
           "text-gray-400 hover:text-orange-400 transition-all",
           disabled && "opacity-50 cursor-not-allowed"
         )}
       >
-        <Sparkles className="w-3.5 h-3.5 text-orange-500" />
-        <span className="text-xs font-medium">{currentModel.displayName}</span>
-        <ChevronDown className={cn("w-3 h-3 opacity-50 transition-transform", isOpen && "rotate-180")} />
+        <Sparkles className="w-5 h-5 text-orange-500" />
+        <span className="text-base font-medium">{currentModel.displayName}</span>
+        <ChevronDown className={cn("w-4 h-4 opacity-50 transition-transform", isOpen && "rotate-180")} />
       </Button>
 
       {isOpen && (
@@ -79,7 +79,7 @@ export function ModelSelector({ selectedModel, onModelChange, disabled }: ModelS
             onClick={() => setIsOpen(false)}
           />
           
-          <div className="absolute bottom-full left-0 mb-2 w-48 bg-black border border-orange-500/20 rounded-lg shadow-xl z-50 overflow-hidden">
+          <div className="absolute bottom-full left-0 mb-2 w-56 bg-black border border-orange-500/20 rounded-lg shadow-xl z-50 overflow-hidden">
             <div className="py-1">
               {MIRA_MODELS.map((model) => (
                 <button
@@ -89,17 +89,17 @@ export function ModelSelector({ selectedModel, onModelChange, disabled }: ModelS
                     setIsOpen(false);
                   }}
                   className={cn(
-                    "w-full flex items-center justify-between px-3 py-2 transition-all",
+                    "w-full flex items-center justify-between px-4 py-3 transition-all",
                     "hover:bg-orange-500/10 text-left",
                     selectedModel === model.id ? "bg-orange-500/10 text-orange-400" : "text-gray-400"
                   )}
                 >
                   <div>
-                    <span className="text-xs font-medium block">{model.displayName}</span>
-                    <span className="text-[10px] text-gray-600">{model.description}</span>
+                    <span className="text-base font-medium block">{model.displayName}</span>
+                    <span className="text-sm text-gray-600">{model.description}</span>
                   </div>
                   {selectedModel === model.id && (
-                    <Check className="w-3.5 h-3.5 text-orange-500" />
+                    <Check className="w-5 h-5 text-orange-500" />
                   )}
                 </button>
               ))}
