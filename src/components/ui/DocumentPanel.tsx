@@ -496,7 +496,7 @@ function DocumentPanelComponent({ isOpen, onClose, onDocumentsChange }: Document
                             )}
                         </div>
 
-                        {/* Footer */}
+                        {/* Footer for Documents Tab */}
                         {documents.length > 0 && (
                             <div className="px-4 py-3 border-t border-[#30363d] flex items-center justify-between">
                                 <p className="text-xs text-[#8b949e]">
@@ -504,11 +504,93 @@ function DocumentPanelComponent({ isOpen, onClose, onDocumentsChange }: Document
                                     {documents.reduce((acc, doc) => acc + doc.metadata.wordCount, 0).toLocaleString()} total words
                                 </p>
                                 <button
-                                    onClick={handleClearAll}
-                                    className="text-xs text-red-400 hover:text-red-300 transition-colors"
+                                    onClick={() => setActiveTab('chat')}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-[#58a6ff] hover:bg-[#58a6ff]/80 text-white text-xs font-medium rounded-lg transition-colors"
                                 >
-                                    Clear All
+                                    <MessageSquare size={12} />
+                                    Start Chat
                                 </button>
+                            </div>
+                        )}
+                            </>
+                        ) : (
+                            /* Chat Tab */
+                            <div className="flex-1 flex flex-col overflow-hidden">
+                                {/* Chat Messages */}
+                                <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                                    {chatMessages.length === 0 ? (
+                                        <div className="flex flex-col items-center justify-center h-full text-center">
+                                            <div className="w-16 h-16 rounded-full bg-[#58a6ff]/10 flex items-center justify-center mb-4">
+                                                <Sparkles size={28} className="text-[#58a6ff]" />
+                                            </div>
+                                            <h3 className="text-lg font-medium text-[#c9d1d9] mb-2">
+                                                Chat with your documents
+                                            </h3>
+                                            <p className="text-sm text-[#8b949e] max-w-xs">
+                                                Ask questions about your {documents.length} uploaded document{documents.length !== 1 ? 's' : ''}. 
+                                                The AI will use the content to answer.
+                                            </p>
+                                            <div className="mt-4 flex flex-wrap gap-2 justify-center">
+                                                {['Summarize this document', 'What are the key points?', 'Explain the main topic'].map((suggestion) => (
+                                                    <button
+                                                        key={suggestion}
+                                                        onClick={() => setChatInput(suggestion)}
+                                                        className="px-3 py-1.5 text-xs bg-[#21262d] hover:bg-[#30363d] text-[#8b949e] hover:text-[#c9d1d9] rounded-full transition-colors"
+                                                    >
+                                                        {suggestion}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        chatMessages.map((msg) => (
+                                            <div
+                                                key={msg.id}
+                                                className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                                            >
+                                                <div
+                                                    className={`max-w-[85%] px-4 py-2.5 rounded-2xl ${
+                                                        msg.role === 'user'
+                                                            ? 'bg-[#58a6ff] text-white rounded-br-md'
+                                                            : 'bg-[#21262d] text-[#c9d1d9] rounded-bl-md'
+                                                    }`}
+                                                >
+                                                    <p className="text-sm whitespace-pre-wrap">{msg.content || (isStreaming ? '...' : '')}</p>
+                                                </div>
+                                            </div>
+                                        ))
+                                    )}
+                                    <div ref={chatEndRef} />
+                                </div>
+
+                                {/* Chat Input */}
+                                <div className="p-4 border-t border-[#30363d]">
+                                    <div className="flex items-center gap-2">
+                                        <input
+                                            type="text"
+                                            value={chatInput}
+                                            onChange={(e) => setChatInput(e.target.value)}
+                                            onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSendMessage()}
+                                            placeholder="Ask about your documents..."
+                                            disabled={isStreaming}
+                                            className="flex-1 px-4 py-2.5 bg-[#21262d] border border-[#30363d] rounded-xl text-[#c9d1d9] text-sm placeholder-[#484f58] focus:outline-none focus:border-[#58a6ff] disabled:opacity-50"
+                                        />
+                                        <button
+                                            onClick={handleSendMessage}
+                                            disabled={!chatInput.trim() || isStreaming}
+                                            className="p-2.5 bg-[#58a6ff] hover:bg-[#58a6ff]/80 disabled:bg-[#21262d] disabled:text-[#484f58] text-white rounded-xl transition-colors"
+                                        >
+                                            {isStreaming ? (
+                                                <Loader2 size={18} className="animate-spin" />
+                                            ) : (
+                                                <Send size={18} />
+                                            )}
+                                        </button>
+                                    </div>
+                                    <p className="text-xs text-[#484f58] mt-2 text-center">
+                                        Chatting with {documents.length} document{documents.length !== 1 ? 's' : ''}
+                                    </p>
+                                </div>
                             </div>
                         )}
                     </motion.div>
