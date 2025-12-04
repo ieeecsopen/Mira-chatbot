@@ -39,44 +39,158 @@ function TypingIndicator() {
 }
 
 // Memoized markdown components for better performance
-const markdownComponents = {
+const createMarkdownComponents = (onOpenInCanvas?: (code: string, language?: string) => void) => ({
     // Bold text
     strong: ({ children }: { children?: React.ReactNode }) => (
         <strong className="font-bold text-white">{children}</strong>
     ),
     // Italic text
     em: ({ children }: { children?: React.ReactNode }) => (
-        <em className="italic text-gray-400">{children}</em>
+        <em className="italic text-[#a5d6ff]">{children}</em>
     ),
     // Paragraphs
     p: ({ children }: { children?: React.ReactNode }) => (
-        <p className="mb-3 last:mb-0">{children}</p>
+        <p className="mb-4 last:mb-0 leading-relaxed">{children}</p>
     ),
-    // Lists
+    // Unordered Lists - Enhanced styling
     ul: ({ children }: { children?: React.ReactNode }) => (
-        <ul className="list-disc list-inside mb-3 space-y-1 text-gray-300">{children}</ul>
+        <ul className="my-4 ml-2 space-y-2 list-none">
+            {children}
+        </ul>
     ),
+    // Ordered Lists - Enhanced styling
     ol: ({ children }: { children?: React.ReactNode }) => (
-        <ol className="list-decimal list-inside mb-3 space-y-1 text-gray-300">{children}</ol>
+        <ol className="my-4 ml-2 space-y-2 list-none counter-reset-item">
+            {children}
+        </ol>
     ),
-    li: ({ children }: { children?: React.ReactNode }) => (
-        <li className="mb-1">{children}</li>
+    // List items with custom bullets/numbers
+    li: ({ children, ordered, index }: { children?: React.ReactNode; ordered?: boolean; index?: number }) => (
+        <li className="flex gap-3 text-[#c9d1d9]">
+            <span className={cn(
+                "flex-shrink-0 mt-1",
+                ordered 
+                    ? "text-[#58a6ff] font-medium min-w-[1.5rem]" 
+                    : "text-[#7ee787]"
+            )}>
+                {ordered ? `${(index || 0) + 1}.` : '•'}
+            </span>
+            <span className="flex-1">{children}</span>
+        </li>
     ),
-    // Code
-    code: ({ children }: { children?: React.ReactNode }) => (
-        <code className="bg-white/10 px-1.5 py-0.5 rounded text-sm font-mono text-white border border-white/10">{children}</code>
+    // Code blocks with syntax highlighting
+    code: ({ className, children, ...props }: { className?: string; children?: React.ReactNode; node?: unknown }) => {
+        const match = /language-(\w+)/.exec(className || '');
+        const isInline = !match && !className;
+        
+        if (isInline) {
+            return <InlineCode>{children}</InlineCode>;
+        }
+        
+        const language = match ? match[1] : 'plaintext';
+        const codeString = String(children).replace(/\n$/, '');
+        
+        return (
+            <CodeBlock 
+                language={language} 
+                onOpenInCanvas={onOpenInCanvas}
+            >
+                {codeString}
+            </CodeBlock>
+        );
+    },
+    // Pre blocks (wrapper for code)
+    pre: ({ children }: { children?: React.ReactNode }) => (
+        <>{children}</>
     ),
-    // Headings
+    // Headings with enhanced styling
     h1: ({ children }: { children?: React.ReactNode }) => (
-        <h1 className="text-2xl font-bold mb-3 text-white">{children}</h1>
+        <h1 className="text-2xl font-bold mb-4 mt-6 first:mt-0 text-white border-b border-[#30363d] pb-2">{children}</h1>
     ),
     h2: ({ children }: { children?: React.ReactNode }) => (
-        <h2 className="text-xl font-bold mb-2 text-white">{children}</h2>
+        <h2 className="text-xl font-bold mb-3 mt-5 first:mt-0 text-white border-b border-[#30363d] pb-2">{children}</h2>
     ),
     h3: ({ children }: { children?: React.ReactNode }) => (
-        <h3 className="text-lg font-bold mb-2 text-white">{children}</h3>
+        <h3 className="text-lg font-semibold mb-2 mt-4 first:mt-0 text-white">{children}</h3>
     ),
-};
+    h4: ({ children }: { children?: React.ReactNode }) => (
+        <h4 className="text-base font-semibold mb-2 mt-3 first:mt-0 text-[#c9d1d9]">{children}</h4>
+    ),
+    // Blockquotes with distinctive styling
+    blockquote: ({ children }: { children?: React.ReactNode }) => (
+        <blockquote className="my-4 pl-4 py-2 border-l-4 border-[#58a6ff] bg-[#161b22] rounded-r-lg">
+            <div className="flex gap-2">
+                <Quote size={16} className="text-[#58a6ff] flex-shrink-0 mt-1" />
+                <div className="text-[#8b949e] italic">{children}</div>
+            </div>
+        </blockquote>
+    ),
+    // Tables with enhanced styling
+    table: ({ children }: { children?: React.ReactNode }) => (
+        <div className="my-4 overflow-x-auto rounded-lg border border-[#30363d]">
+            <table className="min-w-full divide-y divide-[#30363d]">
+                {children}
+            </table>
+        </div>
+    ),
+    thead: ({ children }: { children?: React.ReactNode }) => (
+        <thead className="bg-[#161b22]">
+            {children}
+        </thead>
+    ),
+    tbody: ({ children }: { children?: React.ReactNode }) => (
+        <tbody className="divide-y divide-[#30363d] bg-[#0d1117]">
+            {children}
+        </tbody>
+    ),
+    tr: ({ children }: { children?: React.ReactNode }) => (
+        <tr className="hover:bg-[#161b22] transition-colors">
+            {children}
+        </tr>
+    ),
+    th: ({ children }: { children?: React.ReactNode }) => (
+        <th className="px-4 py-3 text-left text-sm font-semibold text-[#c9d1d9] uppercase tracking-wider">
+            {children}
+        </th>
+    ),
+    td: ({ children }: { children?: React.ReactNode }) => (
+        <td className="px-4 py-3 text-sm text-[#8b949e]">
+            {children}
+        </td>
+    ),
+    // Links with URL preview support
+    a: ({ href, children }: { href?: string; children?: React.ReactNode }) => {
+        // Check if this is a standalone URL that should show a preview
+        const isStandaloneUrl = href && children && String(children) === href;
+        
+        if (isStandaloneUrl && href) {
+            return <UrlPreview url={href} />;
+        }
+        
+        return (
+            <a
+                href={href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[#58a6ff] hover:text-[#79c0ff] hover:underline transition-colors"
+            >
+                {children}
+            </a>
+        );
+    },
+    // Horizontal rule
+    hr: () => (
+        <hr className="my-6 border-t border-[#30363d]" />
+    ),
+    // Images
+    img: ({ src, alt }: { src?: string; alt?: string }) => (
+        <img 
+            src={src} 
+            alt={alt || ''} 
+            className="my-4 max-w-full rounded-lg border border-[#30363d]" 
+        />
+    ),
+});
 
 function MessageBubbleComponent({ role, content, isStreaming, isWaiting, onRegenerate, onOpenInCanvas }: MessageBubbleProps) {
     const [copied, setCopied] = useState(false);
@@ -108,6 +222,12 @@ function MessageBubbleComponent({ role, content, isStreaming, isWaiting, onRegen
         }
     }, [content, onOpenInCanvas]);
 
+    // Create markdown components with canvas handler
+    const markdownComponents = useMemo(
+        () => createMarkdownComponents(onOpenInCanvas),
+        [onOpenInCanvas]
+    );
+
     const showSkeleton = isWaiting && !content;
     const showTyping = isStreaming && !content;
 
@@ -136,7 +256,10 @@ function MessageBubbleComponent({ role, content, isStreaming, isWaiting, onRegen
                         <TypingIndicator />
                     ) : (
                         <>
-                            <ReactMarkdown components={markdownComponents}>
+                            <ReactMarkdown 
+                                remarkPlugins={[remarkGfm]}
+                                components={markdownComponents}
+                            >
                                 {content}
                             </ReactMarkdown>
                             {isStreaming && (
