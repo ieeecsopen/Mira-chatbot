@@ -13,10 +13,14 @@ import {
     CheckCircle,
     AlertCircle,
     Search,
-    BookOpen
+    BookOpen,
+    Send,
+    MessageSquare,
+    Sparkles
 } from 'lucide-react';
 import { parseDocument, SUPPORTED_EXTENSIONS, type ParsedDocument } from '../../lib/documentParser';
 import { getDocumentStore, persistDocuments } from '../../lib/documentStore';
+import { streamMessage } from '../../lib/api';
 
 interface DocumentPanelProps {
     isOpen: boolean;
@@ -30,6 +34,14 @@ interface UploadingFile {
     status: 'uploading' | 'parsing' | 'done' | 'error';
     error?: string;
 }
+
+interface ChatMessage {
+    id: string;
+    role: 'user' | 'assistant';
+    content: string;
+}
+
+// File type icons
 
 // File type icons
 function getFileIcon(type: ParsedDocument['type']) {
@@ -61,6 +73,14 @@ function DocumentPanelComponent({ isOpen, onClose, onDocumentsChange }: Document
     const fileInputRef = useRef<HTMLInputElement>(null);
     const store = getDocumentStore();
 
+    // Chat state
+    const [activeTab, setActiveTab] = useState<'documents' | 'chat'>('documents');
+    const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+    const [chatInput, setChatInput] = useState('');
+    const [isStreaming, setIsStreaming] = useState(false);
+    const chatEndRef = useRef<HTMLDivElement>(null);
+    const streamBufferRef = useRef<string>('');
+
     // Load documents from store on mount and when panel opens
     useEffect(() => {
         if (isOpen) {
@@ -68,11 +88,82 @@ function DocumentPanelComponent({ isOpen, onClose, onDocumentsChange }: Document
         }
     }, [isOpen, store]);
 
+    // Scroll chat to bottom when messages change
+    useEffect(() => {
+        chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, [chatMessages]);
+
     // Notify parent when documents change
     const notifyChange = useCallback(() => {
         setDocuments(store.getAll());
         onDocumentsChange?.();
     }, [store, onDocumentsChange]);
+
+    // Handle sending a chat message about documents
+    const handleSendMessage = useCallback(async () => {
+        if (!chatInput.trim() || isStreaming || documents.length === 0) return;
+
+        const userMessage: ChatMessage = {
+            id: Date.now().toString(),
+            role: 'user',
+            content: chatInput.trim()
+        };
+
+        setChatMessages(prev => [...prev, userMessage]);
+        setChatInput('');
+        setIsStreaming(true);
+
+        const assistantMessage: ChatMessage = {
+            id: (Date.now() + 1).toString(),
+            role: 'assistant',
+            content: ''
+        };
+        setChatMessages(prev => [...prev, assistantMessage]);
+        streamBufferRef.current = '';
+
+        try {
+            await streamMessage(
+                'user',
+                userMessage.content,
+                (chunk) => {
+                    streamBufferRef.current += chunk;
+                    setChatMessages(prev => {
+                        const lastIndex = prev.length - 1;
+                        if (lastIndex >= 0 && prev[lastIndex].role === 'assistant') {
+                            return [
+                                ...prev.slice(0, lastIndex),
+                                { ...prev[lastIndex], content: prev[lastIndex].content + chunk }
+                            ];
+                        }
+                        return prev;
+                    });
+                },
+                () => {
+                    setIsStreaming(false);
+                },
+                (error) => {
+                    console.error('Chat error:', error);
+                    setIsStreaming(false);
+                    setChatMessages(prev => {
+                        const lastIndex = prev.length - 1;
+                        if (lastIndex >= 0 && prev[lastIndex].role === 'assistant') {
+                            return [
+                                ...prev.slice(0, lastIndex),
+                                { ...prev[lastIndex], content: `Error: ${error}` }
+                            ];
+                        }
+                        return prev;
+                    });
+                },
+                undefined, // use default model
+                chatMessages.slice(-10).map(m => ({ role: m.role, content: m.content })), // pass recent history
+                { enableDocumentContext: true } // enable document context
+            );
+        } catch (error) {
+            console.error('Chat error:', error);
+            setIsStreaming(false);
+        }
+    }, [chatInput, isStreaming, documents.length, chatMessages]);
 
     const handleFileSelect = useCallback(async (files: FileList | File[]) => {
         const fileArray = Array.from(files);
@@ -194,7 +285,7 @@ function DocumentPanelComponent({ isOpen, onClose, onDocumentsChange }: Document
                         animate={{ x: 0 }}
                         exit={{ x: '100%' }}
                         transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                        className="fixed right-0 top-0 bottom-0 w-full max-w-md bg-[#0d1117] border-l border-[#30363d] z-50 flex flex-col"
+                        className="fixed right-0 top-0 bottom-0 w-full max-w-lg bg-[#0d1117] border-l border-[#30363d] z-50 flex flex-col"
                     >
                         {/* Header */}
                         <div className="flex items-center justify-between px-4 py-3 border-b border-[#30363d]">
@@ -215,38 +306,75 @@ function DocumentPanelComponent({ isOpen, onClose, onDocumentsChange }: Document
                             </button>
                         </div>
 
-                        {/* Upload Area */}
-                        <div
-                            onDrop={handleDrop}
-                            onDragOver={handleDragOver}
-                            onDragLeave={handleDragLeave}
-                            className={`m-4 p-6 border-2 border-dashed rounded-xl transition-all ${
-                                isDragging 
-                                    ? 'border-[#58a6ff] bg-[#58a6ff]/10' 
-                                    : 'border-[#30363d] hover:border-[#484f58]'
-                            }`}
-                        >
-                            <div className="text-center">
-                                <Upload size={32} className={`mx-auto mb-3 ${isDragging ? 'text-[#58a6ff]' : 'text-[#484f58]'}`} />
-                                <p className="text-sm text-[#c9d1d9] mb-1">
-                                    Drag & drop documents here
-                                </p>
-                                <p className="text-xs text-[#8b949e] mb-3">
-                                    PDF, DOCX, TXT, MD supported
-                                </p>
-                                <button
-                                    onClick={() => fileInputRef.current?.click()}
-                                    className="px-4 py-2 bg-[#21262d] hover:bg-[#30363d] text-[#c9d1d9] text-sm rounded-lg transition-colors"
+                        {/* Tabs */}
+                        <div className="flex border-b border-[#30363d]">
+                            <button
+                                onClick={() => setActiveTab('documents')}
+                                className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors ${
+                                    activeTab === 'documents'
+                                        ? 'text-[#58a6ff] border-b-2 border-[#58a6ff] bg-[#58a6ff]/5'
+                                        : 'text-[#8b949e] hover:text-[#c9d1d9]'
+                                }`}
+                            >
+                                <FileText size={16} />
+                                Documents
+                            </button>
+                            <button
+                                onClick={() => setActiveTab('chat')}
+                                disabled={documents.length === 0}
+                                className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors ${
+                                    activeTab === 'chat'
+                                        ? 'text-[#58a6ff] border-b-2 border-[#58a6ff] bg-[#58a6ff]/5'
+                                        : documents.length === 0
+                                            ? 'text-[#484f58] cursor-not-allowed'
+                                            : 'text-[#8b949e] hover:text-[#c9d1d9]'
+                                }`}
+                            >
+                                <MessageSquare size={16} />
+                                Chat
+                                {chatMessages.length > 0 && (
+                                    <span className="px-1.5 py-0.5 text-xs bg-[#58a6ff]/20 text-[#58a6ff] rounded-full">
+                                        {chatMessages.length}
+                                    </span>
+                                )}
+                            </button>
+                        </div>
+
+                        {/* Content */}
+                        {activeTab === 'documents' ? (
+                            <>
+                                {/* Upload Area */}
+                                <div
+                                    onDrop={handleDrop}
+                                    onDragOver={handleDragOver}
+                                    onDragLeave={handleDragLeave}
+                                    className={`m-4 p-6 border-2 border-dashed rounded-xl transition-all ${
+                                        isDragging 
+                                            ? 'border-[#58a6ff] bg-[#58a6ff]/10' 
+                                            : 'border-[#30363d] hover:border-[#484f58]'
+                                    }`}
                                 >
-                                    Browse Files
-                                </button>
-                                <input
-                                    ref={fileInputRef}
-                                    type="file"
-                                    multiple
-                                    accept=".pdf,.docx,.txt,.md"
-                                    onChange={(e) => e.target.files && handleFileSelect(e.target.files)}
-                                    className="hidden"
+                                    <div className="text-center">
+                                        <Upload size={32} className={`mx-auto mb-3 ${isDragging ? 'text-[#58a6ff]' : 'text-[#484f58]'}`} />
+                                        <p className="text-sm text-[#c9d1d9] mb-1">
+                                            Drag & drop documents here
+                                        </p>
+                                        <p className="text-xs text-[#8b949e] mb-3">
+                                            PDF, DOCX, TXT, MD supported
+                                        </p>
+                                        <button
+                                            onClick={() => fileInputRef.current?.click()}
+                                            className="px-4 py-2 bg-[#21262d] hover:bg-[#30363d] text-[#c9d1d9] text-sm rounded-lg transition-colors"
+                                        >
+                                            Browse Files
+                                        </button>
+                                        <input
+                                            ref={fileInputRef}
+                                            type="file"
+                                            multiple
+                                            accept=".pdf,.docx,.txt,.md"
+                                            onChange={(e) => e.target.files && handleFileSelect(e.target.files)}
+                                            className="hidden"
                                 />
                             </div>
                         </div>
