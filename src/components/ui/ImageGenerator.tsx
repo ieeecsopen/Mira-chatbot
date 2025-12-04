@@ -58,10 +58,10 @@ export const ImageDisplay = memo(function ImageDisplay({
     onRegenerate,
     showActions = true 
 }: ImageDisplayProps) {
-    const [isLoading, setIsLoading] = useState(true);
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [copied, setCopied] = useState(false);
     const [imageError, setImageError] = useState(false);
+    const [showAnimation, setShowAnimation] = useState(true);
 
     const handleDownload = async () => {
         try {
@@ -93,62 +93,81 @@ export const ImageDisplay = memo(function ImageDisplay({
             <motion.div
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="my-4 bg-gradient-to-br from-[#1a1b26] to-[#24283b] border border-[#414868] rounded-xl overflow-hidden max-w-md"
+                className="my-4"
             >
-                {/* Image */}
-                <div className="relative aspect-square bg-[#0d1117]">
-                    {isLoading && !imageError && (
-                        <div className="absolute inset-0 flex items-center justify-center">
-                            <Loader2 size={32} className="text-orange-400 animate-spin" />
+                {/* Image with animation reveal */}
+                {showAnimation ? (
+                    <ImageGenerationAnimation 
+                        duration={8000} 
+                        onComplete={() => setShowAnimation(false)}
+                    >
+                        <div className="relative aspect-square">
+                            {imageError ? (
+                                <div className="absolute inset-0 flex items-center justify-center text-center p-4 bg-[#0d1117]">
+                                    <div>
+                                        <p className="text-red-400 mb-2">Failed to load image</p>
+                                        <button
+                                            onClick={() => setImageError(false)}
+                                            className="text-sm text-orange-400 hover:text-orange-300"
+                                        >
+                                            Try again
+                                        </button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <img
+                                    src={image.url}
+                                    alt={image.prompt}
+                                    className="w-full h-full object-cover"
+                                    onError={() => setImageError(true)}
+                                />
+                            )}
                         </div>
-                    )}
-                    {imageError ? (
-                        <div className="absolute inset-0 flex items-center justify-center text-center p-4">
-                            <div>
-                                <p className="text-red-400 mb-2">Failed to load image</p>
-                                <button
-                                    onClick={() => {
-                                        setImageError(false);
-                                        setIsLoading(true);
-                                    }}
-                                    className="text-sm text-orange-400 hover:text-orange-300"
-                                >
-                                    Try again
-                                </button>
-                            </div>
+                    </ImageGenerationAnimation>
+                ) : (
+                    <div className="relative rounded-xl border border-[#30363d] bg-[#0d1117] max-w-md overflow-hidden">
+                        <div className="relative aspect-square">
+                            {imageError ? (
+                                <div className="absolute inset-0 flex items-center justify-center text-center p-4">
+                                    <div>
+                                        <p className="text-red-400 mb-2">Failed to load image</p>
+                                        <button
+                                            onClick={() => setImageError(false)}
+                                            className="text-sm text-orange-400 hover:text-orange-300"
+                                        >
+                                            Try again
+                                        </button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <>
+                                    <img
+                                        src={image.url}
+                                        alt={image.prompt}
+                                        className="w-full h-full object-cover"
+                                        onError={() => setImageError(true)}
+                                    />
+                                    {/* Fullscreen button */}
+                                    <button
+                                        onClick={() => setIsFullscreen(true)}
+                                        className="absolute top-2 right-2 p-2 bg-black/50 hover:bg-black/70 rounded-lg transition-colors"
+                                    >
+                                        <Maximize2 size={16} className="text-white" />
+                                    </button>
+                                </>
+                            )}
                         </div>
-                    ) : (
-                        <img
-                            src={image.url}
-                            alt={image.prompt}
-                            className={`w-full h-full object-cover transition-opacity duration-300 ${isLoading ? 'opacity-0' : 'opacity-100'}`}
-                            onLoad={() => setIsLoading(false)}
-                            onError={() => {
-                                setIsLoading(false);
-                                setImageError(true);
-                            }}
-                        />
-                    )}
-                    
-                    {/* Fullscreen button */}
-                    {!isLoading && !imageError && (
-                        <button
-                            onClick={() => setIsFullscreen(true)}
-                            className="absolute top-2 right-2 p-2 bg-black/50 hover:bg-black/70 rounded-lg transition-colors"
-                        >
-                            <Maximize2 size={16} className="text-white" />
-                        </button>
-                    )}
-                </div>
+                    </div>
+                )}
 
                 {/* Info & Actions */}
-                {showActions && (
-                    <div className="p-3 border-t border-[#414868]">
+                {showActions && !showAnimation && (
+                    <div className="p-3 mt-2 bg-[#161b22] border border-[#30363d] rounded-lg max-w-md">
                         <p className="text-xs text-gray-400 mb-3 line-clamp-2" title={image.prompt}>
                             "{image.prompt}"
                         </p>
                         
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                             <button
                                 onClick={handleDownload}
                                 className="flex items-center gap-1.5 px-3 py-1.5 bg-[#21262d] hover:bg-[#30363d] rounded-lg text-xs text-gray-300 transition-colors"
@@ -248,7 +267,7 @@ export function ImageGenerator({ prompt: initialPrompt, onImageGenerated, onClos
         <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="my-4 p-4 bg-gradient-to-br from-[#1a1b26] to-[#24283b] border border-[#414868] rounded-xl max-w-lg"
+            className="my-4 p-4 bg-[#0d1117] border border-[#30363d] rounded-xl max-w-lg"
         >
             <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
@@ -267,7 +286,7 @@ export function ImageGenerator({ prompt: initialPrompt, onImageGenerated, onClos
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
                 placeholder="Describe the image you want to generate..."
-                className="w-full px-3 py-2 bg-[#0d1117] border border-[#30363d] rounded-lg text-white text-sm resize-none focus:outline-none focus:border-orange-500"
+                className="w-full px-3 py-2 bg-[#161b22] border border-[#30363d] rounded-lg text-white text-sm resize-none focus:outline-none focus:border-orange-500"
                 rows={3}
             />
             
