@@ -90,9 +90,9 @@ export const defaultSlashCommands: SlashCommand[] = [
         category: 'tools'
     },
     {
-        id: 'image',
+        id: 'imagine',
         name: 'Generate Image',
-        description: 'Create an AI-generated image',
+        description: 'Create an AI image (e.g., /imagine a sunset)',
         icon: <Image size={16} />,
         category: 'tools'
     },
