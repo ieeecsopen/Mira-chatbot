@@ -1,16 +1,18 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { SendHorizontal, Paperclip, Globe, Mic } from 'lucide-react';
+import { SendHorizontal, Paperclip, Globe, Mic, Search } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { Button } from './ui/button';
 import { SlashCommandMenu, type SlashCommand } from './ui/SlashCommandMenu';
 
 interface ChatInputProps {
-    onSend: (message: string) => void;
+    onSend: (message: string, options?: { enableWebSearch?: boolean }) => void;
     disabled?: boolean;
     onSlashCommand?: (command: SlashCommand) => void;
+    webSearchEnabled?: boolean;
+    onToggleWebSearch?: () => void;
 }
 
-export function ChatInput({ onSend, disabled, onSlashCommand }: ChatInputProps) {
+export function ChatInput({ onSend, disabled, onSlashCommand, webSearchEnabled, onToggleWebSearch }: ChatInputProps) {
     const [input, setInput] = useState('');
     const [showSlashMenu, setShowSlashMenu] = useState(false);
     const [slashQuery, setSlashQuery] = useState('');

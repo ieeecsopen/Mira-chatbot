@@ -94,6 +94,7 @@ import { singlishToSinhala, detectSinglish } from './singlish';
 import { correctGrammar, enhanceSinhalaText } from './grammar';
 import { buildRAGContext, getDirectAnswer } from './rag';
 import { responseCache } from './cache';
+import { webSearch, formatSearchResultsForAI, type SearchResult } from './webSearch';
 
 export interface ChatResponse {
     answer: string;
@@ -102,6 +103,7 @@ export interface ChatResponse {
     rag_used: boolean;
     cached?: boolean;
     model?: string;
+    searchResults?: SearchResult[];
 }
 
 // Conversation history type for API
@@ -282,7 +284,12 @@ export async function streamMessage(
     onDone: () => void,
     onError: (error: string) => void,
     selectedModelId?: string,
-    conversationHistory?: Array<{ role: 'user' | 'assistant'; content: string }>
+    conversationHistory?: Array<{ role: 'user' | 'assistant'; content: string }>,
+    options?: { 
+        enableWebSearch?: boolean;
+        onSearchStart?: () => void;
+        onSearchResults?: (results: SearchResult[]) => void;
+    }
 ) {
     // Preprocess the message
     const { processed, wasSinglish, ragContext, directAnswer } = preprocessMessage(message);
@@ -291,26 +298,51 @@ export async function streamMessage(
     if (wasSinglish) {
         console.log('🔄 Singlish converted:', message, '→', processed);
     }
+
+    // Handle web search if enabled
+    let webSearchContext = '';
+    let searchResults: SearchResult[] = [];
+    
+    if (options?.enableWebSearch) {
+        console.log('🌐 Web search enabled, searching...');
+        options.onSearchStart?.();
+        
+        try {
+            const searchResponse = await webSearch(message);
+            searchResults = searchResponse.results;
+            
+            if (searchResults.length > 0) {
+                webSearchContext = formatSearchResultsForAI(searchResults);
+                options.onSearchResults?.(searchResults);
+                console.log(`✅ Found ${searchResults.length} search results`);
+            }
+        } catch (error) {
+            console.warn('Web search failed:', error);
+        }
+    }
     
     // Check cache for similar queries (only for simple queries without much context)
     const cacheKey = processed.toLowerCase().trim();
     if (!conversationHistory || conversationHistory.length === 0) {
-        const cachedResponse = responseCache.get(cacheKey);
-        if (cachedResponse) {
-            console.log('📦 Returning cached response');
-            // Stream cached response word by word
-            const words = cachedResponse.split(' ');
-            for (const word of words) {
-                onChunk(word + ' ');
-                await new Promise(resolve => setTimeout(resolve, 20));
+        // Don't use cache if web search is enabled (we want fresh results)
+        if (!options?.enableWebSearch) {
+            const cachedResponse = responseCache.get(cacheKey);
+            if (cachedResponse) {
+                console.log('📦 Returning cached response');
+                // Stream cached response word by word
+                const words = cachedResponse.split(' ');
+                for (const word of words) {
+                    onChunk(word + ' ');
+                    await new Promise(resolve => setTimeout(resolve, 20));
+                }
+                onDone();
+                return;
             }
-            onDone();
-            return;
         }
     }
     
-    // If we have a direct answer, stream it word by word
-    if (directAnswer) {
+    // If we have a direct answer and no web search, stream it word by word
+    if (directAnswer && !options?.enableWebSearch) {
         console.log('📚 Direct answer from knowledge base');
         const answer = postprocessResponse(directAnswer);
         
@@ -327,8 +359,15 @@ export async function streamMessage(
         return;
     }
     
-    // Build enhanced prompt with RAG context
-    const enhancedMessage = buildEnhancedPrompt(processed, ragContext);
+    // Build enhanced prompt with RAG context and web search context
+    let enhancedMessage = buildEnhancedPrompt(processed, ragContext);
+    
+    // Add web search context if available
+    if (webSearchContext) {
+        enhancedMessage = `${webSearchContext}\n\n${enhancedMessage}`;
+        console.log('🌐 Web search context added to prompt');
+    }
+    
     if (ragContext) {
         console.log('📚 RAG context added to prompt');
     }
