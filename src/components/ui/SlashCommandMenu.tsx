@@ -69,6 +69,13 @@ export const defaultSlashCommands: SlashCommand[] = [
         category: 'tools'
     },
     {
+        id: 'docs',
+        name: 'Documents',
+        description: 'Upload & chat with PDF, DOCX, or text files',
+        icon: <FileText size={16} />,
+        category: 'tools'
+    },
+    {
         id: 'web',
         name: 'Web Search',
         description: 'Toggle web search for real-time info',

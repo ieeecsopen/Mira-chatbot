@@ -75,7 +75,7 @@ function escapeRegex(str: string): string {
 /**
  * Extract highlighted snippets around matched terms
  */
-function extractHighlights(query: string, text: string, maxLength = 150): string[] {
+function extractHighlights(query: string, text: string, _maxLength = 150): string[] {
     const queryWords = query.toLowerCase().split(/\s+/).filter(w => w.length > 2);
     const highlights: string[] = [];
     

@@ -624,6 +624,17 @@ function App() {
                   onModelChange={setSelectedModel}
                   disabled={isStreaming}
                 />
+                {documentCount > 0 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setIsDocumentPanelOpen(true)}
+                    className="text-gray-500 hover:text-white gap-2"
+                  >
+                    <FileText size={16} />
+                    <span className="text-xs">Docs ({documentCount})</span>
+                  </Button>
+                )}
                 {canvas.items.length > 0 && (
                   <Button
                     variant="ghost"
@@ -677,6 +688,13 @@ function App() {
         onSelectItem={canvas.selectItem}
         onUpdateItem={canvas.updateItem}
         onDeleteItem={canvas.deleteItem}
+      />
+
+      {/* Document Panel */}
+      <DocumentPanel
+        isOpen={isDocumentPanelOpen}
+        onClose={() => setIsDocumentPanelOpen(false)}
+        onDocumentsChange={updateDocumentCount}
       />
     </div>
   );

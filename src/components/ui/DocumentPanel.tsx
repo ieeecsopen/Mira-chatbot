@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, memo } from 'react';
+import { useState, useCallback, useRef, memo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
     FileText, 
@@ -21,8 +21,7 @@ import { getDocumentStore, persistDocuments } from '../../lib/documentStore';
 interface DocumentPanelProps {
     isOpen: boolean;
     onClose: () => void;
-    documents: ParsedDocument[];
-    onDocumentsChange: (docs: ParsedDocument[]) => void;
+    onDocumentsChange?: () => void;
 }
 
 interface UploadingFile {
@@ -53,13 +52,27 @@ function formatSize(bytes: number): string {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function DocumentPanelComponent({ isOpen, onClose, documents, onDocumentsChange }: DocumentPanelProps) {
+function DocumentPanelComponent({ isOpen, onClose, onDocumentsChange }: DocumentPanelProps) {
+    const [documents, setDocuments] = useState<ParsedDocument[]>([]);
     const [uploadingFiles, setUploadingFiles] = useState<UploadingFile[]>([]);
     const [expandedDoc, setExpandedDoc] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [isDragging, setIsDragging] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const store = getDocumentStore();
+
+    // Load documents from store on mount and when panel opens
+    useEffect(() => {
+        if (isOpen) {
+            setDocuments(store.getAll());
+        }
+    }, [isOpen, store]);
+
+    // Notify parent when documents change
+    const notifyChange = useCallback(() => {
+        setDocuments(store.getAll());
+        onDocumentsChange?.();
+    }, [store, onDocumentsChange]);
 
     const handleFileSelect = useCallback(async (files: FileList | File[]) => {
         const fileArray = Array.from(files);
@@ -102,7 +115,7 @@ function DocumentPanelComponent({ isOpen, onClose, documents, onDocumentsChange 
                 );
 
                 // Update documents list
-                onDocumentsChange(store.getAll());
+                notifyChange();
                 persistDocuments(store);
 
                 // Remove from uploading after delay
@@ -121,7 +134,7 @@ function DocumentPanelComponent({ isOpen, onClose, documents, onDocumentsChange 
                 );
             }
         }
-    }, [store, onDocumentsChange]);
+    }, [store, notifyChange]);
 
     const handleDrop = useCallback((e: React.DragEvent) => {
         e.preventDefault();
@@ -144,17 +157,17 @@ function DocumentPanelComponent({ isOpen, onClose, documents, onDocumentsChange 
 
     const handleRemoveDocument = useCallback((docId: string) => {
         store.remove(docId);
-        onDocumentsChange(store.getAll());
+        notifyChange();
         persistDocuments(store);
-    }, [store, onDocumentsChange]);
+    }, [store, notifyChange]);
 
     const handleClearAll = useCallback(() => {
         if (confirm('Are you sure you want to remove all documents?')) {
             store.clear();
-            onDocumentsChange([]);
+            notifyChange();
             persistDocuments(store);
         }
-    }, [store, onDocumentsChange]);
+    }, [store, notifyChange]);
 
     // Filter documents by search
     const filteredDocs = documents.filter(doc => 
