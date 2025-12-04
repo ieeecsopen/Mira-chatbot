@@ -15,7 +15,9 @@ import { VoiceInput } from './components/ui/VoiceInput';
 import { FileUpload, FilePreview, type UploadedFile } from './components/ui/FileUpload';
 import { SearchResultsCard } from './components/ui/SearchResultsCard';
 import { DocumentUploadBar } from './components/ui/DocumentUploadBar';
+import { ImageGeneratingCard, ImageDisplay } from './components/ui/ImageGenerator';
 import { getDocumentStore } from './lib/documentStore';
+import { parseImageCommand, generateImage, type GeneratedImage } from './lib/imageGeneration';
 import type { SearchResult } from './lib/webSearch';
 
 interface Message {
@@ -23,6 +25,9 @@ interface Message {
   role: 'user' | 'assistant';
   content: string;
   searchResults?: SearchResult[];
+  generatedImage?: GeneratedImage;
+  isGeneratingImage?: boolean;
+  imagePrompt?: string;
 }
 
 // Maximum number of messages to include for context
