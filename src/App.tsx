@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { MessageBubble } from './components/MessageBubble';
 import { ChatInput } from './components/ChatInput';
 import { LandingPage } from './components/LandingPage';
+import { ModelSelector, MIRA_MODELS } from './components/ModelSelector';
 import { Menu, Plus, Settings, Sparkles } from 'lucide-react';
 import { Button } from './components/ui/button';
 import { streamMessage } from './lib/api';
@@ -16,6 +17,7 @@ function App() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
   const [hasStarted, setHasStarted] = useState(false);
+  const [selectedModel, setSelectedModel] = useState(MIRA_MODELS[0].id);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -76,7 +78,8 @@ function App() {
         (error: string) => {
           // onError callback
           console.error('Stream error:', error);
-        }
+        },
+        selectedModel
       );
     } catch (error) {
       console.error('Error sending message:', error);
@@ -86,7 +89,13 @@ function App() {
   };
 
   if (!hasStarted) {
-    return <LandingPage onStartChat={handleSend} />;
+    return (
+      <LandingPage
+        onStartChat={handleSend}
+        selectedModel={selectedModel}
+        onModelChange={setSelectedModel}
+      />
+    );
   }
 
   return (
@@ -185,7 +194,16 @@ function App() {
 
         {/* Input Area */}
         <div className="p-4 md:p-6 bg-gradient-to-t from-background via-background to-transparent relative z-10">
-          <ChatInput onSend={handleSend} disabled={isStreaming} />
+          <div className="max-w-4xl mx-auto">
+            <div className="flex items-center gap-3 mb-3">
+              <ModelSelector
+                selectedModel={selectedModel}
+                onModelChange={setSelectedModel}
+                disabled={isStreaming}
+              />
+            </div>
+            <ChatInput onSend={handleSend} disabled={isStreaming} />
+          </div>
         </div>
       </div>
     </div>

@@ -314,7 +314,8 @@ export async function streamMessage(
     message: string,
     onChunk: (text: string) => void,
     onDone: () => void,
-    onError: (error: string) => void
+    onError: (error: string) => void,
+    selectedModelId?: string
 ) {
     // Preprocess the message
     const { processed, wasSinglish, ragContext, directAnswer } = preprocessMessage(message);
@@ -348,10 +349,24 @@ export async function streamMessage(
     // Determine if we need quality model
     const preferQuality = message.length > 200 || ragContext.length > 500;
     
-    // Try streaming with fallback across models
-    const models = preferQuality
-        ? AVAILABLE_MODELS.filter(m => m.category !== 'fast').sort((a, b) => a.priority - b.priority)
-        : [...AVAILABLE_MODELS].sort((a, b) => a.priority - b.priority);
+    // If a specific model is selected, use only that model
+    // Otherwise, try streaming with fallback across models
+    let models: ModelConfig[];
+    
+    if (selectedModelId) {
+        const selectedModel = AVAILABLE_MODELS.find(m => m.name === selectedModelId);
+        if (selectedModel) {
+            models = [selectedModel];
+        } else {
+            models = preferQuality
+                ? AVAILABLE_MODELS.filter(m => m.category !== 'fast').sort((a, b) => a.priority - b.priority)
+                : [...AVAILABLE_MODELS].sort((a, b) => a.priority - b.priority);
+        }
+    } else {
+        models = preferQuality
+            ? AVAILABLE_MODELS.filter(m => m.category !== 'fast').sort((a, b) => a.priority - b.priority)
+            : [...AVAILABLE_MODELS].sort((a, b) => a.priority - b.priority);
+    }
     
     let lastError: Error | null = null;
     

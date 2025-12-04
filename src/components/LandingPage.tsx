@@ -2,12 +2,15 @@ import React from 'react';
 import { Settings, Sparkles, Mic, Globe, Image, Users, ChevronDown, Search } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
+import { ModelSelector } from './ModelSelector';
 
 interface LandingPageProps {
     onStartChat: (message: string) => void;
+    selectedModel: string;
+    onModelChange: (modelId: string) => void;
 }
 
-export function LandingPage({ onStartChat }: LandingPageProps) {
+export function LandingPage({ onStartChat, selectedModel, onModelChange }: LandingPageProps) {
     const [inputValue, setInputValue] = React.useState('');
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -65,11 +68,10 @@ export function LandingPage({ onStartChat }: LandingPageProps) {
                             className="w-full h-16 bg-[#09090b]/80 backdrop-blur-xl text-white text-xl placeholder-gray-500 rounded-2xl pl-16 pr-40 border-white/5 focus-visible:ring-orange-500/30 focus-visible:border-orange-500/30 transition-all duration-300 shadow-2xl"
                         />
                         <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-3">
-                            <Button variant="ghost" size="sm" type="button" className="flex items-center gap-2 text-gray-500 hover:text-white hover:bg-white/5 h-10 px-3 rounded-xl">
-                                <Sparkles className="w-4 h-4 text-orange-500" />
-                                <span className="text-sm">Auto</span>
-                                <ChevronDown className="w-4 h-4" />
-                            </Button>
+                            <ModelSelector
+                                selectedModel={selectedModel}
+                                onModelChange={onModelChange}
+                            />
                             <Button size="icon" type="button" className="bg-white/5 text-white/80 rounded-full hover:bg-white hover:text-black w-10 h-10 transition-all duration-300">
                                 <Mic className="w-5 h-5" />
                             </Button>
