@@ -3,8 +3,9 @@ import { MessageBubble } from './components/MessageBubble';
 import { ChatInput, type SlashCommand } from './components/ChatInput';
 import { LandingPage } from './components/LandingPage';
 import { ModelSelector, MIRA_MODELS } from './components/ModelSelector';
-import { Plus, Settings, Trash2, MessageSquare, PanelRightOpen } from 'lucide-react';
+import { PanelRightOpen } from 'lucide-react';
 import { Button } from './components/ui/button';
+import { Sidebar } from './components/ui/Sidebar';
 import { streamMessage } from './lib/api';
 import { chatStorage, type ChatSession } from './lib/chatStorage';
 import { Canvas } from './components/ui/Canvas';
@@ -55,7 +56,7 @@ function App() {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [attachedFiles, setAttachedFiles] = useState<UploadedFile[]>([]);
-  
+
   // Web search state
   const [webSearchEnabled, setWebSearchEnabled] = useState(false);
   const [isSearchingWeb, setIsSearchingWeb] = useState(false);
@@ -166,7 +167,7 @@ function App() {
 
     // Check if this is an image generation request
     const { isImageCommand, prompt: imagePrompt } = parseImageCommand(text);
-    
+
     if (isImageCommand && imagePrompt) {
       // Handle image generation
       const userMessage: Message = {
@@ -174,7 +175,7 @@ function App() {
         role: 'user',
         content: text
       };
-      
+
       setMessages(prev => [...prev, userMessage]);
       chatStorage.addMessage('user', text);
 
@@ -186,12 +187,12 @@ function App() {
         isGeneratingImage: true,
         imagePrompt: imagePrompt
       };
-      
+
       setMessages(prev => [...prev, assistantMessage]);
-      
+
       try {
         const generatedImage = await generateImage(imagePrompt);
-        
+
         // Update message with generated image
         setMessages(prev => {
           const lastIndex = prev.length - 1;
@@ -208,7 +209,7 @@ function App() {
           }
           return prev;
         });
-        
+
         chatStorage.updateLastAssistantMessage(`[Generated image: ${imagePrompt}]`);
         chatStorage.saveCurrentSession();
         setChatSessions(chatStorage.getRecentSessions(20));
@@ -229,7 +230,7 @@ function App() {
           return prev;
         });
       }
-      
+
       return;
     }
 
@@ -571,70 +572,14 @@ function App() {
       />
 
       <div className="flex flex-1 pt-16 overflow-hidden">
-        {/* Sidebar - Hidden on mobile, visible on md+ */}
-        <div className="hidden md:flex flex-col w-[260px] border-r border-border p-4 bg-background relative z-20">
-          <div className="flex items-center justify-between mb-8 px-2">
-            <div className="flex items-center gap-2">
-              <div className="font-mono font-bold text-xl tracking-tight text-white">Grok</div>
-            </div>
-            <Button variant="ghost" size="icon" className="hover:bg-white/10 text-gray-400 hover:text-white rounded-md w-8 h-8">
-              <Settings size={18} />
-            </Button>
-          </div>
-
-          <Button
-            onClick={handleNewChat}
-            className="flex items-center justify-center gap-2 w-full px-4 py-2 mb-6 bg-white hover:bg-gray-200 text-black rounded-full transition-all font-medium text-sm"
-          >
-            <Plus size={16} />
-            <span>New Chat</span>
-          </Button>
-
-          <div className="flex-1 overflow-y-auto space-y-1 pr-2">
-            <div className="text-[10px] font-mono text-gray-600 mb-3 px-2 uppercase tracking-wider">Recent Chats</div>
-            {/* Chat history items from storage */}
-            {chatSessions.length > 0 ? (
-              chatSessions.map((session) => (
-                <div
-                  key={session.id}
-                  onClick={() => handleSelectSession(session)}
-                  className={`group w-full flex items-center justify-between px-3 py-2 text-left rounded-md transition-all cursor-pointer ${currentSessionId === session.id
-                    ? 'bg-white/10 text-white'
-                    : 'text-gray-400 hover:text-white hover:bg-white/5'
-                    }`}
-                >
-                  <div className="flex items-center gap-2 flex-1 min-w-0">
-                    <MessageSquare size={14} className="flex-shrink-0" />
-                    <span className="truncate text-sm font-normal">{session.title}</span>
-                  </div>
-                  <button
-                    onClick={(e) => handleDeleteSession(session.id, e)}
-                    className="opacity-0 group-hover:opacity-100 p-1 hover:bg-white/10 rounded transition-all"
-                    title="Delete chat"
-                  >
-                    <Trash2 size={14} className="text-gray-500 hover:text-red-400" />
-                  </button>
-                </div>
-              ))
-            ) : (
-              <div className="text-center text-gray-600 text-sm py-4">
-                No chat history yet
-              </div>
-            )}
-          </div>
-
-          <div className="mt-auto pt-4 border-t border-border">
-            <Button variant="ghost" className="w-full flex items-center justify-start gap-3 px-2 py-2 hover:bg-white/5 rounded-md transition-colors h-auto">
-              <div className="w-7 h-7 rounded-sm bg-white/10 flex items-center justify-center text-white font-mono text-xs border border-white/10">
-                U
-              </div>
-              <div className="text-sm font-medium text-left">
-                <div className="text-white">User Account</div>
-                <div className="text-xs text-gray-500 font-mono">Free Plan</div>
-              </div>
-            </Button>
-          </div>
-        </div>
+        {/* Sidebar */}
+        <Sidebar
+          chatSessions={chatSessions}
+          currentSessionId={currentSessionId}
+          onNewChat={handleNewChat}
+          onSelectSession={handleSelectSession}
+          onDeleteSession={handleDeleteSession}
+        />
 
         {/* Main Chat Area */}
         <div className="flex-1 flex flex-col h-full relative bg-background">
@@ -665,7 +610,7 @@ function App() {
                   )}
                   {/* Show generated image */}
                   {msg.role === 'assistant' && msg.generatedImage && (
-                    <ImageDisplay 
+                    <ImageDisplay
                       image={msg.generatedImage}
                       onRegenerate={(prompt) => handleSend(`/imagine ${prompt}`)}
                     />
@@ -711,7 +656,7 @@ function App() {
               <div className="mb-3">
                 <DocumentUploadBar onDocumentsChange={updateDocumentStatus} />
               </div>
-              
+
               <div className="flex items-center gap-3 mb-3">
                 <ModelSelector
                   selectedModel={selectedModel}
@@ -753,9 +698,9 @@ function App() {
                   language="si-LK"
                 />
                 <div className="flex-1">
-                  <ChatInput 
-                    onSend={handleSend} 
-                    disabled={isStreaming} 
+                  <ChatInput
+                    onSend={handleSend}
+                    disabled={isStreaming}
                     onSlashCommand={handleSlashCommand}
                     webSearchEnabled={webSearchEnabled}
                     onToggleWebSearch={() => setWebSearchEnabled(prev => !prev)}
