@@ -7,14 +7,10 @@ import { cn } from "../../lib/utils";
 import {
     ImageIcon,
     FileUp,
-    MonitorIcon,
-    CircleUserRound,
     ArrowUpIcon,
     Paperclip,
     Code2,
     Palette,
-    Layers,
-    Rocket,
 } from "lucide-react";
 
 interface AutoResizeProps {
@@ -81,32 +77,20 @@ export default function RuixenMoonChat({ onStartChat, selectedModel: _selectedMo
     };
 
     return (
-        <div
-            className="relative w-full h-screen bg-cover bg-center flex flex-col items-center"
-            style={{
-                backgroundImage:
-                    "url('https://pub-940ccf6255b54fa799a9b01050e6c227.r2.dev/ruixen_moon_2.png')",
-                backgroundAttachment: "fixed",
-            }}
-        >
-            {/* Darker Overlay for better contrast */}
-            <div className="absolute inset-0 bg-black/40 pointer-events-none" />
-
-            {/* Centered AI Title */}
-            <div className="flex-1 w-full flex flex-col items-center justify-center relative z-10">
-                <div className="text-center">
-                    <h1 className="text-6xl font-bold text-white drop-shadow-lg tracking-tight">
-                        Ruixen AI
-                    </h1>
-                    <p className="mt-4 text-xl text-neutral-100 font-medium drop-shadow-md">
-                        Build something amazing — just start typing below.
-                    </p>
-                </div>
+        <div className="relative w-full h-screen bg-background flex flex-col items-center justify-center">
+            {/* Centered Title */}
+            <div className="flex flex-col items-center justify-center mb-12">
+                <h1 className="text-4xl font-bold text-white tracking-tight mb-4">
+                    Mira
+                </h1>
+                <p className="text-lg text-gray-500 font-medium">
+                    grok with it
+                </p>
             </div>
 
             {/* Input Box Section */}
-            <div className="w-full max-w-4xl mb-[20vh] relative z-10 px-4">
-                <div className="relative bg-black/70 backdrop-blur-xl rounded-2xl border border-white/20 shadow-2xl">
+            <div className="w-full max-w-2xl px-4 relative z-10">
+                <div className="relative bg-[#1a1a1a] rounded-2xl transition-all group focus-within:ring-1 focus-within:ring-white/10">
                     <Textarea
                         ref={textareaRef}
                         value={message}
@@ -115,54 +99,50 @@ export default function RuixenMoonChat({ onStartChat, selectedModel: _selectedMo
                             adjustHeight();
                         }}
                         onKeyDown={handleKeyDown}
-                        placeholder="Type your request..."
+                        placeholder="Ask anything..."
                         className={cn(
-                            "w-full px-6 py-5 resize-none border-none",
-                            "bg-transparent text-white text-xl leading-relaxed",
+                            "w-full px-4 py-4 resize-none border-none",
+                            "bg-transparent text-white text-lg leading-relaxed",
                             "focus-visible:ring-0 focus-visible:ring-offset-0",
-                            "placeholder:text-neutral-400 min-h-[60px]"
+                            "placeholder:text-gray-500 min-h-[60px]"
                         )}
                         style={{ overflow: "hidden" }}
                     />
 
                     {/* Footer Buttons */}
-                    <div className="flex items-center justify-between p-4">
+                    <div className="flex items-center justify-between p-2 pl-4">
                         <Button
                             variant="ghost"
                             size="icon"
-                            className="text-neutral-300 hover:text-white hover:bg-white/10 w-10 h-10"
+                            className="text-gray-500 hover:text-white hover:bg-white/10 w-8 h-8 rounded-full"
                         >
-                            <Paperclip className="w-6 h-6" />
+                            <Paperclip className="w-5 h-5" />
                         </Button>
 
                         <div className="flex items-center gap-2">
                             <Button
                                 onClick={handleSend}
                                 disabled={!message.trim()}
+                                size="icon"
                                 className={cn(
-                                    "flex items-center gap-2 px-6 py-6 rounded-xl transition-all duration-200",
+                                    "rounded-full w-8 h-8 transition-all duration-200 glow-hover",
                                     message.trim()
-                                        ? "bg-white text-black hover:bg-neutral-200 shadow-lg hover:shadow-xl"
-                                        : "bg-neutral-800 text-neutral-500 cursor-not-allowed"
+                                        ? "bg-white text-black hover:bg-gray-200"
+                                        : "bg-white/5 text-gray-600 cursor-not-allowed"
                                 )}
                             >
-                                <span className="text-base font-semibold">Send</span>
                                 <ArrowUpIcon className="w-5 h-5" />
                             </Button>
                         </div>
                     </div>
                 </div>
 
-                {/* Quick Actions */}
-                <div className="flex items-center justify-center flex-wrap gap-4 mt-8">
-                    <QuickAction icon={<Code2 className="w-5 h-5" />} label="Generate Code" />
-                    <QuickAction icon={<Rocket className="w-5 h-5" />} label="Launch App" />
-                    <QuickAction icon={<Layers className="w-5 h-5" />} label="UI Components" />
-                    <QuickAction icon={<Palette className="w-5 h-5" />} label="Theme Ideas" />
-                    <QuickAction icon={<CircleUserRound className="w-5 h-5" />} label="User Dashboard" />
-                    <QuickAction icon={<MonitorIcon className="w-5 h-5" />} label="Landing Page" />
-                    <QuickAction icon={<FileUp className="w-5 h-5" />} label="Upload Docs" />
-                    <QuickAction icon={<ImageIcon className="w-5 h-5" />} label="Image Assets" />
+                {/* Quick Actions - Simplified */}
+                <div className="flex items-center justify-center flex-wrap gap-2 mt-8">
+                    <QuickAction icon={<Code2 className="w-4 h-4" />} label="Code" />
+                    <QuickAction icon={<ImageIcon className="w-4 h-4" />} label="Images" />
+                    <QuickAction icon={<FileUp className="w-4 h-4" />} label="Analyze" />
+                    <QuickAction icon={<Palette className="w-4 h-4" />} label="Design" />
                 </div>
             </div>
         </div>
@@ -177,11 +157,11 @@ interface QuickActionProps {
 function QuickAction({ icon, label }: QuickActionProps) {
     return (
         <Button
-            variant="outline"
-            className="flex items-center gap-3 rounded-full border-white/10 bg-black/60 text-neutral-200 hover:text-white hover:bg-white/10 hover:border-white/30 px-6 py-6 transition-all duration-200 backdrop-blur-sm"
+            variant="ghost"
+            className="flex items-center gap-2 rounded-full bg-white/5 text-gray-400 hover:text-white hover:bg-white/10 px-4 py-2 transition-all duration-200 text-xs font-medium border border-transparent hover:border-white/10 glow-hover"
         >
             {icon}
-            <span className="text-sm font-medium">{label}</span>
+            <span>{label}</span>
         </Button>
     );
 }

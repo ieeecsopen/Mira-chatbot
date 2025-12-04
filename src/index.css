@@ -7,25 +7,26 @@
   --color-background: #000000;
   --color-foreground: #ffffff;
 
-  --color-muted: #1a1a1a;
+  --color-muted: #121212;
   --color-muted-foreground: #888888;
 
-  --color-border: #262626;
-  --color-input: #262626;
+  --color-border: #333333;
+  --color-input: #1a1a1a;
 
   --color-primary: #ffffff;
   --color-primary-foreground: #000000;
 
-  --color-secondary: #1a1a1a;
+  --color-secondary: #121212;
   --color-secondary-foreground: #ffffff;
 
-  --color-accent: #262626;
+  --color-accent: #1a1a1a;
   --color-accent-foreground: #ffffff;
 
   --font-sans: "Inter", "Noto Sans Sinhala", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", monospace;
 }
 
+/* Strict Dark Mode - No Light Mode Support */
 :root {
   color-scheme: dark;
 }
@@ -37,9 +38,10 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* Custom Scrollbar for Chrome/Safari/Edge - Minimalist */
+/* Custom Scrollbar - Minimalist & Thin */
 ::-webkit-scrollbar {
   width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
@@ -48,22 +50,36 @@ body {
 
 ::-webkit-scrollbar-thumb {
   background: #333;
-  border-radius: 0px;
+  border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
   background: #555;
 }
 
-/* Utility for technical borders */
+/* Utility for technical borders - subtle */
 .tech-border {
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--color-border);
 }
 
 .tech-border-b {
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid var(--color-border);
 }
 
 .tech-border-r {
-  border-right: 1px solid rgba(255, 255, 255, 0.1);
+  border-right: 1px solid var(--color-border);
+}
+
+.tech-border-t {
+  border-top: 1px solid var(--color-border);
+}
+
+/* Glow Effect */
+.glow-hover {
+  transition: all 0.3s ease;
+}
+
+.glow-hover:hover {
+  box-shadow: 0 0 15px rgba(255, 255, 255, 0.15);
+  text-shadow: 0 0 5px rgba(255, 255, 255, 0.3);
 }

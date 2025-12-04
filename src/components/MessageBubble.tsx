@@ -1,8 +1,11 @@
 import { cn } from '../lib/utils';
 import { motion } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
-import { Sparkles, Copy, Check, RefreshCw } from 'lucide-react';
-import { useState, useCallback, memo } from 'react';
+import remarkGfm from 'remark-gfm';
+import { Copy, Check, RefreshCw, Maximize2, Quote } from 'lucide-react';
+import { useState, useCallback, memo, useMemo } from 'react';
+import { CodeBlock, InlineCode } from './ui/CodeBlock';
+import { UrlPreview, extractUrls } from './ui/UrlPreview';
 
 interface MessageBubbleProps {
     role: 'user' | 'assistant';
@@ -10,6 +13,7 @@ interface MessageBubbleProps {
     isStreaming?: boolean;
     isWaiting?: boolean;
     onRegenerate?: () => void;
+    onOpenInCanvas?: (content: string, language?: string) => void;
 }
 
 // Skeleton loading component
@@ -27,9 +31,9 @@ function SkeletonLoader() {
 function TypingIndicator() {
     return (
         <div className="flex items-center gap-1.5 py-2">
-            <span className="w-2 h-2 bg-orange-500 rounded-full animate-bounce" style={{ animationDelay: '0ms', animationDuration: '0.6s' }} />
-            <span className="w-2 h-2 bg-orange-500 rounded-full animate-bounce" style={{ animationDelay: '150ms', animationDuration: '0.6s' }} />
-            <span className="w-2 h-2 bg-orange-500 rounded-full animate-bounce" style={{ animationDelay: '300ms', animationDuration: '0.6s' }} />
+            <span className="w-2 h-2 bg-white rounded-full animate-bounce" style={{ animationDelay: '0ms', animationDuration: '0.6s' }} />
+            <span className="w-2 h-2 bg-white rounded-full animate-bounce" style={{ animationDelay: '150ms', animationDuration: '0.6s' }} />
+            <span className="w-2 h-2 bg-white rounded-full animate-bounce" style={{ animationDelay: '300ms', animationDuration: '0.6s' }} />
         </div>
     );
 }
@@ -74,7 +78,7 @@ const markdownComponents = {
     ),
 };
 
-function MessageBubbleComponent({ role, content, isStreaming, isWaiting, onRegenerate }: MessageBubbleProps) {
+function MessageBubbleComponent({ role, content, isStreaming, isWaiting, onRegenerate, onOpenInCanvas }: MessageBubbleProps) {
     const [copied, setCopied] = useState(false);
 
     const handleCopy = useCallback(async () => {
@@ -86,6 +90,23 @@ function MessageBubbleComponent({ role, content, isStreaming, isWaiting, onRegen
             console.error('Failed to copy:', err);
         }
     }, [content]);
+
+    // Check if content has code blocks that can be opened in canvas
+    const hasCodeBlocks = useMemo(() => {
+        return /```(\w+)?\n[\s\S]{20,}?```/.test(content);
+    }, [content]);
+
+    // Extract first code block for canvas
+    const handleOpenInCanvas = useCallback(() => {
+        if (!onOpenInCanvas) return;
+
+        const match = content.match(/```(\w+)?\n([\s\S]*?)```/);
+        if (match) {
+            const language = match[1] || 'plaintext';
+            const code = match[2].trim();
+            onOpenInCanvas(code, language);
+        }
+    }, [content, onOpenInCanvas]);
 
     const showSkeleton = isWaiting && !content;
     const showTyping = isStreaming && !content;
@@ -103,21 +124,11 @@ function MessageBubbleComponent({ role, content, isStreaming, isWaiting, onRegen
             <div className={cn(
                 "max-w-[90%] md:max-w-[80%] text-lg leading-relaxed relative",
                 role === 'user'
-                    ? "bg-[#111] text-white px-5 py-3 rounded-lg border border-white/10"
+                    ? "bg-[#1a1a1a] text-white px-5 py-3 rounded-2xl"
                     : "text-gray-100 px-0 py-2"
             )}>
-                {role === 'assistant' && (
-                    <div className="flex items-center gap-2 font-mono text-sm text-gray-500 mb-2 uppercase tracking-wider">
-                        <Sparkles className="w-3 h-3" />
-                        MIRA
-                        {isStreaming && (
-                            <span className="text-orange-500 text-xs normal-case tracking-normal ml-2">
-                                generating...
-                            </span>
-                        )}
-                    </div>
-                )}
-                
+                {/* Removed MIRA label for cleaner look */}
+
                 <div className="whitespace-pre-wrap prose prose-invert prose-lg max-w-none">
                     {showSkeleton ? (
                         <SkeletonLoader />
@@ -129,7 +140,7 @@ function MessageBubbleComponent({ role, content, isStreaming, isWaiting, onRegen
                                 {content}
                             </ReactMarkdown>
                             {isStreaming && (
-                                <span className="inline-block w-2 h-5 ml-1 align-middle bg-orange-500 animate-pulse rounded-sm" />
+                                <span className="inline-block w-2 h-5 ml-1 align-middle bg-white animate-pulse rounded-sm" />
                             )}
                         </>
                     )}
@@ -137,7 +148,7 @@ function MessageBubbleComponent({ role, content, isStreaming, isWaiting, onRegen
 
                 {/* Action buttons for assistant messages */}
                 {role === 'assistant' && content && !isStreaming && (
-                    <div className="flex items-center gap-2 mt-3 pt-2 border-t border-white/5 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="flex items-center gap-2 mt-3 pt-2 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button
                             onClick={handleCopy}
                             className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-white transition-colors px-2 py-1 rounded hover:bg-white/5"
@@ -155,6 +166,16 @@ function MessageBubbleComponent({ role, content, isStreaming, isWaiting, onRegen
                                 </>
                             )}
                         </button>
+                        {hasCodeBlocks && onOpenInCanvas && (
+                            <button
+                                onClick={handleOpenInCanvas}
+                                className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-white transition-colors px-2 py-1 rounded hover:bg-white/5"
+                                title="Open in Canvas"
+                            >
+                                <Maximize2 size={14} />
+                                <span>Open in Canvas</span>
+                            </button>
+                        )}
                         {onRegenerate && (
                             <button
                                 onClick={onRegenerate}

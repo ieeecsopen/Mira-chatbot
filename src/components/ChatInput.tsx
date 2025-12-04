@@ -36,8 +36,8 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
 
     return (
         <div className="relative w-full max-w-3xl mx-auto">
-            <div className="relative flex items-end w-full p-2 bg-[#111] border border-white/10 rounded-lg focus-within:border-white/20 transition-all">
-                <Button variant="ghost" size="icon" className="mb-1 text-gray-500 hover:text-white hover:bg-white/5 rounded-md w-9 h-9">
+            <div className="relative flex items-end w-full p-2 bg-[#1a1a1a] rounded-2xl transition-all">
+                <Button variant="ghost" size="icon" className="mb-1 text-gray-400 hover:text-white hover:bg-white/10 rounded-full w-9 h-9">
                     <Paperclip size={18} />
                 </Button>
 
@@ -49,14 +49,14 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
                     placeholder="Ask anything..."
                     rows={1}
                     disabled={disabled}
-                    className="flex-1 max-h-[200px] py-2 px-3 bg-transparent border-none resize-none focus:outline-none text-base text-white placeholder-gray-600 disabled:opacity-50 font-sans leading-relaxed"
+                    className="flex-1 max-h-[200px] py-2 px-3 bg-transparent border-none resize-none focus:outline-none text-base text-white placeholder-gray-500 disabled:opacity-50 font-sans leading-relaxed"
                 />
 
                 <div className="flex items-center gap-1 mb-1 mr-1">
-                    <Button variant="ghost" size="icon" className="text-gray-500 hover:text-white hover:bg-white/5 rounded-md w-9 h-9">
+                    <Button variant="ghost" size="icon" className="text-gray-400 hover:text-white hover:bg-white/10 rounded-full w-9 h-9">
                         <Globe size={18} />
                     </Button>
-                    <Button variant="ghost" size="icon" className="text-gray-500 hover:text-white hover:bg-white/5 rounded-md w-9 h-9">
+                    <Button variant="ghost" size="icon" className="text-gray-400 hover:text-white hover:bg-white/10 rounded-full w-9 h-9">
                         <Mic size={18} />
                     </Button>
                     <Button
@@ -69,7 +69,7 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
                         disabled={!input.trim() || disabled}
                         size="icon"
                         className={cn(
-                            "rounded-md transition-all duration-200 w-9 h-9 ml-1",
+                            "rounded-full transition-all duration-200 w-9 h-9 ml-1 glow-hover",
                             input.trim()
                                 ? "bg-white text-black hover:bg-gray-200"
                                 : "bg-white/5 text-gray-600 cursor-not-allowed"
@@ -79,7 +79,7 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
                     </Button>
                 </div>
             </div>
-            <div className="text-center mt-2 text-[10px] text-gray-700 font-mono uppercase tracking-widest">
+            <div className="text-center mt-2 text-[10px] text-gray-600 font-mono uppercase tracking-widest">
                 AI Generated Content
             </div>
         </div>
