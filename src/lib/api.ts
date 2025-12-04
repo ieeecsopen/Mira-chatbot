@@ -95,6 +95,7 @@ import { correctGrammar, enhanceSinhalaText } from './grammar';
 import { buildRAGContext, getDirectAnswer } from './rag';
 import { responseCache } from './cache';
 import { webSearch, formatSearchResultsForAI, type SearchResult } from './webSearch';
+import { getDocumentStore } from './documentStore';
 
 export interface ChatResponse {
     answer: string;
