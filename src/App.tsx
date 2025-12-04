@@ -3,7 +3,7 @@ import { MessageBubble } from './components/MessageBubble';
 import { ChatInput, type SlashCommand } from './components/ChatInput';
 import { LandingPage } from './components/LandingPage';
 import { ModelSelector, MIRA_MODELS } from './components/ModelSelector';
-import { Plus, Settings, Trash2, MessageSquare, PanelRightOpen, FileText } from 'lucide-react';
+import { Plus, Settings, Trash2, MessageSquare, PanelRightOpen } from 'lucide-react';
 import { Button } from './components/ui/button';
 import { streamMessage } from './lib/api';
 import { chatStorage, type ChatSession } from './lib/chatStorage';
@@ -14,7 +14,7 @@ import { SearchMessages } from './components/ui/SearchMessages';
 import { VoiceInput } from './components/ui/VoiceInput';
 import { FileUpload, FilePreview, type UploadedFile } from './components/ui/FileUpload';
 import { SearchResultsCard } from './components/ui/SearchResultsCard';
-import { DocumentPanel } from './components/ui/DocumentPanel';
+import { DocumentUploadBar } from './components/ui/DocumentUploadBar';
 import { getDocumentStore } from './lib/documentStore';
 import type { SearchResult } from './lib/webSearch';
 
@@ -55,14 +55,12 @@ function App() {
   const [webSearchEnabled, setWebSearchEnabled] = useState(false);
   const [isSearchingWeb, setIsSearchingWeb] = useState(false);
 
-  // Document panel state
-  const [isDocumentPanelOpen, setIsDocumentPanelOpen] = useState(false);
-  const [documentCount, setDocumentCount] = useState(0);
+  // Document state - track if documents are loaded for context indicator
+  const [hasDocuments, setHasDocuments] = useState(() => getDocumentStore().getAll().length > 0);
 
-  // Update document count when store changes
-  const updateDocumentCount = useCallback(() => {
-    const store = getDocumentStore();
-    setDocumentCount(store.getAll().length);
+  // Update document status
+  const updateDocumentStatus = useCallback(() => {
+    setHasDocuments(getDocumentStore().getAll().length > 0);
   }, []);
 
   // Load chat sessions on mount
@@ -375,8 +373,8 @@ function App() {
         break;
       case 'docs':
       case 'documents':
-        // Toggle document panel
-        setIsDocumentPanelOpen(true);
+        // Show help about document upload - the DocumentUploadBar handles the actual upload
+        handleSend('You can upload documents (PDF, DOCX, TXT, MD) using the "Docs" button next to the input. Once uploaded, just ask questions about your documents in this chat!');
         break;
       case 'help':
         handleSend('What can you help me with? Please list your capabilities.');
@@ -618,23 +616,17 @@ function App() {
           {/* Input Area */}
           <div className="p-4 md:p-6 bg-background relative z-10">
             <div className="max-w-3xl mx-auto">
+              {/* Document Upload Bar - shows when documents are loaded */}
+              <div className="mb-3">
+                <DocumentUploadBar onDocumentsChange={updateDocumentStatus} />
+              </div>
+              
               <div className="flex items-center gap-3 mb-3">
                 <ModelSelector
                   selectedModel={selectedModel}
                   onModelChange={setSelectedModel}
                   disabled={isStreaming}
                 />
-                {documentCount > 0 && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setIsDocumentPanelOpen(true)}
-                    className="text-gray-500 hover:text-white gap-2"
-                  >
-                    <FileText size={16} />
-                    <span className="text-xs">Docs ({documentCount})</span>
-                  </Button>
-                )}
                 {canvas.items.length > 0 && (
                   <Button
                     variant="ghost"
@@ -645,6 +637,11 @@ function App() {
                     <PanelRightOpen size={16} />
                     <span className="text-xs">Canvas ({canvas.items.length})</span>
                   </Button>
+                )}
+                {hasDocuments && (
+                  <span className="text-xs text-[#58a6ff] font-medium">
+                    📄 Document context active
+                  </span>
                 )}
                 {isStreaming && (
                   <span className="text-xs text-gray-400 font-mono animate-pulse">
@@ -688,13 +685,6 @@ function App() {
         onSelectItem={canvas.selectItem}
         onUpdateItem={canvas.updateItem}
         onDeleteItem={canvas.deleteItem}
-      />
-
-      {/* Document Panel */}
-      <DocumentPanel
-        isOpen={isDocumentPanelOpen}
-        onClose={() => setIsDocumentPanelOpen(false)}
-        onDocumentsChange={updateDocumentCount}
       />
     </div>
   );
