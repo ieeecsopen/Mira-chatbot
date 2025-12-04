@@ -164,6 +164,76 @@ function App() {
       setCurrentSessionId(newSessionId);
     }
 
+    // Check if this is an image generation request
+    const { isImageCommand, prompt: imagePrompt } = parseImageCommand(text);
+    
+    if (isImageCommand && imagePrompt) {
+      // Handle image generation
+      const userMessage: Message = {
+        id: Date.now().toString(),
+        role: 'user',
+        content: text
+      };
+      
+      setMessages(prev => [...prev, userMessage]);
+      chatStorage.addMessage('user', text);
+
+      // Create assistant message with generating state
+      const assistantMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: '',
+        isGeneratingImage: true,
+        imagePrompt: imagePrompt
+      };
+      
+      setMessages(prev => [...prev, assistantMessage]);
+      
+      try {
+        const generatedImage = await generateImage(imagePrompt);
+        
+        // Update message with generated image
+        setMessages(prev => {
+          const lastIndex = prev.length - 1;
+          if (lastIndex >= 0 && prev[lastIndex].role === 'assistant') {
+            return [
+              ...prev.slice(0, lastIndex),
+              {
+                ...prev[lastIndex],
+                content: `Here's the image I generated for "${imagePrompt}":`,
+                isGeneratingImage: false,
+                generatedImage: generatedImage
+              }
+            ];
+          }
+          return prev;
+        });
+        
+        chatStorage.updateLastAssistantMessage(`[Generated image: ${imagePrompt}]`);
+        chatStorage.saveCurrentSession();
+        setChatSessions(chatStorage.getRecentSessions(20));
+      } catch (error) {
+        console.error('Image generation failed:', error);
+        setMessages(prev => {
+          const lastIndex = prev.length - 1;
+          if (lastIndex >= 0 && prev[lastIndex].role === 'assistant') {
+            return [
+              ...prev.slice(0, lastIndex),
+              {
+                ...prev[lastIndex],
+                content: `Sorry, I couldn't generate that image. ${(error as Error).message}`,
+                isGeneratingImage: false
+              }
+            ];
+          }
+          return prev;
+        });
+      }
+      
+      return;
+    }
+
+    // Normal message handling
     const userMessage: Message = {
       id: Date.now().toString(),
       role: 'user',
@@ -370,7 +440,9 @@ function App() {
         }
         break;
       case 'image':
-        handleSend('Please generate an image for me. What would you like me to create?');
+      case 'imagine':
+        // Prompt user for image generation
+        // The actual generation happens in handleSend when it detects the /imagine command
         break;
       case 'settings':
         // Could open a settings modal - for now just toggle sidebar
@@ -587,22 +659,36 @@ function App() {
                       isSearching={true}
                     />
                   )}
-                  <MessageBubble
-                    role={msg.role}
-                    content={msg.content}
-                    isStreaming={isStreaming && index === messages.length - 1 && msg.role === 'assistant'}
-                    isWaiting={isWaiting && index === messages.length - 1 && msg.role === 'assistant'}
-                    onRegenerate={
-                      !isStreaming && msg.role === 'assistant' && index === messages.length - 1
-                        ? handleRegenerate
-                        : undefined
-                    }
-                    onOpenInCanvas={
-                      !isStreaming && msg.role === 'assistant'
-                        ? (code, language) => canvas.addItem(code, undefined, 'code', language)
-                        : undefined
-                    }
-                  />
+                  {/* Show image generating indicator */}
+                  {msg.role === 'assistant' && msg.isGeneratingImage && msg.imagePrompt && (
+                    <ImageGeneratingCard prompt={msg.imagePrompt} />
+                  )}
+                  {/* Show generated image */}
+                  {msg.role === 'assistant' && msg.generatedImage && (
+                    <ImageDisplay 
+                      image={msg.generatedImage}
+                      onRegenerate={(prompt) => handleSend(`/imagine ${prompt}`)}
+                    />
+                  )}
+                  {/* Show message bubble (skip if only showing image) */}
+                  {!(msg.role === 'assistant' && msg.isGeneratingImage && !msg.content) && (
+                    <MessageBubble
+                      role={msg.role}
+                      content={msg.content}
+                      isStreaming={isStreaming && index === messages.length - 1 && msg.role === 'assistant'}
+                      isWaiting={isWaiting && index === messages.length - 1 && msg.role === 'assistant'}
+                      onRegenerate={
+                        !isStreaming && msg.role === 'assistant' && index === messages.length - 1 && !msg.generatedImage
+                          ? handleRegenerate
+                          : undefined
+                      }
+                      onOpenInCanvas={
+                        !isStreaming && msg.role === 'assistant'
+                          ? (code, language) => canvas.addItem(code, undefined, 'code', language)
+                          : undefined
+                      }
+                    />
+                  )}
                 </div>
               ))}
               <div ref={messagesEndRef} className="h-4" />
