@@ -52,7 +52,6 @@ function App() {
   // Web search state
   const [webSearchEnabled, setWebSearchEnabled] = useState(false);
   const [isSearchingWeb, setIsSearchingWeb] = useState(false);
-  const [currentSearchResults, setCurrentSearchResults] = useState<SearchResult[]>([]);
 
   // Load chat sessions on mount
   useEffect(() => {
