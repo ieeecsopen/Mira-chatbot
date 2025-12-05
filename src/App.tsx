@@ -22,6 +22,7 @@ import { getDocumentStore } from './lib/documentStore';
 import { parseImageCommand, generateImage, type GeneratedImage } from './lib/imageGeneration';
 import type { SearchResult } from './lib/webSearch';
 import { AuthProvider } from './contexts/AuthContext';
+import { CommandPalette } from './components/ui/CommandPalette';
 
 interface Message {
   id: string;
@@ -54,9 +55,9 @@ function App() {
   const streamBufferRef = useRef<string>('');
   const lastUpdateRef = useRef<number>(0);
 
-  // Search and file upload state
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [attachedFiles, setAttachedFiles] = useState<UploadedFile[]>([]);
 
   // Web search state
