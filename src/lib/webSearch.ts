@@ -29,6 +29,40 @@ const SEARCH_CONFIG = {
 };
 
 /**
+ * Lightweight lexical re-ranker to push more relevant results to the top.
+ */
+function reRankResults(query: string, results: SearchResult[]): SearchResult[] {
+    if (!results.length) return results;
+
+    const terms = query
+        .toLowerCase()
+        .split(/[^a-z0-9]+/)
+        .filter(Boolean);
+
+    const scoreResult = (result: SearchResult, index: number) => {
+        const haystack = `${result.title || ''} ${result.snippet || ''}`.toLowerCase();
+        let score = 0;
+
+        for (const term of terms) {
+            if (!term) continue;
+            const termCount = haystack.split(term).length - 1;
+            score += termCount * 2; // title/snippet hits
+            if ((result.title || '').toLowerCase().includes(term)) score += 3;
+            if ((result.source || '').toLowerCase().includes(term)) score += 1;
+        }
+
+        // Small positional bonus to prefer earlier results when scores tie
+        return score - index * 0.01;
+    };
+
+    return [...results]
+        .map((r, idx) => ({ r, score: scoreResult(r, idx) }))
+        .sort((a, b) => b.score - a.score)
+        .map(({ r }) => r)
+        .slice(0, SEARCH_CONFIG.maxResults);
+}
+
+/**
  * Extract domain from URL
  */
 function getDomain(url: string): string {
@@ -247,6 +281,9 @@ export async function webSearch(query: string): Promise<WebSearchResponse> {
     if (results.length === 0) {
         error = 'No search results found. Please try a different query.';
     }
+
+    // Re-rank for relevance and trim
+    results = reRankResults(query, results);
 
     const searchTime = Date.now() - startTime;
     console.log(`✅ Search completed in ${searchTime}ms, found ${results.length} results`);

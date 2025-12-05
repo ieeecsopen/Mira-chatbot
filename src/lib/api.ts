@@ -201,6 +201,26 @@ function postprocessResponse(response: string): string {
     return processed;
 }
 
+function ensureSafeInput(message: string): void {
+    const lower = message.toLowerCase();
+    const piiPatterns = [
+        /\b\d{3}[- .]?\d{2}[- .]?\d{4}\b/, // SSN-like
+        /\b\d{4}[- ]?\d{4}[- ]?\d{4}[- ]?\d{4}\b/, // credit card-ish
+        /\b\+?\d{1,2}?[- .]?\(?\d{3}\)?[- .]?\d{3}[- .]?\d{4}\b/, // phone
+        /[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i, // email
+    ];
+
+    const profanity = ['fuck', 'shit', 'bitch', 'asshole'];
+
+    if (piiPatterns.some((p) => p.test(message))) {
+        throw new Error('PII detected. Please remove sensitive information before sending.');
+    }
+
+    if (profanity.some((w) => lower.includes(w))) {
+        throw new Error('Inappropriate language detected.');
+    }
+}
+
 /**
  * Build the enhanced prompt with RAG context
  */
@@ -212,6 +232,9 @@ function buildEnhancedPrompt(message: string, ragContext: string): string {
 }
 
 export async function sendMessage(_userId: string, message: string): Promise<ChatResponse> {
+    ensureSafeInput(message);
+
+    const requestStart = Date.now();
     // Preprocess the message
     const { processed, ragContext, directAnswer } = preprocessMessage(message);
 
@@ -236,7 +259,7 @@ export async function sendMessage(_userId: string, message: string): Promise<Cha
     const result = await tryWithFallback(async (model) => {
         const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model.name}:generateContent?key=${GEMINI_API_KEY}`;
 
-        const { success, data: response, error: fetchError } = await withRetry(
+        const { success, data: response, error: fetchError, attempts, totalTimeMs } = await withRetry(
             () => fetch(apiUrl, {
                 method: 'POST',
                 headers: {
@@ -273,6 +296,14 @@ export async function sendMessage(_userId: string, message: string): Promise<Cha
         }
 
         const data = await response.json();
+
+        console.log('🧭 sendMessage metrics', {
+            model: model.name,
+            attempts,
+            fetchMs: totalTimeMs,
+            totalMs: Date.now() - requestStart,
+            hasRag: !!ragContext,
+        });
         let answer = data.candidates?.[0]?.content?.parts?.[0]?.text || 'No response received';
 
         // Post-process the response
@@ -306,6 +337,9 @@ export async function streamMessage(
         responseStyle?: 'concise' | 'detailed';
     }
 ) {
+    ensureSafeInput(message);
+
+    const requestStart = Date.now();
     // Preprocess the message
     const { processed, wasSinglish, ragContext, directAnswer } = preprocessMessage(message);
 
@@ -460,11 +494,15 @@ export async function streamMessage(
                     ? 'Provide a detailed, step-by-step explanation with helpful specifics when relevant.'
                     : '';
 
-            const fullSystemInstruction = memoryContext
-                ? `${SYSTEM_INSTRUCTION}${memoryContext}${styleInstruction ? `\n\n${styleInstruction}` : ''}`
-                : `${SYSTEM_INSTRUCTION}${styleInstruction ? `\n\n${styleInstruction}` : ''}`;
+            const citationInstruction = webSearchContext
+                ? 'When you use web results, cite them inline using [1], [2], etc.'
+                : '';
 
-            const { success, data: response, error: fetchError } = await withRetry(
+            const fullSystemInstruction = memoryContext
+                ? `${SYSTEM_INSTRUCTION}${memoryContext}${styleInstruction ? `\n\n${styleInstruction}` : ''}${citationInstruction ? `\n\n${citationInstruction}` : ''}`
+                : `${SYSTEM_INSTRUCTION}${styleInstruction ? `\n\n${styleInstruction}` : ''}${citationInstruction ? `\n\n${citationInstruction}` : ''}`;
+
+            const { success, data: response, error: fetchError, attempts, totalTimeMs } = await withRetry(
                 () => fetch(streamUrl, {
                     method: 'POST',
                     headers: {
@@ -495,6 +533,15 @@ export async function streamMessage(
             // Success! Record usage and process stream
             recordModelUsage(model.name);
             console.log(`✅ Streaming with: ${model.name}`);
+            console.log('🧭 streamMessage metrics', {
+                model: model.name,
+                attempts,
+                fetchMs: totalTimeMs,
+                totalMs: Date.now() - requestStart,
+                hasRag: !!ragContext,
+                hasDocs: !!documentContext,
+                hasWeb: !!webSearchContext,
+            });
 
             const reader = response.body?.getReader();
             const decoder = new TextDecoder();
