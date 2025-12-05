@@ -52,7 +52,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
             setUser(newUser);
             localStorage.setItem('mira_user', JSON.stringify(newUser));
-        } catch (error) {
+        } catch {
             throw new Error('Sign in failed');
         } finally {
             setIsLoading(false);
@@ -74,7 +74,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
             setUser(newUser);
             localStorage.setItem('mira_user', JSON.stringify(newUser));
-        } catch (error) {
+        } catch {
             throw new Error('Sign up failed');
         } finally {
             setIsLoading(false);

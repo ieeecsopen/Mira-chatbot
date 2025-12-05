@@ -408,31 +408,35 @@ function App() {
       case 'search':
         setIsSearchOpen(true);
         break;
-      case 'upload':
+      case 'upload': {
         // Trigger file upload - we'll need to programmatically click the file input
         const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
         if (fileInput) fileInput.click();
         break;
+      }
       case 'web':
         // Toggle web search
         setWebSearchEnabled(prev => !prev);
         break;
-      case 'model':
+      case 'model': {
         // Cycle through models or open model selector
         const currentIndex = MIRA_MODELS.findIndex(m => m.id === selectedModel);
         const nextIndex = (currentIndex + 1) % MIRA_MODELS.length;
         setSelectedModel(MIRA_MODELS[nextIndex].id);
         break;
-      case 'creative':
+      }
+      case 'creative': {
         // Switch to a creative model if available
         const creativeModel = MIRA_MODELS.find(m => m.id.includes('creative') || m.id.includes('gemini-2'));
         if (creativeModel) setSelectedModel(creativeModel.id);
         break;
-      case 'fast':
+      }
+      case 'fast': {
         // Switch to a fast model if available
         const fastModel = MIRA_MODELS.find(m => m.id.includes('flash') || m.id.includes('fast'));
         if (fastModel) setSelectedModel(fastModel.id);
         break;
+      }
       case 'code':
         // Send a code-focused prompt
         handleSend('Please help me write some code. What would you like me to create?');
