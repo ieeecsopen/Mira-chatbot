@@ -28,6 +28,8 @@ import { SharedChatView } from './components/ui/SharedChatView';
 import { getShareIdFromUrl, cleanupExpiredChats } from './lib/shareChat';
 import { MemoryPanel } from './components/ui/MemoryPanel';
 import { WorkspacePanel } from './components/ui/WorkspacePanel';
+import { notificationManager } from './lib/notifications';
+import { TemplatePanel } from './components/ui/TemplatePanel';
 
 interface Message {
   id: string;
@@ -66,6 +68,7 @@ function App() {
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [isMemoryPanelOpen, setIsMemoryPanelOpen] = useState(false);
   const [isWorkspacePanelOpen, setIsWorkspacePanelOpen] = useState(false);
+  const [isTemplatePanelOpen, setIsTemplatePanelOpen] = useState(false);
   const [sharedChatId, setSharedChatId] = useState<string | null>(() => getShareIdFromUrl());
   const [attachedFiles, setAttachedFiles] = useState<UploadedFile[]>([]);
 
@@ -293,6 +296,9 @@ function App() {
       streamBufferRef.current = '';
       lastUpdateRef.current = Date.now();
 
+      // Start tracking for background notifications
+      notificationManager.startTracking();
+
       // Small delay before starting to show typing indicator
       await new Promise(resolve => setTimeout(resolve, 100));
       setIsWaiting(false);
@@ -306,6 +312,10 @@ function App() {
           flushStreamBuffer();
           setIsSearchingWeb(false);
           console.log('Stream completed');
+
+          // Send notification if tab is in background
+          const lastContent = streamBufferRef.current || 'Response complete';
+          notificationManager.onResponseComplete(lastContent);
         },
         (error: string) => {
           // onError callback
@@ -489,6 +499,9 @@ function App() {
       case 'shortcuts':
         // Show keyboard shortcuts info
         handleSend('/help - Show this help\n/clear - Clear current chat\n/new - Start new chat\n/search - Search messages\n/upload - Upload a file\n/web - Toggle web search\n/model - Change AI model\n/code - Get coding help\n/summarize - Summarize conversation');
+        break;
+      case 'template':
+        setIsTemplatePanelOpen(true);
         break;
       default:
         console.log('Unknown command:', command.id);
@@ -916,6 +929,23 @@ function App() {
         <WorkspacePanel
           isOpen={isWorkspacePanelOpen}
           onClose={() => setIsWorkspacePanelOpen(false)}
+        />
+
+        {/* Template Panel */}
+        <TemplatePanel
+          isOpen={isTemplatePanelOpen}
+          onClose={() => setIsTemplatePanelOpen(false)}
+          onSelectTemplate={(prompt) => {
+            // Insert the template prompt - user will need to complete it
+            const input = document.querySelector('textarea') as HTMLTextAreaElement;
+            if (input) {
+              input.value = prompt;
+              input.focus();
+              // Trigger input event to update React state
+              const event = new Event('input', { bubbles: true });
+              input.dispatchEvent(event);
+            }
+          }}
         />
 
         {/* Canvas Panel */}

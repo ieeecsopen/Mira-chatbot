@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-    Trash2, 
-    Bot, 
-    Upload, 
-    Search, 
+import {
+    Trash2,
+    Bot,
+    Upload,
+    Search,
     MessageSquare,
     Sparkles,
     Code,
@@ -103,6 +103,13 @@ export const defaultSlashCommands: SlashCommand[] = [
         icon: <FileText size={16} />,
         category: 'tools'
     },
+    {
+        id: 'template',
+        name: 'Templates',
+        description: 'Use a prompt template',
+        icon: <FileText size={16} />,
+        category: 'tools'
+    },
     // Models
     {
         id: 'model',
@@ -158,11 +165,11 @@ const categoryLabels: Record<string, string> = {
 
 const categoryOrder = ['actions', 'tools', 'models', 'help'];
 
-export function SlashCommandMenu({ 
-    isOpen, 
-    searchQuery, 
-    onSelect, 
-    onClose 
+export function SlashCommandMenu({
+    isOpen,
+    searchQuery,
+    onSelect,
+    onClose
 }: SlashCommandMenuProps) {
     const [selectedIndex, setSelectedIndex] = useState(0);
     const menuRef = useRef<HTMLDivElement>(null);
@@ -212,13 +219,13 @@ export function SlashCommandMenu({
         switch (e.key) {
             case 'ArrowDown':
                 e.preventDefault();
-                setSelectedIndex(prev => 
+                setSelectedIndex(prev =>
                     prev < flatCommands.length - 1 ? prev + 1 : 0
                 );
                 break;
             case 'ArrowUp':
                 e.preventDefault();
-                setSelectedIndex(prev => 
+                setSelectedIndex(prev =>
                     prev > 0 ? prev - 1 : flatCommands.length - 1
                 );
                 break;
@@ -235,11 +242,11 @@ export function SlashCommandMenu({
             case 'Tab':
                 e.preventDefault();
                 if (e.shiftKey) {
-                    setSelectedIndex(prev => 
+                    setSelectedIndex(prev =>
                         prev > 0 ? prev - 1 : flatCommands.length - 1
                     );
                 } else {
-                    setSelectedIndex(prev => 
+                    setSelectedIndex(prev =>
                         prev < flatCommands.length - 1 ? prev + 1 : 0
                     );
                 }
@@ -309,24 +316,22 @@ export function SlashCommandMenu({
                                     {commands.map((command) => {
                                         const currentIndex = itemIndex++;
                                         const isSelected = currentIndex === selectedIndex;
-                                        
+
                                         return (
                                             <button
                                                 key={command.id}
                                                 ref={el => { itemRefs.current[currentIndex] = el; }}
                                                 onClick={() => onSelect(command)}
                                                 onMouseEnter={() => setSelectedIndex(currentIndex)}
-                                                className={`w-full px-3 py-2 flex items-center gap-3 text-left transition-colors ${
-                                                    isSelected 
-                                                        ? 'bg-orange-500/10 text-white' 
+                                                className={`w-full px-3 py-2 flex items-center gap-3 text-left transition-colors ${isSelected
+                                                        ? 'bg-orange-500/10 text-white'
                                                         : 'text-[#c9d1d9] hover:bg-[#21262d]'
-                                                }`}
+                                                    }`}
                                             >
-                                                <span className={`flex-shrink-0 p-1.5 rounded-md ${
-                                                    isSelected 
-                                                        ? 'bg-orange-500/20 text-orange-400' 
+                                                <span className={`flex-shrink-0 p-1.5 rounded-md ${isSelected
+                                                        ? 'bg-orange-500/20 text-orange-400'
                                                         : 'bg-[#21262d] text-[#8b949e]'
-                                                }`}>
+                                                    }`}>
                                                     {command.icon}
                                                 </span>
                                                 <div className="flex-1 min-w-0">
