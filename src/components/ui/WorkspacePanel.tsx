@@ -1,14 +1,13 @@
 import { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-    Building2, Plus, Users, Settings, X, Crown, UserPlus,
+    Building2, Plus, Users, X, Crown, UserPlus,
     Copy, Check, Trash2, LogOut, ChevronRight
 } from 'lucide-react';
 import { Button } from './button';
 import {
     useWorkspaces,
     generateInviteCode,
-    addMember,
     removeMember,
     type Workspace
 } from '../../lib/workspaces';
@@ -230,8 +229,8 @@ export function WorkspacePanel({ isOpen, onClose }: WorkspacePanelProps) {
                                                         layout
                                                         onClick={() => handleSelectWorkspace(workspace)}
                                                         className={`w-full p-4 rounded-lg border transition-all text-left ${activeWorkspace?.id === workspace.id
-                                                                ? 'border-blue-500/50 bg-blue-500/10'
-                                                                : 'border-[#30363d] hover:border-[#30363d]/80 bg-[#161b22]'
+                                                            ? 'border-blue-500/50 bg-blue-500/10'
+                                                            : 'border-[#30363d] hover:border-[#30363d]/80 bg-[#161b22]'
                                                             }`}
                                                     >
                                                         <div className="flex items-center justify-between">
@@ -308,8 +307,8 @@ export function WorkspacePanel({ isOpen, onClose }: WorkspacePanelProps) {
                                                 onClick={() => setActive(selectedWorkspace.id)}
                                                 disabled={activeWorkspace?.id === selectedWorkspace.id}
                                                 className={`flex-1 ${activeWorkspace?.id === selectedWorkspace.id
-                                                        ? 'bg-green-500/20 text-green-400 border-green-500/30'
-                                                        : 'bg-blue-500 hover:bg-blue-600 text-white'
+                                                    ? 'bg-green-500/20 text-green-400 border-green-500/30'
+                                                    : 'bg-blue-500 hover:bg-blue-600 text-white'
                                                     }`}
                                             >
                                                 {activeWorkspace?.id === selectedWorkspace.id ? '✓ Active' : 'Set Active'}

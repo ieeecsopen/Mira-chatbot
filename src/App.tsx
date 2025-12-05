@@ -65,6 +65,7 @@ function App() {
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [isMemoryPanelOpen, setIsMemoryPanelOpen] = useState(false);
+  const [isWorkspacePanelOpen, setIsWorkspacePanelOpen] = useState(false);
   const [sharedChatId, setSharedChatId] = useState<string | null>(() => getShareIdFromUrl());
   const [attachedFiles, setAttachedFiles] = useState<UploadedFile[]>([]);
 
