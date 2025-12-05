@@ -1,4 +1,5 @@
 import { useRef, useEffect, useCallback, memo } from 'react';
+// @ts-expect-error - react-window types are incomplete
 import { VariableSizeList as List } from 'react-window';
 import { MessageBubble } from '../MessageBubble';
 import { SearchResultsCard } from './SearchResultsCard';
@@ -144,6 +145,9 @@ const MessageRow = memo(({
 
 MessageRow.displayName = 'MessageRow';
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type ListRef = any;
+
 export function VirtualizedMessageList({
     messages,
     isStreaming,
@@ -153,7 +157,7 @@ export function VirtualizedMessageList({
     onOpenInCanvas,
     onSend,
 }: VirtualizedMessageListProps) {
-    const listRef = useRef<List>(null);
+    const listRef = useRef<ListRef>(null);
     const rowHeights = useRef<{ [key: number]: number }>({});
 
     // Get row height for a specific index
@@ -184,14 +188,14 @@ export function VirtualizedMessageList({
     return (
         <List
             ref={listRef}
-            height={window.innerHeight - 300} // Adjust based on your layout
+            height={window.innerHeight - 300}
             width="100%"
             itemCount={messages.length}
             itemSize={getRowHeight}
             overscanCount={3}
             className="scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent"
         >
-            {({ index, style }) => (
+            {({ index, style }: { index: number; style: React.CSSProperties }) => (
                 <MessageRow
                     message={messages[index]}
                     index={index}

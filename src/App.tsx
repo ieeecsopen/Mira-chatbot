@@ -94,6 +94,19 @@ function App() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, []);
 
+  // Keyboard shortcut for command palette (⌘K or Ctrl+K)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setIsCommandPaletteOpen(prev => !prev);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   useEffect(() => {
     scrollToBottom();
   }, [messages, isStreaming, scrollToBottom]);
@@ -766,6 +779,13 @@ function App() {
             </motion.div>
           </div>
         </motion.div>
+
+        {/* Command Palette */}
+        <CommandPalette
+          isOpen={isCommandPaletteOpen}
+          onClose={() => setIsCommandPaletteOpen(false)}
+          onSelect={handleSlashCommand}
+        />
 
         {/* Canvas Panel */}
         <Canvas
