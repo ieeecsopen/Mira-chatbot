@@ -4,6 +4,7 @@
  */
 
 import type { ParsedDocument, DocumentChunk } from './documentParser';
+import { getEmbeddingStore } from './embeddings';
 
 export interface DocumentMatch {
     document: ParsedDocument;
@@ -29,39 +30,39 @@ export interface DocumentStore {
 function calculateSimilarity(query: string, text: string): number {
     const queryWords = query.toLowerCase().split(/\s+/).filter(w => w.length > 2);
     const textLower = text.toLowerCase();
-    
+
     if (queryWords.length === 0) return 0;
-    
+
     let score = 0;
     let matchedWords = 0;
-    
+
     for (const word of queryWords) {
         // Exact word match
         const regex = new RegExp(`\\b${escapeRegex(word)}\\b`, 'gi');
         const matches = textLower.match(regex);
-        
+
         if (matches) {
             matchedWords++;
             // Score based on frequency and inverse document length
             score += (matches.length * 10) / Math.log(text.length + 1);
         }
-        
+
         // Partial match (for longer words)
         if (word.length > 4 && textLower.includes(word)) {
             score += 2;
         }
     }
-    
+
     // Boost score if most query words matched
     const coverage = matchedWords / queryWords.length;
     score *= (1 + coverage);
-    
+
     // Bonus for phrase match
     const queryPhrase = queryWords.join(' ');
     if (textLower.includes(queryPhrase)) {
         score *= 2;
     }
-    
+
     return score;
 }
 
@@ -78,11 +79,11 @@ function escapeRegex(str: string): string {
 function extractHighlights(query: string, text: string, _maxLength = 150): string[] {
     const queryWords = query.toLowerCase().split(/\s+/).filter(w => w.length > 2);
     const highlights: string[] = [];
-    
+
     for (const word of queryWords) {
         const regex = new RegExp(`(.{0,50})(${escapeRegex(word)})(.{0,50})`, 'gi');
         let match;
-        
+
         while ((match = regex.exec(text)) !== null && highlights.length < 3) {
             const highlight = `...${match[1]}**${match[2]}**${match[3]}...`;
             if (!highlights.includes(highlight)) {
@@ -90,7 +91,7 @@ function extractHighlights(query: string, text: string, _maxLength = 150): strin
             }
         }
     }
-    
+
     return highlights.slice(0, 3);
 }
 
@@ -99,38 +100,61 @@ function extractHighlights(query: string, text: string, _maxLength = 150): strin
  */
 export function createDocumentStore(): DocumentStore {
     const documents = new Map<string, ParsedDocument>();
-    
+
     return {
         documents,
-        
+
         add(doc: ParsedDocument) {
             documents.set(doc.id, doc);
             console.log(`📄 Document added: ${doc.name} (${doc.chunks.length} chunks)`);
+
+            // Add chunks to embedding store for semantic search
+            try {
+                const embeddingStore = getEmbeddingStore();
+                const items = doc.chunks.map(chunk => ({
+                    id: `${doc.id}_${chunk.id}`,
+                    text: chunk.content,
+                }));
+                embeddingStore.addBatch(items);
+                console.log(`🧠 Indexed ${items.length} chunks for semantic search`);
+            } catch (e) {
+                console.warn('Failed to index document for semantic search:', e);
+            }
         },
-        
+
         remove(docId: string) {
             const doc = documents.get(docId);
             if (doc) {
                 documents.delete(docId);
                 console.log(`🗑️ Document removed: ${doc.name}`);
+
+                // Remove from embedding store
+                try {
+                    const embeddingStore = getEmbeddingStore();
+                    for (const chunk of doc.chunks) {
+                        embeddingStore.remove(`${docId}_${chunk.id}`);
+                    }
+                } catch (e) {
+                    console.warn('Failed to remove document embeddings:', e);
+                }
             }
         },
-        
+
         get(docId: string) {
             return documents.get(docId);
         },
-        
+
         getAll() {
             return Array.from(documents.values());
         },
-        
+
         search(query: string, topK = 5): DocumentMatch[] {
             const matches: DocumentMatch[] = [];
-            
+
             for (const doc of documents.values()) {
                 for (const chunk of doc.chunks) {
                     const score = calculateSimilarity(query, chunk.content);
-                    
+
                     if (score > 0) {
                         matches.push({
                             document: doc,
@@ -141,37 +165,37 @@ export function createDocumentStore(): DocumentStore {
                     }
                 }
             }
-            
+
             // Sort by score descending
             matches.sort((a, b) => b.score - a.score);
-            
+
             return matches.slice(0, topK);
         },
-        
+
         clear() {
             documents.clear();
             console.log('🗑️ Document store cleared');
         },
-        
+
         getContextForQuery(query: string, maxTokens = 2000): string {
             const matches = this.search(query, 10);
-            
+
             if (matches.length === 0) {
                 return '';
             }
-            
+
             let context = '### Relevant Document Context:\n\n';
             let tokenCount = 0;
             const usedChunks = new Set<string>();
-            
+
             for (const match of matches) {
                 const chunkKey = `${match.document.id}_${match.chunk.id}`;
                 if (usedChunks.has(chunkKey)) continue;
                 usedChunks.add(chunkKey);
-                
+
                 // Rough token estimation (1 token ≈ 4 characters)
                 const chunkTokens = Math.ceil(match.chunk.content.length / 4);
-                
+
                 if (tokenCount + chunkTokens > maxTokens) {
                     // Add truncated version
                     const remainingTokens = maxTokens - tokenCount;
@@ -182,19 +206,19 @@ export function createDocumentStore(): DocumentStore {
                     }
                     break;
                 }
-                
+
                 context += `**From: ${match.document.name}`;
                 if (match.chunk.pageNumber) {
                     context += ` (Page ${match.chunk.pageNumber})`;
                 }
                 context += '**\n';
                 context += match.chunk.content + '\n\n';
-                
+
                 tokenCount += chunkTokens;
             }
-            
+
             context += '\n**Instructions:** Use the above document context to answer the user\'s question. If the information is not in the documents, say so clearly.\n';
-            
+
             return context;
         },
     };
