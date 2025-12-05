@@ -71,6 +71,7 @@ function App() {
   const [isTemplatePanelOpen, setIsTemplatePanelOpen] = useState(false);
   const [sharedChatId, setSharedChatId] = useState<string | null>(() => getShareIdFromUrl());
   const [attachedFiles, setAttachedFiles] = useState<UploadedFile[]>([]);
+  const [responseStyle, setResponseStyle] = useState<'concise' | 'detailed'>('concise');
 
   // Web search state
   const [webSearchEnabled, setWebSearchEnabled] = useState(false);
@@ -181,10 +182,11 @@ function App() {
     setChatSessions(chatStorage.getRecentSessions(20));
   }, []);
 
-  const handleSend = useCallback(async (text: string, options?: { enableWebSearch?: boolean }) => {
+  const handleSend = useCallback(async (text: string, options?: { enableWebSearch?: boolean; responseStyle?: 'concise' | 'detailed' }) => {
     if (!text.trim()) return;
 
     const useWebSearch = options?.enableWebSearch || webSearchEnabled;
+    const style = options?.responseStyle || responseStyle;
 
     if (!hasStarted) {
       setHasStarted(true);
@@ -343,6 +345,7 @@ function App() {
         currentHistory, // Pass conversation history for multi-turn context
         {
           enableWebSearch: useWebSearch,
+          responseStyle: style,
           onSearchStart: () => {
             setIsSearchingWeb(true);
           },
@@ -373,7 +376,7 @@ function App() {
       setIsStreaming(false);
       setIsWaiting(false);
     }
-  }, [hasStarted, messages, selectedModel, webSearchEnabled, handleStreamChunk, flushStreamBuffer]);
+  }, [hasStarted, messages, selectedModel, webSearchEnabled, handleStreamChunk, flushStreamBuffer, responseStyle]);
 
   // Handle switching to a different chat session
   const handleSelectSession = useCallback((session: ChatSession) => {
@@ -569,7 +572,10 @@ function App() {
           flushStreamBuffer();
         },
         selectedModel,
-        currentHistory
+        currentHistory,
+        {
+          responseStyle,
+        }
       );
     } catch (error) {
       console.error('Error regenerating:', error);
@@ -578,7 +584,7 @@ function App() {
       setIsStreaming(false);
       setIsWaiting(false);
     }
-  }, [messages, selectedModel, handleStreamChunk, flushStreamBuffer]);
+  }, [messages, selectedModel, handleStreamChunk, flushStreamBuffer, responseStyle]);
 
   // Handle editing a message and regenerating from that point
   const handleEditMessage = useCallback(async (messageId: string, newContent: string) => {
@@ -641,14 +647,17 @@ function App() {
           setIsStreaming(false);
         },
         selectedModel,
-        currentHistory
+        currentHistory,
+        {
+          responseStyle,
+        }
       );
     } catch (error) {
       console.error('Edit regeneration failed:', error);
       setIsWaiting(false);
       setIsStreaming(false);
     }
-  }, [messages, selectedModel, handleStreamChunk, flushStreamBuffer]);
+  }, [messages, selectedModel, handleStreamChunk, flushStreamBuffer, responseStyle]);
 
   // Get current session title
   const currentSessionTitle = currentSessionId
@@ -896,6 +905,8 @@ function App() {
                         onSlashCommand={handleSlashCommand}
                         webSearchEnabled={webSearchEnabled}
                         onToggleWebSearch={() => setWebSearchEnabled(prev => !prev)}
+                        responseStyle={responseStyle}
+                        onChangeResponseStyle={setResponseStyle}
                       />
                     </div>
                   </div>

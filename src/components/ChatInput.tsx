@@ -5,14 +5,16 @@ import { Button } from './ui/button';
 import { SlashCommandMenu, type SlashCommand } from './ui/SlashCommandMenu';
 
 interface ChatInputProps {
-    onSend: (message: string, options?: { enableWebSearch?: boolean }) => void;
+    onSend: (message: string, options?: { enableWebSearch?: boolean; responseStyle?: 'concise' | 'detailed' }) => void;
     disabled?: boolean;
     onSlashCommand?: (command: SlashCommand) => void;
     webSearchEnabled?: boolean;
     onToggleWebSearch?: () => void;
+    responseStyle: 'concise' | 'detailed';
+    onChangeResponseStyle: (style: 'concise' | 'detailed') => void;
 }
 
-export function ChatInput({ onSend, disabled, onSlashCommand, webSearchEnabled, onToggleWebSearch }: ChatInputProps) {
+export function ChatInput({ onSend, disabled, onSlashCommand, webSearchEnabled, onToggleWebSearch, responseStyle, onChangeResponseStyle }: ChatInputProps) {
     const [input, setInput] = useState('');
     const [showSlashMenu, setShowSlashMenu] = useState(false);
     const [slashQuery, setSlashQuery] = useState('');
@@ -71,7 +73,7 @@ export function ChatInput({ onSend, disabled, onSlashCommand, webSearchEnabled, 
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
             if (input.trim() && !disabled && !showSlashMenu) {
-                onSend(input, { enableWebSearch: webSearchEnabled });
+                onSend(input, { enableWebSearch: webSearchEnabled, responseStyle });
                 setInput('');
             }
         }
@@ -119,6 +121,25 @@ export function ChatInput({ onSend, disabled, onSlashCommand, webSearchEnabled, 
 
                     {/* Action buttons - better aligned */}
                     <div className="flex items-center gap-2 pb-2">
+                        {/* Response style toggle */}
+                        <div className="flex items-center gap-1 rounded-full bg-white/5 px-1 py-1 border border-white/10">
+                            {(['concise', 'detailed'] as const).map((style) => (
+                                <button
+                                    key={style}
+                                    type="button"
+                                    onClick={() => onChangeResponseStyle(style)}
+                                    className={cn(
+                                        'text-xs px-2 py-1 rounded-full transition-colors',
+                                        responseStyle === style
+                                            ? 'bg-white text-black shadow-sm'
+                                            : 'text-gray-400 hover:text-white hover:bg-white/10'
+                                    )}
+                                >
+                                    {style === 'concise' ? 'Brief' : 'Detailed'}
+                                </button>
+                            ))}
+                        </div>
+
                         {/* Web Search Toggle */}
                         <Button
                             variant="ghost"
@@ -139,7 +160,7 @@ export function ChatInput({ onSend, disabled, onSlashCommand, webSearchEnabled, 
                         <Button
                             onClick={() => {
                                 if (input.trim() && !disabled) {
-                                    onSend(input, { enableWebSearch: webSearchEnabled });
+                                    onSend(input, { enableWebSearch: webSearchEnabled, responseStyle });
                                     setInput('');
                                 }
                             }}

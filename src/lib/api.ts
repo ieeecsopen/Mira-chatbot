@@ -303,6 +303,7 @@ export async function streamMessage(
         enableDocumentContext?: boolean;
         onSearchStart?: () => void;
         onSearchResults?: (results: SearchResult[]) => void;
+        responseStyle?: 'concise' | 'detailed';
     }
 ) {
     // Preprocess the message
@@ -453,9 +454,15 @@ export async function streamMessage(
 
             // Build system instruction with memory context
             const memoryContext = getMemoryContext();
+            const styleInstruction = options?.responseStyle === 'concise'
+                ? 'Respond concisely in 2-3 sentences focusing on the key answer.'
+                : options?.responseStyle === 'detailed'
+                    ? 'Provide a detailed, step-by-step explanation with helpful specifics when relevant.'
+                    : '';
+
             const fullSystemInstruction = memoryContext
-                ? `${SYSTEM_INSTRUCTION}${memoryContext}`
-                : SYSTEM_INSTRUCTION;
+                ? `${SYSTEM_INSTRUCTION}${memoryContext}${styleInstruction ? `\n\n${styleInstruction}` : ''}`
+                : `${SYSTEM_INSTRUCTION}${styleInstruction ? `\n\n${styleInstruction}` : ''}`;
 
             const { success, data: response, error: fetchError } = await withRetry(
                 () => fetch(streamUrl, {
