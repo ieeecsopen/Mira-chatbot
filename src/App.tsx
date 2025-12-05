@@ -825,6 +825,7 @@ function App() {
                               ? handleEditMessage
                               : undefined
                           }
+                          searchResults={msg.searchResults}
                         />
                       )}
                     </div>

@@ -2,10 +2,11 @@ import { cn } from '../lib/utils';
 import { motion } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Copy, Check, RefreshCw, Maximize2, Quote, Pencil, X, Send } from 'lucide-react';
+import { Copy, Check, RefreshCw, Maximize2, Quote, Pencil, X, Send, Link as LinkIcon } from 'lucide-react';
 import { useState, useCallback, memo, useMemo, useRef, useEffect } from 'react';
 import { CodeBlock, InlineCode } from './ui/CodeBlock';
 import { UrlPreview } from './ui/UrlPreview';
+import type { SearchResult } from '../lib/webSearch';
 
 interface MessageBubbleProps {
     role: 'user' | 'assistant';
@@ -16,6 +17,7 @@ interface MessageBubbleProps {
     onRegenerate?: () => void;
     onOpenInCanvas?: (content: string, language?: string) => void;
     onEdit?: (messageId: string, newContent: string) => void;
+    searchResults?: SearchResult[];
 }
 
 // Skeleton loading component
@@ -45,6 +47,31 @@ const createMarkdownComponents = (onOpenInCanvas?: (code: string, language?: str
     // Bold text
     strong: ({ children }: { children?: React.ReactNode }) => (
         <strong className="font-bold text-white">{children}</strong>
+                    </div>
+                )}
+                {/* Web search sources */}
+                {role === 'assistant' && searchResults && searchResults.length > 0 && (
+                    <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                        {searchResults.slice(0, 6).map((result, idx) => (
+                            <a
+                                key={`${result.url}-${idx}`}
+                                href={result.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-2 rounded-lg border border-[#30363d] bg-[#0d1117] px-3 py-2 text-sm text-[#c9d1d9] hover:border-orange-400 hover:bg-[#161b22] transition-colors"
+                            >
+                                <span className="flex h-6 w-6 items-center justify-center rounded-md bg-orange-500/20 text-orange-300 text-xs font-semibold">
+                                    {idx + 1}
+                                </span>
+                                <div className="flex-1 min-w-0">
+                                    <p className="truncate font-medium text-[#e6edf3]">{result.title || result.url}</p>
+                                    <p className="truncate text-xs text-[#8b949e]">{result.source || result.url}</p>
+                                </div>
+                                <LinkIcon size={14} className="text-[#8b949e] flex-shrink-0" />
+                            </a>
+                        ))}
+                    </div>
+                )}
     ),
     // Italic text
     em: ({ children }: { children?: React.ReactNode }) => (
@@ -202,7 +229,8 @@ function MessageBubbleComponent({
     isWaiting,
     onRegenerate,
     onOpenInCanvas,
-    onEdit
+    onEdit,
+    searchResults
 }: MessageBubbleProps) {
     const [copied, setCopied] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
