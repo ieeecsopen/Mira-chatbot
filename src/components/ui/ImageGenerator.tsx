@@ -14,6 +14,7 @@ import {
 import type { GeneratedImage, ImageGenerationOptions } from '../../lib/imageGeneration';
 import { generateImage, getAvailableModels } from '../../lib/imageGeneration';
 import { ImageGenerationAnimation } from './ImageGenerationAnimation';
+import { withRetry } from '../../lib/retry';
 
 interface ImageGeneratorProps {
     prompt: string;
@@ -65,7 +66,18 @@ export const ImageDisplay = memo(function ImageDisplay({
 
     const handleDownload = async () => {
         try {
-            const response = await fetch(image.url);
+            const { success, data: response, error: fetchError } = await withRetry(
+                () => fetch(image.url),
+                {
+                    maxAttempts: 3,
+                    initialDelayMs: 300,
+                }
+            );
+
+            if (!success || !response) {
+                throw fetchError || new Error('Download failed');
+            }
+
             const blob = await response.blob();
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');

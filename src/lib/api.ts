@@ -97,6 +97,7 @@ import { responseCache } from './cache';
 import { webSearch, formatSearchResultsForAI, type SearchResult } from './webSearch';
 import { getDocumentStore } from './documentStore';
 import { getMemoryContext } from './userMemory';
+import { withRetry } from './retry';
 
 export interface ChatResponse {
     answer: string;
@@ -235,26 +236,36 @@ export async function sendMessage(_userId: string, message: string): Promise<Cha
     const result = await tryWithFallback(async (model) => {
         const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model.name}:generateContent?key=${GEMINI_API_KEY}`;
 
-        const response = await fetch(apiUrl, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                system_instruction: {
-                    parts: [{ text: SYSTEM_INSTRUCTION }]
+        const { success, data: response, error: fetchError } = await withRetry(
+            () => fetch(apiUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
                 },
-                contents: [
-                    {
-                        parts: [
-                            {
-                                text: enhancedMessage,
-                            },
-                        ],
+                body: JSON.stringify({
+                    system_instruction: {
+                        parts: [{ text: SYSTEM_INSTRUCTION }]
                     },
-                ],
+                    contents: [
+                        {
+                            parts: [
+                                {
+                                    text: enhancedMessage,
+                                },
+                            ],
+                        },
+                    ],
+                }),
             }),
-        });
+            {
+                maxAttempts: 3,
+                initialDelayMs: 500,
+            }
+        );
+
+        if (!success || !response) {
+            throw fetchError || new Error('Request failed');
+        }
 
         if (!response.ok) {
             const error = await response.json();
@@ -446,18 +457,28 @@ export async function streamMessage(
                 ? `${SYSTEM_INSTRUCTION}${memoryContext}`
                 : SYSTEM_INSTRUCTION;
 
-            const response = await fetch(streamUrl, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    system_instruction: {
-                        parts: [{ text: fullSystemInstruction }]
+            const { success, data: response, error: fetchError } = await withRetry(
+                () => fetch(streamUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
                     },
-                    contents: contents,
+                    body: JSON.stringify({
+                        system_instruction: {
+                            parts: [{ text: fullSystemInstruction }]
+                        },
+                        contents: contents,
+                    }),
                 }),
-            });
+                {
+                    maxAttempts: 3,
+                    initialDelayMs: 500,
+                }
+            );
+
+            if (!success || !response) {
+                throw fetchError || new Error('Request failed');
+            }
 
             if (!response.ok) {
                 const error = await response.json();

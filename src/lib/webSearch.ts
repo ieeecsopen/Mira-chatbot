@@ -3,6 +3,8 @@
  * Provides real-time web search capabilities using multiple search providers
  */
 
+import { withRetry } from './retry';
+
 export interface SearchResult {
     title: string;
     url: string;
@@ -52,10 +54,20 @@ function getFavicon(url: string): string {
  */
 async function searchDuckDuckGo(query: string): Promise<SearchResult[]> {
     try {
-        const response = await fetch(
-            `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1&skip_disambig=1`,
-            { signal: AbortSignal.timeout(SEARCH_CONFIG.timeout) }
+        const { success, data: response, error: fetchError } = await withRetry(
+            () => fetch(
+                `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1&skip_disambig=1`,
+                { signal: AbortSignal.timeout(SEARCH_CONFIG.timeout) }
+            ),
+            {
+                maxAttempts: 3,
+                initialDelayMs: 300,
+            }
         );
+
+        if (!success || !response) {
+            throw fetchError || new Error('DuckDuckGo search failed');
+        }
 
         if (!response.ok) throw new Error('DuckDuckGo search failed');
 
@@ -108,15 +120,25 @@ async function searchSearXNG(query: string): Promise<SearchResult[]> {
 
     for (const instance of instances) {
         try {
-            const response = await fetch(
-                `${instance}/search?q=${encodeURIComponent(query)}&format=json&categories=general`,
-                { 
-                    signal: AbortSignal.timeout(SEARCH_CONFIG.timeout),
-                    headers: {
-                        'Accept': 'application/json',
+            const { success, data: response, error: fetchError } = await withRetry(
+                () => fetch(
+                    `${instance}/search?q=${encodeURIComponent(query)}&format=json&categories=general`,
+                    { 
+                        signal: AbortSignal.timeout(SEARCH_CONFIG.timeout),
+                        headers: {
+                            'Accept': 'application/json',
+                        }
                     }
+                ),
+                {
+                    maxAttempts: 2,
+                    initialDelayMs: 300,
                 }
             );
+
+            if (!success || !response) {
+                throw fetchError || new Error('SearXNG request failed');
+            }
 
             if (!response.ok) continue;
 
@@ -151,9 +173,19 @@ async function searchWithProxy(query: string): Promise<SearchResult[]> {
             `https://www.google.com/search?q=${encodeURIComponent(query)}&num=5`
         )}`;
 
-        const response = await fetch(proxyUrl, {
-            signal: AbortSignal.timeout(SEARCH_CONFIG.timeout),
-        });
+        const { success, data: response, error: fetchError } = await withRetry(
+            () => fetch(proxyUrl, {
+                signal: AbortSignal.timeout(SEARCH_CONFIG.timeout),
+            }),
+            {
+                maxAttempts: 2,
+                initialDelayMs: 300,
+            }
+        );
+
+        if (!success || !response) {
+            throw fetchError || new Error('Proxy search failed');
+        }
 
         if (!response.ok) throw new Error('Proxy search failed');
 

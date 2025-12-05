@@ -1,5 +1,6 @@
 import { useState, useEffect, memo } from 'react';
 import { ExternalLink, Globe, Image as ImageIcon } from 'lucide-react';
+import { withRetry } from '../../lib/retry';
 
 interface OpenGraphData {
     title?: string;
@@ -41,9 +42,19 @@ async function fetchOpenGraphData(url: string): Promise<OpenGraphData | null> {
         // In production, you'd want your own backend endpoint
         const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
         
-        const response = await fetch(proxyUrl, {
-            signal: AbortSignal.timeout(5000),
-        });
+        const { success, data: response, error: fetchError } = await withRetry(
+            () => fetch(proxyUrl, {
+                signal: AbortSignal.timeout(5000),
+            }),
+            {
+                maxAttempts: 3,
+                initialDelayMs: 300,
+            }
+        );
+        
+        if (!success || !response) {
+            throw fetchError || new Error('Failed to fetch');
+        }
         
         if (!response.ok) {
             throw new Error('Failed to fetch');
