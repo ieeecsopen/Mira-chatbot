@@ -1,13 +1,18 @@
 import { useState, useCallback } from 'react';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import { Copy, Check, Maximize2 } from 'lucide-react';
+import { Copy, Check, Maximize2, Play, Loader2, Terminal } from 'lucide-react';
+import { executeJavaScript, formatOutput, isCodeSafe } from '../../lib/codeSandbox';
+import { showError } from '../../lib/toast';
 
 interface CodeBlockProps {
     children: string;
     language?: string;
     onOpenInCanvas?: (code: string, language: string) => void;
 }
+
+// Languages that can be executed
+const executableLanguages = ['javascript', 'js', 'jsx'];
 
 // Language display names mapping
 const languageNames: Record<string, string> = {
@@ -117,6 +122,11 @@ const customTheme = {
 
 export function CodeBlock({ children, language = 'plaintext', onOpenInCanvas }: CodeBlockProps) {
     const [copied, setCopied] = useState(false);
+    const [isRunning, setIsRunning] = useState(false);
+    const [output, setOutput] = useState<string | null>(null);
+    const [executionTime, setExecutionTime] = useState<number | null>(null);
+
+    const canExecute = executableLanguages.includes(language.toLowerCase());
 
     const handleCopy = useCallback(async () => {
         try {
@@ -132,6 +142,28 @@ export function CodeBlock({ children, language = 'plaintext', onOpenInCanvas }: 
         onOpenInCanvas?.(children, language);
     }, [children, language, onOpenInCanvas]);
 
+    const handleRun = useCallback(async () => {
+        // Check if code is safe
+        const safetyCheck = isCodeSafe(children);
+        if (!safetyCheck.safe) {
+            showError(safetyCheck.reason || 'Code contains potentially unsafe operations');
+            return;
+        }
+
+        setIsRunning(true);
+        setOutput(null);
+
+        try {
+            const result = await executeJavaScript(children);
+            setOutput(formatOutput(result));
+            setExecutionTime(result.executionTime);
+        } catch (error) {
+            setOutput(`❌ Error: ${(error as Error).message}`);
+        } finally {
+            setIsRunning(false);
+        }
+    }, [children]);
+
     const displayLanguage = languageNames[language.toLowerCase()] || language.toUpperCase();
 
     return (
@@ -142,6 +174,27 @@ export function CodeBlock({ children, language = 'plaintext', onOpenInCanvas }: 
                     {displayLanguage}
                 </span>
                 <div className="flex items-center gap-1">
+                    {/* Run button for JavaScript */}
+                    {canExecute && (
+                        <button
+                            onClick={handleRun}
+                            disabled={isRunning}
+                            className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-green-400 hover:text-green-300 hover:bg-green-500/10 rounded-md transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                            title="Run code"
+                        >
+                            {isRunning ? (
+                                <>
+                                    <Loader2 size={14} className="animate-spin" />
+                                    <span>Running...</span>
+                                </>
+                            ) : (
+                                <>
+                                    <Play size={14} fill="currentColor" />
+                                    <span>Run</span>
+                                </>
+                            )}
+                        </button>
+                    )}
                     {onOpenInCanvas && (
                         <button
                             onClick={handleOpenInCanvas}
@@ -192,6 +245,26 @@ export function CodeBlock({ children, language = 'plaintext', onOpenInCanvas }: 
                     {children}
                 </SyntaxHighlighter>
             </div>
+
+            {/* Output panel */}
+            {output !== null && (
+                <div className="border-t border-[#30363d] bg-[#0a0c10]">
+                    <div className="flex items-center justify-between px-4 py-2 bg-[#161b22] border-b border-[#30363d]">
+                        <span className="text-xs font-medium text-[#8b949e] flex items-center gap-1.5">
+                            <Terminal size={12} />
+                            Output
+                        </span>
+                        {executionTime !== null && (
+                            <span className="text-xs text-[#6e7681]">
+                                {executionTime.toFixed(1)}ms
+                            </span>
+                        )}
+                    </div>
+                    <pre className="p-4 text-sm font-mono text-[#c9d1d9] whitespace-pre-wrap overflow-x-auto max-h-64 overflow-y-auto">
+                        {output}
+                    </pre>
+                </div>
+            )}
         </div>
     );
 }
