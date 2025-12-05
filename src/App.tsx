@@ -21,6 +21,7 @@ import { ImageGeneratingCard, ImageDisplay } from './components/ui/ImageGenerato
 import { getDocumentStore } from './lib/documentStore';
 import { parseImageCommand, generateImage, type GeneratedImage } from './lib/imageGeneration';
 import type { SearchResult } from './lib/webSearch';
+import { AuthProvider } from './contexts/AuthContext';
 
 interface Message {
   id: string;
@@ -545,232 +546,234 @@ function App() {
     : undefined;
 
   return (
-    <div className="flex flex-col h-screen bg-background text-foreground overflow-hidden font-sans selection:bg-white/20 relative">
-      {/* Landing Page - Animates out when chat starts */}
-      <motion.div
-        initial={{ opacity: 1, scale: 1 }}
-        animate={{
-          opacity: hasStarted ? 0 : 1,
-          scale: hasStarted ? 0.95 : 1,
-          pointerEvents: hasStarted ? 'none' : 'auto',
-        }}
-        transition={{ duration: 0.5, ease: "easeInOut" }}
-        className="absolute inset-0 z-30"
-      >
-        <LandingPage
-          onStartChat={handleSend}
-          selectedModel={selectedModel}
-          onModelChange={setSelectedModel}
-        />
-      </motion.div>
-
-      {/* Main Chat Interface - Animates in when chat starts */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: hasStarted ? 1 : 0 }}
-        transition={{ duration: 0.5, delay: hasStarted ? 0.3 : 0 }}
-        className="flex flex-col h-screen"
-        style={{ pointerEvents: hasStarted ? 'auto' : 'none' }}
-      >
-        {/* Navbar - Slides down */}
+    <AuthProvider>
+      <div className="flex flex-col h-screen bg-background text-foreground overflow-hidden font-sans selection:bg-white/20 relative">
+        {/* Landing Page - Animates out when chat starts */}
         <motion.div
-          initial={{ y: -100, opacity: 0 }}
+          initial={{ opacity: 1, scale: 1 }}
           animate={{
-            y: hasStarted ? 0 : -100,
-            opacity: hasStarted ? 1 : 0,
+            opacity: hasStarted ? 0 : 1,
+            scale: hasStarted ? 0.95 : 1,
+            pointerEvents: hasStarted ? 'none' : 'auto',
           }}
-          transition={{ duration: 0.6, delay: hasStarted ? 0.4 : 0, ease: "easeOut" }}
+          transition={{ duration: 0.5, ease: "easeInOut" }}
+          className="absolute inset-0 z-30"
         >
-          <Navbar
-            onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            onNewChat={handleNewChat}
-            onSearchClick={() => setIsSearchOpen(true)}
-            chatTitle={currentSessionTitle}
+          <LandingPage
+            onStartChat={handleSend}
+            selectedModel={selectedModel}
+            onModelChange={setSelectedModel}
           />
         </motion.div>
 
-        {/* Search Modal */}
-        <SearchMessages
-          isOpen={isSearchOpen}
-          onClose={() => setIsSearchOpen(false)}
-          onSelectSession={handleSelectSessionFromSearch}
-          currentSessionId={currentSessionId || undefined}
-        />
-
-        <div className="flex flex-1 pt-16 overflow-hidden">
-          {/* Sidebar - Slides in from left */}
+        {/* Main Chat Interface - Animates in when chat starts */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: hasStarted ? 1 : 0 }}
+          transition={{ duration: 0.5, delay: hasStarted ? 0.3 : 0 }}
+          className="flex flex-col h-screen"
+          style={{ pointerEvents: hasStarted ? 'auto' : 'none' }}
+        >
+          {/* Navbar - Slides down */}
           <motion.div
-            initial={{ x: -280, opacity: 0 }}
+            initial={{ y: -100, opacity: 0 }}
             animate={{
-              x: hasStarted ? 0 : -280,
+              y: hasStarted ? 0 : -100,
               opacity: hasStarted ? 1 : 0,
             }}
-            transition={{ duration: 0.6, delay: hasStarted ? 0.5 : 0, ease: "easeOut" }}
+            transition={{ duration: 0.6, delay: hasStarted ? 0.4 : 0, ease: "easeOut" }}
           >
-            <Sidebar
-              chatSessions={chatSessions}
-              currentSessionId={currentSessionId}
+            <Navbar
+              onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)}
               onNewChat={handleNewChat}
-              onSelectSession={handleSelectSession}
-              onDeleteSession={handleDeleteSession}
+              onSearchClick={() => setIsSearchOpen(true)}
+              chatTitle={currentSessionTitle}
             />
           </motion.div>
 
-          {/* Main Chat Area - Fades in */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: hasStarted ? 1 : 0 }}
-            transition={{ duration: 0.5, delay: hasStarted ? 0.6 : 0 }}
-            className="flex-1 flex flex-col h-full relative bg-background"
-          >
-            {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-4 md:p-0 scroll-smooth relative z-0">
-              <div className="max-w-3xl mx-auto pt-4 md:pt-10 pb-4">
-                {messages.map((msg, index) => (
-                  <div key={msg.id}>
-                    {/* Show search results before assistant message */}
-                    {msg.role === 'assistant' && msg.searchResults && msg.searchResults.length > 0 && (
-                      <SearchResultsCard
-                        results={msg.searchResults}
-                        query={messages[index - 1]?.content || ''}
-                      />
-                    )}
-                    {/* Show searching indicator */}
-                    {msg.role === 'assistant' && isSearchingWeb && index === messages.length - 1 && (
-                      <SearchResultsCard
-                        results={[]}
-                        query={messages[index - 1]?.content || ''}
-                        isSearching={true}
-                      />
-                    )}
-                    {/* Show image generating indicator */}
-                    {msg.role === 'assistant' && msg.isGeneratingImage && msg.imagePrompt && (
-                      <ImageGeneratingCard prompt={msg.imagePrompt} />
-                    )}
-                    {/* Show generated image */}
-                    {msg.role === 'assistant' && msg.generatedImage && (
-                      <ImageDisplay
-                        image={msg.generatedImage}
-                        onRegenerate={(prompt) => handleSend(`/imagine ${prompt}`)}
-                      />
-                    )}
-                    {/* Show message bubble (skip if only showing image) */}
-                    {!(msg.role === 'assistant' && msg.isGeneratingImage && !msg.content) && (
-                      <MessageBubble
-                        role={msg.role}
-                        content={msg.content}
-                        isStreaming={isStreaming && index === messages.length - 1 && msg.role === 'assistant'}
-                        isWaiting={isWaiting && index === messages.length - 1 && msg.role === 'assistant'}
-                        onRegenerate={
-                          !isStreaming && msg.role === 'assistant' && index === messages.length - 1 && !msg.generatedImage
-                            ? handleRegenerate
-                            : undefined
-                        }
-                        onOpenInCanvas={
-                          !isStreaming && msg.role === 'assistant'
-                            ? (code, language) => canvas.addItem(code, undefined, 'code', language)
-                            : undefined
-                        }
-                      />
-                    )}
-                  </div>
-                ))}
-                <div ref={messagesEndRef} className="h-4" />
-              </div>
-            </div>
+          {/* Search Modal */}
+          <SearchMessages
+            isOpen={isSearchOpen}
+            onClose={() => setIsSearchOpen(false)}
+            onSelectSession={handleSelectSessionFromSearch}
+            currentSessionId={currentSessionId || undefined}
+          />
 
-            {/* File Preview */}
-            {attachedFiles.length > 0 && (
-              <div className="px-4 md:px-6 bg-background">
-                <div className="max-w-3xl mx-auto">
-                  <FilePreview files={attachedFiles} onRemove={handleFileRemove} compact />
-                </div>
-              </div>
-            )}
-
-            {/* Input Area - Slides up */}
+          <div className="flex flex-1 pt-16 overflow-hidden">
+            {/* Sidebar - Slides in from left */}
             <motion.div
-              initial={{ y: 100, opacity: 0 }}
+              initial={{ x: -280, opacity: 0 }}
               animate={{
-                y: hasStarted ? 0 : 100,
+                x: hasStarted ? 0 : -280,
                 opacity: hasStarted ? 1 : 0,
               }}
-              transition={{ duration: 0.6, delay: hasStarted ? 0.7 : 0, ease: "easeOut" }}
-              className="p-4 md:p-6 bg-background relative z-10"
+              transition={{ duration: 0.6, delay: hasStarted ? 0.5 : 0, ease: "easeOut" }}
             >
-              <div className="max-w-3xl mx-auto">
-                {/* Document Upload Bar - shows when documents are loaded */}
-                <div className="mb-3">
-                  <DocumentUploadBar onDocumentsChange={updateDocumentStatus} />
-                </div>
+              <Sidebar
+                chatSessions={chatSessions}
+                currentSessionId={currentSessionId}
+                onNewChat={handleNewChat}
+                onSelectSession={handleSelectSession}
+                onDeleteSession={handleDeleteSession}
+              />
+            </motion.div>
 
-                <div className="flex items-center gap-3 mb-3">
-                  <ModelSelector
-                    selectedModel={selectedModel}
-                    onModelChange={setSelectedModel}
-                    disabled={isStreaming}
-                  />
-                  {canvas.items.length > 0 && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => canvas.toggleCanvas()}
-                      className="text-gray-500 hover:text-white gap-2"
-                    >
-                      <PanelRightOpen size={16} />
-                      <span className="text-xs">Canvas ({canvas.items.length})</span>
-                    </Button>
-                  )}
-                  {hasDocuments && (
-                    <span className="text-xs text-orange-400 font-medium">
-                      📄 Document context active
-                    </span>
-                  )}
-                  {isStreaming && (
-                    <span className="text-xs text-gray-400 font-mono animate-pulse">
-                      Generating response...
-                    </span>
-                  )}
-                </div>
-                <div className="flex items-center gap-2">
-                  <FileUpload
-                    onFilesSelected={handleFilesSelected}
-                    onFileRemove={handleFileRemove}
-                    files={attachedFiles}
-                    disabled={isStreaming}
-                  />
-                  <VoiceInput
-                    onTranscript={handleVoiceTranscript}
-                    disabled={isStreaming}
-                    language="si-LK"
-                  />
-                  <div className="flex-1">
-                    <ChatInput
-                      onSend={handleSend}
-                      disabled={isStreaming}
-                      onSlashCommand={handleSlashCommand}
-                      webSearchEnabled={webSearchEnabled}
-                      onToggleWebSearch={() => setWebSearchEnabled(prev => !prev)}
-                    />
-                  </div>
+            {/* Main Chat Area - Fades in */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: hasStarted ? 1 : 0 }}
+              transition={{ duration: 0.5, delay: hasStarted ? 0.6 : 0 }}
+              className="flex-1 flex flex-col h-full relative bg-background"
+            >
+              {/* Messages */}
+              <div className="flex-1 overflow-y-auto p-4 md:p-0 scroll-smooth relative z-0">
+                <div className="max-w-3xl mx-auto pt-4 md:pt-10 pb-4">
+                  {messages.map((msg, index) => (
+                    <div key={msg.id}>
+                      {/* Show search results before assistant message */}
+                      {msg.role === 'assistant' && msg.searchResults && msg.searchResults.length > 0 && (
+                        <SearchResultsCard
+                          results={msg.searchResults}
+                          query={messages[index - 1]?.content || ''}
+                        />
+                      )}
+                      {/* Show searching indicator */}
+                      {msg.role === 'assistant' && isSearchingWeb && index === messages.length - 1 && (
+                        <SearchResultsCard
+                          results={[]}
+                          query={messages[index - 1]?.content || ''}
+                          isSearching={true}
+                        />
+                      )}
+                      {/* Show image generating indicator */}
+                      {msg.role === 'assistant' && msg.isGeneratingImage && msg.imagePrompt && (
+                        <ImageGeneratingCard prompt={msg.imagePrompt} />
+                      )}
+                      {/* Show generated image */}
+                      {msg.role === 'assistant' && msg.generatedImage && (
+                        <ImageDisplay
+                          image={msg.generatedImage}
+                          onRegenerate={(prompt) => handleSend(`/imagine ${prompt}`)}
+                        />
+                      )}
+                      {/* Show message bubble (skip if only showing image) */}
+                      {!(msg.role === 'assistant' && msg.isGeneratingImage && !msg.content) && (
+                        <MessageBubble
+                          role={msg.role}
+                          content={msg.content}
+                          isStreaming={isStreaming && index === messages.length - 1 && msg.role === 'assistant'}
+                          isWaiting={isWaiting && index === messages.length - 1 && msg.role === 'assistant'}
+                          onRegenerate={
+                            !isStreaming && msg.role === 'assistant' && index === messages.length - 1 && !msg.generatedImage
+                              ? handleRegenerate
+                              : undefined
+                          }
+                          onOpenInCanvas={
+                            !isStreaming && msg.role === 'assistant'
+                              ? (code, language) => canvas.addItem(code, undefined, 'code', language)
+                              : undefined
+                          }
+                        />
+                      )}
+                    </div>
+                  ))}
+                  <div ref={messagesEndRef} className="h-4" />
                 </div>
               </div>
-            </motion.div>
-          </motion.div>
-        </div>
-      </motion.div>
 
-      {/* Canvas Panel */}
-      <Canvas
-        isOpen={canvas.isOpen}
-        onClose={canvas.closeCanvas}
-        items={canvas.items}
-        activeItemId={canvas.activeItemId}
-        onSelectItem={canvas.selectItem}
-        onUpdateItem={canvas.updateItem}
-        onDeleteItem={canvas.deleteItem}
-      />
-    </div>
+              {/* File Preview */}
+              {attachedFiles.length > 0 && (
+                <div className="px-4 md:px-6 bg-background">
+                  <div className="max-w-3xl mx-auto">
+                    <FilePreview files={attachedFiles} onRemove={handleFileRemove} compact />
+                  </div>
+                </div>
+              )}
+
+              {/* Input Area - Slides up */}
+              <motion.div
+                initial={{ y: 100, opacity: 0 }}
+                animate={{
+                  y: hasStarted ? 0 : 100,
+                  opacity: hasStarted ? 1 : 0,
+                }}
+                transition={{ duration: 0.6, delay: hasStarted ? 0.7 : 0, ease: "easeOut" }}
+                className="p-4 md:p-6 bg-background relative z-10"
+              >
+                <div className="max-w-3xl mx-auto">
+                  {/* Document Upload Bar - shows when documents are loaded */}
+                  <div className="mb-3">
+                    <DocumentUploadBar onDocumentsChange={updateDocumentStatus} />
+                  </div>
+
+                  <div className="flex items-center gap-3 mb-3">
+                    <ModelSelector
+                      selectedModel={selectedModel}
+                      onModelChange={setSelectedModel}
+                      disabled={isStreaming}
+                    />
+                    {canvas.items.length > 0 && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => canvas.toggleCanvas()}
+                        className="text-gray-500 hover:text-white gap-2"
+                      >
+                        <PanelRightOpen size={16} />
+                        <span className="text-xs">Canvas ({canvas.items.length})</span>
+                      </Button>
+                    )}
+                    {hasDocuments && (
+                      <span className="text-xs text-orange-400 font-medium">
+                        📄 Document context active
+                      </span>
+                    )}
+                    {isStreaming && (
+                      <span className="text-xs text-gray-400 font-mono animate-pulse">
+                        Generating response...
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <FileUpload
+                      onFilesSelected={handleFilesSelected}
+                      onFileRemove={handleFileRemove}
+                      files={attachedFiles}
+                      disabled={isStreaming}
+                    />
+                    <VoiceInput
+                      onTranscript={handleVoiceTranscript}
+                      disabled={isStreaming}
+                      language="si-LK"
+                    />
+                    <div className="flex-1">
+                      <ChatInput
+                        onSend={handleSend}
+                        disabled={isStreaming}
+                        onSlashCommand={handleSlashCommand}
+                        webSearchEnabled={webSearchEnabled}
+                        onToggleWebSearch={() => setWebSearchEnabled(prev => !prev)}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            </motion.div>
+          </div>
+        </motion.div>
+
+        {/* Canvas Panel */}
+        <Canvas
+          isOpen={canvas.isOpen}
+          onClose={canvas.closeCanvas}
+          items={canvas.items}
+          activeItemId={canvas.activeItemId}
+          onSelectItem={canvas.selectItem}
+          onUpdateItem={canvas.updateItem}
+          onDeleteItem={canvas.deleteItem}
+        />
+      </div>
+    </AuthProvider>
   );
 }
 

@@ -5,11 +5,12 @@ import {
   Search,
   Settings,
   User,
-  X,
   Sparkles,
   LogOut
 } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
+import { useAuth } from '../../contexts/AuthContext';
+import { AuthModal } from './AuthModal';
 
 interface NavbarProps {
   onMenuClick?: () => void;
@@ -29,7 +30,11 @@ export function Navbar({
   chatTitle,
 }: NavbarProps) {
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
   const userMenuRef = useRef<HTMLDivElement>(null);
+
+  const { user, isAuthenticated, signOut } = useAuth();
 
   // Close user menu when clicking outside
   useEffect(() => {
@@ -42,6 +47,21 @@ export function Navbar({
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  const handleSignIn = () => {
+    setAuthMode('signin');
+    setAuthModalOpen(true);
+  };
+
+  const handleSignUp = () => {
+    setAuthMode('signup');
+    setAuthModalOpen(true);
+  };
+
+  const handleSignOut = () => {
+    signOut();
+    setIsUserMenuOpen(false);
+  };
 
   return (
     <motion.header
@@ -152,88 +172,108 @@ export function Navbar({
             <Settings size={18} />
           </motion.button>
 
-          {/* User menu */}
-          <div className="relative" ref={userMenuRef}>
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-              className="relative w-10 h-10 flex items-center justify-center rounded-xl
-                bg-gradient-to-br from-gray-800 to-gray-900
-                hover:from-gray-700 hover:to-gray-800
-                text-white transition-all duration-200
-                border border-white/20 shadow-lg"
-              aria-label="User menu"
-            >
-              <User size={18} />
-              <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-[#0a0a0a] rounded-full" />
-            </motion.button>
-
-            {/* User dropdown */}
-            {isUserMenuOpen && (
-              <motion.div
-                initial={{ opacity: 0, y: -10, scale: 0.95 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                className="absolute right-0 mt-3 w-64 rounded-2xl overflow-hidden
-                  bg-gradient-to-b from-[#1a1a1a] to-[#0f0f0f]
-                  border border-white/10
-                  shadow-2xl shadow-black/50 z-50"
+          {/* Auth buttons / User menu */}
+          {isAuthenticated ? (
+            <div className="relative" ref={userMenuRef}>
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+                className="relative w-10 h-10 flex items-center justify-center rounded-xl
+                  bg-gradient-to-br from-gray-800 to-gray-900
+                  hover:from-gray-700 hover:to-gray-800
+                  text-white transition-all duration-200
+                  border border-white/20 shadow-lg"
+                aria-label="User menu"
               >
-                {/* User info header */}
-                <div className="p-4 border-b border-white/10 bg-white/5">
-                  <div className="flex items-center gap-3">
-                    <div className="relative">
-                      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-gray-800 to-gray-900
-                        flex items-center justify-center border border-white/20 shadow-lg">
-                        <User size={20} className="text-white" />
+                <User size={18} />
+                <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-[#0a0a0a] rounded-full" />
+              </motion.button>
+
+              {/* User dropdown */}
+              {isUserMenuOpen && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  className="absolute right-0 mt-3 w-64 rounded-2xl overflow-hidden
+                    bg-gradient-to-b from-[#1a1a1a] to-[#0f0f0f]
+                    border border-white/10
+                    shadow-2xl shadow-black/50 z-50"
+                >
+                  {/* User info header */}
+                  <div className="p-4 border-b border-white/10 bg-white/5">
+                    <div className="flex items-center gap-3">
+                      <div className="relative">
+                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-gray-800 to-gray-900
+                          flex items-center justify-center border border-white/20 shadow-lg">
+                          <User size={20} className="text-white" />
+                        </div>
+                        <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-green-500 border-2 border-[#1a1a1a] rounded-full" />
                       </div>
-                      <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-green-500 border-2 border-[#1a1a1a] rounded-full" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-white truncate">Guest User</p>
-                      <div className="flex items-center gap-1.5 mt-0.5">
-                        <span className="px-2 py-0.5 bg-orange-500/10 text-orange-400 rounded-md text-[10px] font-bold uppercase tracking-wide">
-                          Free
-                        </span>
-                        <span className="text-xs text-gray-500">·</span>
-                        <span className="text-xs text-gray-500">Active</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-white truncate">{user?.name || 'User'}</p>
+                        <p className="text-xs text-gray-500 truncate">{user?.email}</p>
                       </div>
                     </div>
                   </div>
-                </div>
 
-                {/* Menu items */}
-                <div className="p-2">
-                  <UserMenuItem icon={User} label="Profile" />
-                  <UserMenuItem icon={Settings} label="Settings" onClick={onSettingsClick} />
-                  <UserMenuItem icon={Sparkles} label="Upgrade to Pro" badge="New" variant="premium" />
-                </div>
+                  {/* Menu items */}
+                  <div className="p-2">
+                    <UserMenuItem icon={User} label="Profile" />
+                    <UserMenuItem icon={Settings} label="Settings" onClick={onSettingsClick} />
+                    <UserMenuItem icon={Sparkles} label="Upgrade to Pro" badge="New" variant="premium" />
+                  </div>
 
-                {/* Danger zone */}
-                <div className="p-2 border-t border-white/10">
-                  <button
-                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl
-                      text-red-400 hover:text-red-300 hover:bg-red-500/10
-                      transition-all duration-150 text-sm font-medium
-                      border border-transparent hover:border-red-500/20"
-                  >
-                    <X size={16} />
-                    <span>Clear All Data</span>
-                  </button>
-                  <button
-                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl
-                      text-gray-400 hover:text-white hover:bg-white/5
-                      transition-all duration-150 text-sm font-medium mt-1"
-                  >
-                    <LogOut size={16} />
-                    <span>Sign Out</span>
-                  </button>
-                </div>
-              </motion.div>
-            )}
-          </div>
+                  {/* Danger zone */}
+                  <div className="p-2 border-t border-white/10">
+                    <button
+                      onClick={handleSignOut}
+                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl
+                        text-gray-400 hover:text-white hover:bg-white/5
+                        transition-all duration-150 text-sm font-medium"
+                    >
+                      <LogOut size={16} />
+                      <span>Sign Out</span>
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={handleSignIn}
+                className="h-10 px-4 flex items-center rounded-xl
+                  hover:bg-white/10 text-gray-300 hover:text-white
+                  text-sm font-semibold transition-all duration-200
+                  border border-transparent hover:border-white/10"
+              >
+                Sign in
+              </motion.button>
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={handleSignUp}
+                className="h-10 px-4 flex items-center rounded-xl
+                  bg-white text-black hover:bg-gray-200
+                  text-sm font-semibold transition-all duration-200
+                  shadow-lg shadow-white/10"
+              >
+                Sign up
+              </motion.button>
+            </div>
+          )}
         </div>
       </div>
+
+      {/* Auth Modal */}
+      <AuthModal
+        isOpen={authModalOpen}
+        onClose={() => setAuthModalOpen(false)}
+        initialMode={authMode}
+      />
     </motion.header>
   );
 }
