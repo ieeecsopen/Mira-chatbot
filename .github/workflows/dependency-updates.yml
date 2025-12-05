@@ -1,0 +1,78 @@
+name: Dependency Updates
+
+on:
+  schedule:
+    # Run every Monday at 9 AM UTC
+    - cron: '0 9 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update-deps:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Check for updates
+        id: check
+        run: |
+          echo "📦 Checking for dependency updates..."
+          npm outdated --json > outdated.json || true
+          if [ -s outdated.json ] && [ "$(cat outdated.json)" != "{}" ]; then
+            echo "updates_available=true" >> $GITHUB_OUTPUT
+            echo "Found outdated packages:"
+            cat outdated.json
+          else
+            echo "updates_available=false" >> $GITHUB_OUTPUT
+            echo "All packages are up to date!"
+          fi
+
+      - name: Update dependencies
+        if: steps.check.outputs.updates_available == 'true'
+        run: |
+          npm update
+          npm audit fix || true
+
+      - name: Run tests after update
+        if: steps.check.outputs.updates_available == 'true'
+        run: |
+          npm run build
+          npm run lint
+
+      - name: Create Pull Request
+        if: steps.check.outputs.updates_available == 'true'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "chore(deps): update dependencies"
+          title: "🔄 Weekly Dependency Updates"
+          body: |
+            ## Automated Dependency Update
+            
+            This PR was automatically generated to update project dependencies.
+            
+            ### Changes
+            - Updated npm packages to their latest compatible versions
+            - Ran `npm audit fix` to address security vulnerabilities
+            
+            ### Verification
+            - ✅ Build passed
+            - ✅ Lint passed
+            
+            Please review the changes and merge if everything looks good.
+          branch: chore/dependency-updates
+          delete-branch: true
+          labels: |
+            dependencies
+            automated

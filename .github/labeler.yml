@@ -1,0 +1,46 @@
+# Labeler configuration
+# Used by .github/workflows/pr-automation.yml
+
+# Frontend components
+frontend:
+  - 'src/components/**/*'
+  - 'src/App.tsx'
+  - 'src/App.css'
+
+# Styling
+styling:
+  - '**/*.css'
+  - 'tailwind.config.*'
+
+# Libraries/Utils
+lib:
+  - 'src/lib/**/*'
+
+# Tests
+test:
+  - 'src/test/**/*'
+  - '**/*.test.ts'
+  - '**/*.test.tsx'
+
+# Configuration
+config:
+  - '*.json'
+  - '*.yml'
+  - '*.yaml'
+  - 'vite.config.*'
+  - 'tsconfig.*'
+  - 'eslint.config.*'
+
+# Documentation
+documentation:
+  - '*.md'
+  - 'docs/**/*'
+
+# CI/CD
+ci:
+  - '.github/**/*'
+
+# Dependencies
+dependencies:
+  - 'package.json'
+  - 'package-lock.json'
