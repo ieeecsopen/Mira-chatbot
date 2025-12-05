@@ -903,6 +903,12 @@ function App() {
           session={currentSession}
         />
 
+        {/* Memory Panel */}
+        <MemoryPanel
+          isOpen={isMemoryPanelOpen}
+          onClose={() => setIsMemoryPanelOpen(false)}
+        />
+
         {/* Canvas Panel */}
         <Canvas
           isOpen={canvas.isOpen}

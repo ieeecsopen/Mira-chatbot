@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Brain, Plus, Trash2, X, Tag, Sparkles, User, Briefcase, Settings2, HelpCircle } from 'lucide-react';
 import { Button } from './button';
 import { useMemory, type MemoryItem } from '../../lib/userMemory';
-import { showSuccess, showError } from '../../lib/toast';
+import { showSuccess } from '../../lib/toast';
 
 interface MemoryPanelProps {
     isOpen: boolean;
@@ -127,8 +127,8 @@ export function MemoryPanel({ isOpen, onClose }: MemoryPanelProps) {
                                                     key={cat}
                                                     onClick={() => setSelectedCategory(cat)}
                                                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${selectedCategory === cat
-                                                            ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30'
-                                                            : 'bg-[#0d1117] text-[#8b949e] hover:text-white border border-[#30363d]'
+                                                        ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30'
+                                                        : 'bg-[#0d1117] text-[#8b949e] hover:text-white border border-[#30363d]'
                                                         }`}
                                                 >
                                                     {categoryIcons[cat]}
