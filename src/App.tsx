@@ -558,6 +558,76 @@ function App() {
     }
   }, [messages, selectedModel, handleStreamChunk, flushStreamBuffer]);
 
+  // Handle editing a message and regenerating from that point
+  const handleEditMessage = useCallback(async (messageId: string, newContent: string) => {
+    // Find the message index
+    const messageIndex = messages.findIndex(m => m.id === messageId);
+    if (messageIndex === -1) return;
+
+    // Only allow editing user messages
+    if (messages[messageIndex].role !== 'user') return;
+
+    // Truncate messages from this point onwards
+    const truncatedMessages = messages.slice(0, messageIndex);
+
+    // Add the edited message
+    const editedMessage: Message = {
+      ...messages[messageIndex],
+      content: newContent
+    };
+
+    setMessages([...truncatedMessages, editedMessage]);
+
+    // Get history up to the edited message
+    const currentHistory = truncatedMessages
+      .filter(m => m.content.length > 0)
+      .slice(-MAX_CONTEXT_MESSAGES)
+      .map(m => ({ role: m.role, content: m.content }));
+
+    setIsWaiting(true);
+    setIsStreaming(true);
+
+    try {
+      const assistantMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: ''
+      };
+
+      setMessages(prev => [...prev, assistantMessage]);
+
+      streamBufferRef.current = '';
+      lastUpdateRef.current = Date.now();
+
+      await new Promise(resolve => setTimeout(resolve, 100));
+      setIsWaiting(false);
+
+      await streamMessage(
+        'user',
+        newContent,
+        handleStreamChunk,
+        () => {
+          flushStreamBuffer();
+          setIsStreaming(false);
+          chatStorage.addMessage('assistant', streamBufferRef.current || '');
+          chatStorage.saveCurrentSession();
+          setChatSessions(chatStorage.getRecentSessions(20));
+        },
+        (error: string) => {
+          console.error('Stream error:', error);
+          flushStreamBuffer();
+          setIsStreaming(false);
+        },
+        selectedModel,
+        currentHistory
+      );
+    } catch (error) {
+      console.error('Edit regeneration failed:', error);
+      setIsWaiting(false);
+      setIsStreaming(false);
+    }
+  }, [messages, selectedModel, handleStreamChunk, flushStreamBuffer]);
+
   // Get current session title
   const currentSessionTitle = currentSessionId
     ? chatSessions.find(s => s.id === currentSessionId)?.title
@@ -679,6 +749,7 @@ function App() {
                         <MessageBubble
                           role={msg.role}
                           content={msg.content}
+                          messageId={msg.id}
                           isStreaming={isStreaming && index === messages.length - 1 && msg.role === 'assistant'}
                           isWaiting={isWaiting && index === messages.length - 1 && msg.role === 'assistant'}
                           onRegenerate={
@@ -689,6 +760,11 @@ function App() {
                           onOpenInCanvas={
                             !isStreaming && msg.role === 'assistant'
                               ? (code, language) => canvas.addItem(code, undefined, 'code', language)
+                              : undefined
+                          }
+                          onEdit={
+                            !isStreaming && msg.role === 'user'
+                              ? handleEditMessage
                               : undefined
                           }
                         />

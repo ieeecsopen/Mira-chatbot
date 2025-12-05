@@ -2,18 +2,20 @@ import { cn } from '../lib/utils';
 import { motion } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Copy, Check, RefreshCw, Maximize2, Quote } from 'lucide-react';
-import { useState, useCallback, memo, useMemo } from 'react';
+import { Copy, Check, RefreshCw, Maximize2, Quote, Pencil, X, Send } from 'lucide-react';
+import { useState, useCallback, memo, useMemo, useRef, useEffect } from 'react';
 import { CodeBlock, InlineCode } from './ui/CodeBlock';
 import { UrlPreview } from './ui/UrlPreview';
 
 interface MessageBubbleProps {
     role: 'user' | 'assistant';
     content: string;
+    messageId?: string;
     isStreaming?: boolean;
     isWaiting?: boolean;
     onRegenerate?: () => void;
     onOpenInCanvas?: (content: string, language?: string) => void;
+    onEdit?: (messageId: string, newContent: string) => void;
 }
 
 // Skeleton loading component
@@ -192,8 +194,42 @@ const createMarkdownComponents = (onOpenInCanvas?: (code: string, language?: str
     ),
 });
 
-function MessageBubbleComponent({ role, content, isStreaming, isWaiting, onRegenerate, onOpenInCanvas }: MessageBubbleProps) {
+function MessageBubbleComponent({
+    role,
+    content,
+    messageId,
+    isStreaming,
+    isWaiting,
+    onRegenerate,
+    onOpenInCanvas,
+    onEdit
+}: MessageBubbleProps) {
     const [copied, setCopied] = useState(false);
+    const [isEditing, setIsEditing] = useState(false);
+    const [editContent, setEditContent] = useState(content);
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+    // Focus textarea when entering edit mode
+    useEffect(() => {
+        if (isEditing && textareaRef.current) {
+            textareaRef.current.focus();
+            textareaRef.current.setSelectionRange(editContent.length, editContent.length);
+        }
+    }, [isEditing, editContent.length]);
+
+    // Handle keyboard shortcuts in edit mode
+    useEffect(() => {
+        if (!isEditing) return;
+
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') {
+                handleCancelEdit();
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [isEditing]);
 
     const handleCopy = useCallback(async () => {
         try {
@@ -204,6 +240,31 @@ function MessageBubbleComponent({ role, content, isStreaming, isWaiting, onRegen
             console.error('Failed to copy:', err);
         }
     }, [content]);
+
+    const handleStartEdit = useCallback(() => {
+        setEditContent(content);
+        setIsEditing(true);
+    }, [content]);
+
+    const handleCancelEdit = useCallback(() => {
+        setIsEditing(false);
+        setEditContent(content);
+    }, [content]);
+
+    const handleSaveEdit = useCallback(() => {
+        if (onEdit && messageId && editContent.trim() && editContent !== content) {
+            onEdit(messageId, editContent.trim());
+        }
+        setIsEditing(false);
+    }, [onEdit, messageId, editContent, content]);
+
+    const handleTextareaKeyDown = useCallback((e: React.KeyboardEvent) => {
+        // Submit on Enter (without Shift for multi-line)
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            handleSaveEdit();
+        }
+    }, [handleSaveEdit]);
 
     // Check if content has code blocks that can be opened in canvas
     const hasCodeBlocks = useMemo(() => {
@@ -247,13 +308,40 @@ function MessageBubbleComponent({ role, content, isStreaming, isWaiting, onRegen
                     ? "bg-[#161b22] text-[#c9d1d9] px-5 py-3 rounded-2xl border border-[#30363d]"
                     : "text-gray-100 px-0 py-2"
             )}>
-                {/* Removed MIRA label for cleaner look */}
-
                 <div className="whitespace-pre-wrap prose prose-invert prose-lg max-w-none">
                     {showSkeleton ? (
                         <SkeletonLoader />
                     ) : showTyping ? (
                         <TypingIndicator />
+                    ) : isEditing && role === 'user' ? (
+                        // Edit Mode UI
+                        <div className="flex flex-col gap-2">
+                            <textarea
+                                ref={textareaRef}
+                                value={editContent}
+                                onChange={(e) => setEditContent(e.target.value)}
+                                onKeyDown={handleTextareaKeyDown}
+                                className="w-full min-h-[80px] p-3 bg-[#0d1117] border border-[#30363d] rounded-lg text-[#c9d1d9] resize-none focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+                                placeholder="Edit your message..."
+                            />
+                            <div className="flex items-center justify-end gap-2">
+                                <button
+                                    onClick={handleCancelEdit}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-[#8b949e] hover:text-white hover:bg-white/5 rounded-lg transition-colors"
+                                >
+                                    <X size={14} />
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={handleSaveEdit}
+                                    disabled={!editContent.trim() || editContent === content}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-orange-500 hover:bg-orange-600 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    <Send size={14} />
+                                    Save & Resend
+                                </button>
+                            </div>
+                        </div>
                     ) : (
                         <>
                             <ReactMarkdown
@@ -268,6 +356,19 @@ function MessageBubbleComponent({ role, content, isStreaming, isWaiting, onRegen
                         </>
                     )}
                 </div>
+
+                {/* Action buttons for user messages - Edit */}
+                {role === 'user' && content && !isStreaming && !isEditing && onEdit && messageId && (
+                    <div className="absolute -left-10 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                            onClick={handleStartEdit}
+                            className="p-2 text-[#8b949e] hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+                            title="Edit message"
+                        >
+                            <Pencil size={16} />
+                        </button>
+                    </div>
+                )}
 
                 {/* Action buttons for assistant messages */}
                 {role === 'assistant' && content && !isStreaming && (
