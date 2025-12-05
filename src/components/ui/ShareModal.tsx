@@ -47,7 +47,7 @@ export function ShareModal({ isOpen, onClose, session }: ShareModalProps) {
             setCopied(true);
             showSuccess('Link copied to clipboard!');
             setTimeout(() => setCopied(false), 2000);
-        } catch (error) {
+        } catch {
             showError('Failed to copy link');
         }
     }, [shareUrl]);
