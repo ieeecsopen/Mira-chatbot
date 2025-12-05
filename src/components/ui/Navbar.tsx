@@ -7,7 +7,8 @@ import {
   User,
   Sparkles,
   LogOut,
-  Share2
+  Share2,
+  Brain
 } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
@@ -19,6 +20,7 @@ interface NavbarProps {
   onSearchClick?: () => void;
   onSettingsClick?: () => void;
   onShareClick?: () => void;
+  onMemoryClick?: () => void;
   showMenu?: boolean;
   chatTitle?: string;
 }
@@ -29,6 +31,7 @@ export function Navbar({
   onSearchClick,
   onSettingsClick,
   onShareClick,
+  onMemoryClick,
   showMenu = true,
   chatTitle,
 }: NavbarProps) {
@@ -187,6 +190,19 @@ export function Navbar({
             aria-label="Settings"
           >
             <Settings size={18} />
+          </motion.button>
+
+          {/* Memory button */}
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={onMemoryClick}
+            className="hidden sm:flex w-10 h-10 items-center justify-center rounded-xl
+              hover:bg-white/10 text-gray-400 hover:text-purple-400 transition-all duration-200
+              border border-transparent hover:border-purple-500/20"
+            aria-label="Memory"
+          >
+            <Brain size={18} />
           </motion.button>
 
           {/* Auth buttons / User menu */}

@@ -2,27 +2,27 @@ const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 
 // Model configuration with priority and rate limits
 interface ModelConfig {
-  name: string;
-  rpm: number;      // Requests per minute
-  tpm: number;      // Tokens per minute
-  priority: number; // Lower = higher priority
-  category: 'fast' | 'balanced' | 'quality';
+    name: string;
+    rpm: number;      // Requests per minute
+    tpm: number;      // Tokens per minute
+    priority: number; // Lower = higher priority
+    category: 'fast' | 'balanced' | 'quality';
 }
 
 const AVAILABLE_MODELS: ModelConfig[] = [
-  // Fast models - high throughput
-  { name: 'gemini-2.0-flash', rpm: 15, tpm: 1000000, priority: 1, category: 'balanced' },
-  
-  // Balanced models
-  { name: 'gemini-2.5-flash', rpm: 10, tpm: 250000, priority: 2, category: 'balanced' },
-  { name: 'gemini-2.5-flash-lite', rpm: 15, tpm: 250000, priority: 3, category: 'fast' },
-  
-  // Quality models - for complex queries
-  { name: 'gemini-2.5-pro', rpm: 2, tpm: 125000, priority: 4, category: 'quality' },
-  
-  // Experimental/Other
-  { name: 'gemini-2.0-flash-exp', rpm: 10, tpm: 1000000, priority: 5, category: 'balanced' },
-  { name: 'learnlm-2.0-flash-experimental', rpm: 15, tpm: 500000, priority: 6, category: 'balanced' },
+    // Fast models - high throughput
+    { name: 'gemini-2.0-flash', rpm: 15, tpm: 1000000, priority: 1, category: 'balanced' },
+
+    // Balanced models
+    { name: 'gemini-2.5-flash', rpm: 10, tpm: 250000, priority: 2, category: 'balanced' },
+    { name: 'gemini-2.5-flash-lite', rpm: 15, tpm: 250000, priority: 3, category: 'fast' },
+
+    // Quality models - for complex queries
+    { name: 'gemini-2.5-pro', rpm: 2, tpm: 125000, priority: 4, category: 'quality' },
+
+    // Experimental/Other
+    { name: 'gemini-2.0-flash-exp', rpm: 10, tpm: 1000000, priority: 5, category: 'balanced' },
+    { name: 'learnlm-2.0-flash-experimental', rpm: 15, tpm: 500000, priority: 6, category: 'balanced' },
 ];
 
 // Track model usage for load balancing
@@ -32,61 +32,61 @@ const modelUsage: Map<string, { count: number; resetTime: number }> = new Map();
  * Record model usage
  */
 function recordModelUsage(modelName: string): void {
-  const now = Date.now();
-  const usage = modelUsage.get(modelName);
-  
-  if (usage && now < usage.resetTime) {
-    usage.count++;
-  } else {
-    modelUsage.set(modelName, {
-      count: 1,
-      resetTime: now + 60000 // Reset after 1 minute
-    });
-  }
+    const now = Date.now();
+    const usage = modelUsage.get(modelName);
+
+    if (usage && now < usage.resetTime) {
+        usage.count++;
+    } else {
+        modelUsage.set(modelName, {
+            count: 1,
+            resetTime: now + 60000 // Reset after 1 minute
+        });
+    }
 }
 
 /**
  * Try request with automatic fallback to other models
  */
 async function tryWithFallback<T>(
-  operation: (model: ModelConfig) => Promise<T>,
-  preferQuality: boolean = false
+    operation: (model: ModelConfig) => Promise<T>,
+    preferQuality: boolean = false
 ): Promise<T> {
-  const triedModels = new Set<string>();
-  let lastError: Error | null = null;
-  
-  // Sort models by priority
-  const models = preferQuality
-    ? AVAILABLE_MODELS.filter(m => m.category !== 'fast').sort((a, b) => a.priority - b.priority)
-    : [...AVAILABLE_MODELS].sort((a, b) => a.priority - b.priority);
-  
-  for (const model of models) {
-    if (triedModels.has(model.name)) continue;
-    triedModels.add(model.name);
-    
-    try {
-      console.log(`🤖 Trying model: ${model.name}`);
-      const result = await operation(model);
-      recordModelUsage(model.name);
-      console.log(`✅ Success with: ${model.name}`);
-      return result;
-    } catch (error) {
-      lastError = error as Error;
-      console.warn(`⚠️ Model ${model.name} failed:`, (error as Error).message);
-      
-      // If rate limited, mark this model as exhausted
-      if ((error as Error).message?.includes('429') || 
-          (error as Error).message?.includes('rate') ||
-          (error as Error).message?.includes('quota')) {
-        modelUsage.set(model.name, {
-          count: model.rpm,
-          resetTime: Date.now() + 60000
-        });
-      }
+    const triedModels = new Set<string>();
+    let lastError: Error | null = null;
+
+    // Sort models by priority
+    const models = preferQuality
+        ? AVAILABLE_MODELS.filter(m => m.category !== 'fast').sort((a, b) => a.priority - b.priority)
+        : [...AVAILABLE_MODELS].sort((a, b) => a.priority - b.priority);
+
+    for (const model of models) {
+        if (triedModels.has(model.name)) continue;
+        triedModels.add(model.name);
+
+        try {
+            console.log(`🤖 Trying model: ${model.name}`);
+            const result = await operation(model);
+            recordModelUsage(model.name);
+            console.log(`✅ Success with: ${model.name}`);
+            return result;
+        } catch (error) {
+            lastError = error as Error;
+            console.warn(`⚠️ Model ${model.name} failed:`, (error as Error).message);
+
+            // If rate limited, mark this model as exhausted
+            if ((error as Error).message?.includes('429') ||
+                (error as Error).message?.includes('rate') ||
+                (error as Error).message?.includes('quota')) {
+                modelUsage.set(model.name, {
+                    count: model.rpm,
+                    resetTime: Date.now() + 60000
+                });
+            }
+        }
     }
-  }
-  
-  throw lastError || new Error('All models failed');
+
+    throw lastError || new Error('All models failed');
 }
 
 // Import Sinhala language utilities
@@ -96,6 +96,7 @@ import { buildRAGContext, getDirectAnswer } from './rag';
 import { responseCache } from './cache';
 import { webSearch, formatSearchResultsForAI, type SearchResult } from './webSearch';
 import { getDocumentStore } from './documentStore';
+import { getMemoryContext } from './userMemory';
 
 export interface ChatResponse {
     answer: string;
@@ -157,29 +158,29 @@ const SYSTEM_INSTRUCTION = `ඔබ "මීරා" (MIRA) නම් සිංහ�
  * 1. Convert Singlish to Sinhala if detected
  * 2. Apply grammar corrections
  */
-function preprocessMessage(message: string): { 
-  processed: string; 
-  wasSinglish: boolean;
-  ragContext: string;
-  directAnswer: string | null;
+function preprocessMessage(message: string): {
+    processed: string;
+    wasSinglish: boolean;
+    ragContext: string;
+    directAnswer: string | null;
 } {
-  let processed = message;
-  let wasSinglish = false;
+    let processed = message;
+    let wasSinglish = false;
 
-  // Check if message is Singlish and convert
-  if (detectSinglish(message)) {
-    processed = singlishToSinhala(message);
-    wasSinglish = true;
-    console.log('🔄 Singlish detected and converted:', message, '→', processed);
-  }
+    // Check if message is Singlish and convert
+    if (detectSinglish(message)) {
+        processed = singlishToSinhala(message);
+        wasSinglish = true;
+        console.log('🔄 Singlish detected and converted:', message, '→', processed);
+    }
 
-  // Build RAG context from knowledge base
-  const ragContext = buildRAGContext(processed);
-  
-  // Check for direct answer
-  const directAnswer = getDirectAnswer(processed);
+    // Build RAG context from knowledge base
+    const ragContext = buildRAGContext(processed);
 
-  return { processed, wasSinglish, ragContext, directAnswer };
+    // Check for direct answer
+    const directAnswer = getDirectAnswer(processed);
+
+    return { processed, wasSinglish, ragContext, directAnswer };
 }
 
 /**
@@ -188,31 +189,31 @@ function preprocessMessage(message: string): {
  * 2. Enhance text formatting
  */
 function postprocessResponse(response: string): string {
-  let processed = response;
-  
-  // Apply grammar corrections
-  processed = correctGrammar(processed, { spelling: true, grammar: true });
-  
-  // Enhance text
-  processed = enhanceSinhalaText(processed);
-  
-  return processed;
+    let processed = response;
+
+    // Apply grammar corrections
+    processed = correctGrammar(processed, { spelling: true, grammar: true });
+
+    // Enhance text
+    processed = enhanceSinhalaText(processed);
+
+    return processed;
 }
 
 /**
  * Build the enhanced prompt with RAG context
  */
 function buildEnhancedPrompt(message: string, ragContext: string): string {
-  if (ragContext) {
-    return `${ragContext}\n\n### පරිශීලකයාගේ ප්‍රශ්නය:\n${message}\n\n### උපදෙස්:\nඉහත තොරතුරු භාවිතා කර පිළිතුර සකසන්න. තොරතුරු නොමැති නම් ඔබේ දැනුමෙන් පිළිතුරු දෙන්න.`;
-  }
-  return message;
+    if (ragContext) {
+        return `${ragContext}\n\n### පරිශීලකයාගේ ප්‍රශ්නය:\n${message}\n\n### උපදෙස්:\nඉහත තොරතුරු භාවිතා කර පිළිතුර සකසන්න. තොරතුරු නොමැති නම් ඔබේ දැනුමෙන් පිළිතුරු දෙන්න.`;
+    }
+    return message;
 }
 
 export async function sendMessage(_userId: string, message: string): Promise<ChatResponse> {
     // Preprocess the message
     const { processed, ragContext, directAnswer } = preprocessMessage(message);
-    
+
     // If we have a direct answer from knowledge base, return it
     if (directAnswer) {
         console.log('📚 Direct answer from knowledge base');
@@ -223,17 +224,17 @@ export async function sendMessage(_userId: string, message: string): Promise<Cha
             rag_used: true,
         };
     }
-    
+
     // Build enhanced prompt with RAG context
     const enhancedMessage = buildEnhancedPrompt(processed, ragContext);
-    
+
     // Determine if we need quality model (longer/complex queries)
     const preferQuality = message.length > 200 || ragContext.length > 500;
-    
+
     // Try with automatic fallback across models
     const result = await tryWithFallback(async (model) => {
         const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model.name}:generateContent?key=${GEMINI_API_KEY}`;
-        
+
         const response = await fetch(apiUrl, {
             method: 'POST',
             headers: {
@@ -262,7 +263,7 @@ export async function sendMessage(_userId: string, message: string): Promise<Cha
 
         const data = await response.json();
         let answer = data.candidates?.[0]?.content?.parts?.[0]?.text || 'No response received';
-        
+
         // Post-process the response
         answer = postprocessResponse(answer);
 
@@ -274,7 +275,7 @@ export async function sendMessage(_userId: string, message: string): Promise<Cha
             model: model.name, // Include which model was used
         };
     }, preferQuality);
-    
+
     return result;
 }
 
@@ -286,7 +287,7 @@ export async function streamMessage(
     onError: (error: string) => void,
     selectedModelId?: string,
     conversationHistory?: Array<{ role: 'user' | 'assistant'; content: string }>,
-    options?: { 
+    options?: {
         enableWebSearch?: boolean;
         enableDocumentContext?: boolean;
         onSearchStart?: () => void;
@@ -295,7 +296,7 @@ export async function streamMessage(
 ) {
     // Preprocess the message
     const { processed, wasSinglish, ragContext, directAnswer } = preprocessMessage(message);
-    
+
     // Log Singlish conversion if applicable
     if (wasSinglish) {
         console.log('🔄 Singlish converted:', message, '→', processed);
@@ -316,15 +317,15 @@ export async function streamMessage(
     // Handle web search if enabled
     let webSearchContext = '';
     let searchResults: SearchResult[] = [];
-    
+
     if (options?.enableWebSearch) {
         console.log('🌐 Web search enabled, searching...');
         options.onSearchStart?.();
-        
+
         try {
             const searchResponse = await webSearch(message);
             searchResults = searchResponse.results;
-            
+
             if (searchResults.length > 0) {
                 webSearchContext = formatSearchResultsForAI(searchResults);
                 options.onSearchResults?.(searchResults);
@@ -334,7 +335,7 @@ export async function streamMessage(
             console.warn('Web search failed:', error);
         }
     }
-    
+
     // Check cache for similar queries (only for simple queries without much context)
     const cacheKey = processed.toLowerCase().trim();
     if (!conversationHistory || conversationHistory.length === 0) {
@@ -354,15 +355,15 @@ export async function streamMessage(
             }
         }
     }
-    
+
     // If we have a direct answer and no web search and no document context, stream it word by word
     if (directAnswer && !options?.enableWebSearch && !documentContext) {
         console.log('📚 Direct answer from knowledge base');
         const answer = postprocessResponse(directAnswer);
-        
+
         // Cache the direct answer
         responseCache.set(cacheKey, answer);
-        
+
         // Simulate streaming for direct answers
         const words = answer.split(' ');
         for (const word of words) {
@@ -372,33 +373,33 @@ export async function streamMessage(
         onDone();
         return;
     }
-    
+
     // Build enhanced prompt with RAG context and web search context
     let enhancedMessage = buildEnhancedPrompt(processed, ragContext);
-    
+
     // Add document context if available
     if (documentContext) {
         enhancedMessage = `[DOCUMENT CONTEXT - Use this information to answer questions about the uploaded documents]\n${documentContext}\n[END DOCUMENT CONTEXT]\n\n${enhancedMessage}`;
         console.log('📄 Document context added to prompt');
     }
-    
+
     // Add web search context if available
     if (webSearchContext) {
         enhancedMessage = `${webSearchContext}\n\n${enhancedMessage}`;
         console.log('🌐 Web search context added to prompt');
     }
-    
+
     if (ragContext) {
         console.log('📚 RAG context added to prompt');
     }
 
     // Determine if we need quality model
     const preferQuality = message.length > 200 || ragContext.length > 500;
-    
+
     // If a specific model is selected, use only that model
     // Otherwise, try streaming with fallback across models
     let models: ModelConfig[];
-    
+
     if (selectedModelId) {
         const selectedModel = AVAILABLE_MODELS.find(m => m.name === selectedModelId);
         if (selectedModel) {
@@ -413,23 +414,23 @@ export async function streamMessage(
             ? AVAILABLE_MODELS.filter(m => m.category !== 'fast').sort((a, b) => a.priority - b.priority)
             : [...AVAILABLE_MODELS].sort((a, b) => a.priority - b.priority);
     }
-    
+
     // Build conversation history for API
-    const historyContents = conversationHistory 
+    const historyContents = conversationHistory
         ? conversationHistory.map(msg => ({
             role: msg.role === 'assistant' ? 'model' : 'user',
             parts: [{ text: msg.content }]
         }))
         : [];
-    
+
     let lastError: Error | null = null;
     let fullResponse = ''; // Collect full response for caching
-    
+
     for (const model of models) {
         try {
             console.log(`🤖 Trying streaming with: ${model.name}${historyContents.length > 0 ? ` (with ${historyContents.length} history messages)` : ''}`);
             const streamUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model.name}:streamGenerateContent?alt=sse&key=${GEMINI_API_KEY}`;
-            
+
             // Build contents array with history + current message
             const contents = [
                 ...historyContents,
@@ -438,7 +439,13 @@ export async function streamMessage(
                     parts: [{ text: enhancedMessage }]
                 }
             ];
-            
+
+            // Build system instruction with memory context
+            const memoryContext = getMemoryContext();
+            const fullSystemInstruction = memoryContext
+                ? `${SYSTEM_INSTRUCTION}${memoryContext}`
+                : SYSTEM_INSTRUCTION;
+
             const response = await fetch(streamUrl, {
                 method: 'POST',
                 headers: {
@@ -446,7 +453,7 @@ export async function streamMessage(
                 },
                 body: JSON.stringify({
                     system_instruction: {
-                        parts: [{ text: SYSTEM_INSTRUCTION }]
+                        parts: [{ text: fullSystemInstruction }]
                     },
                     contents: contents,
                 }),
@@ -510,13 +517,13 @@ export async function streamMessage(
             // Successfully completed streaming
             onDone();
             return; // Exit the model loop on success
-            
+
         } catch (error) {
             lastError = error as Error;
             console.warn(`⚠️ Model ${model.name} failed:`, (error as Error).message);
-            
+
             // If rate limited, mark this model as exhausted
-            if ((error as Error).message?.includes('429') || 
+            if ((error as Error).message?.includes('429') ||
                 (error as Error).message?.includes('rate') ||
                 (error as Error).message?.includes('quota')) {
                 modelUsage.set(model.name, {
@@ -527,7 +534,7 @@ export async function streamMessage(
             // Continue to next model
         }
     }
-    
+
     // All models failed
     console.error('All models failed for streaming');
     onError(lastError?.message || 'All models failed');

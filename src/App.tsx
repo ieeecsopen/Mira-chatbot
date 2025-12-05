@@ -26,6 +26,7 @@ import { CommandPalette } from './components/ui/CommandPalette';
 import { ShareModal } from './components/ui/ShareModal';
 import { SharedChatView } from './components/ui/SharedChatView';
 import { getShareIdFromUrl, cleanupExpiredChats } from './lib/shareChat';
+import { MemoryPanel } from './components/ui/MemoryPanel';
 
 interface Message {
   id: string;
@@ -62,6 +63,7 @@ function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [isMemoryPanelOpen, setIsMemoryPanelOpen] = useState(false);
   const [sharedChatId, setSharedChatId] = useState<string | null>(() => getShareIdFromUrl());
   const [attachedFiles, setAttachedFiles] = useState<UploadedFile[]>([]);
 
@@ -705,6 +707,7 @@ function App() {
               onNewChat={handleNewChat}
               onSearchClick={() => setIsSearchOpen(true)}
               onShareClick={() => setIsShareModalOpen(true)}
+              onMemoryClick={() => setIsMemoryPanelOpen(true)}
               chatTitle={currentSessionTitle}
             />
           </motion.div>
