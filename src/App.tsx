@@ -710,6 +710,7 @@ function App() {
               onSearchClick={() => setIsSearchOpen(true)}
               onShareClick={() => setIsShareModalOpen(true)}
               onMemoryClick={() => setIsMemoryPanelOpen(true)}
+              onWorkspaceClick={() => setIsWorkspacePanelOpen(true)}
               chatTitle={currentSessionTitle}
             />
           </motion.div>
@@ -909,6 +910,12 @@ function App() {
         <MemoryPanel
           isOpen={isMemoryPanelOpen}
           onClose={() => setIsMemoryPanelOpen(false)}
+        />
+
+        {/* Workspace Panel */}
+        <WorkspacePanel
+          isOpen={isWorkspacePanelOpen}
+          onClose={() => setIsWorkspacePanelOpen(false)}
         />
 
         {/* Canvas Panel */}
