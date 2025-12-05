@@ -27,6 +27,7 @@ import { ShareModal } from './components/ui/ShareModal';
 import { SharedChatView } from './components/ui/SharedChatView';
 import { getShareIdFromUrl, cleanupExpiredChats } from './lib/shareChat';
 import { MemoryPanel } from './components/ui/MemoryPanel';
+import { WorkspacePanel } from './components/ui/WorkspacePanel';
 
 interface Message {
   id: string;
