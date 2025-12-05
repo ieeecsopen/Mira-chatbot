@@ -23,6 +23,9 @@ import { parseImageCommand, generateImage, type GeneratedImage } from './lib/ima
 import type { SearchResult } from './lib/webSearch';
 import { AuthProvider } from './contexts/AuthContext';
 import { CommandPalette } from './components/ui/CommandPalette';
+import { ShareModal } from './components/ui/ShareModal';
+import { SharedChatView } from './components/ui/SharedChatView';
+import { getShareIdFromUrl, cleanupExpiredChats } from './lib/shareChat';
 
 interface Message {
   id: string;
@@ -58,6 +61,8 @@ function App() {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [sharedChatId, setSharedChatId] = useState<string | null>(() => getShareIdFromUrl());
   const [attachedFiles, setAttachedFiles] = useState<UploadedFile[]>([]);
 
   // Web search state
@@ -633,6 +638,30 @@ function App() {
     ? chatSessions.find(s => s.id === currentSessionId)?.title
     : undefined;
 
+  // Get current session for sharing
+  const currentSession = currentSessionId
+    ? chatStorage.getSession(currentSessionId)
+    : null;
+
+  // Clean up expired shared chats on mount
+  useEffect(() => {
+    cleanupExpiredChats();
+  }, []);
+
+  // If viewing a shared chat, show the shared view
+  if (sharedChatId) {
+    return (
+      <SharedChatView
+        shareId={sharedChatId}
+        onBack={() => {
+          setSharedChatId(null);
+          // Clear the URL parameter
+          window.history.replaceState({}, '', window.location.pathname);
+        }}
+      />
+    );
+  }
+
   return (
     <AuthProvider>
       <div className="flex flex-col h-screen bg-background text-foreground overflow-hidden font-sans selection:bg-white/20 relative">
@@ -675,6 +704,7 @@ function App() {
               onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)}
               onNewChat={handleNewChat}
               onSearchClick={() => setIsSearchOpen(true)}
+              onShareClick={() => setIsShareModalOpen(true)}
               chatTitle={currentSessionTitle}
             />
           </motion.div>
@@ -861,6 +891,13 @@ function App() {
           isOpen={isCommandPaletteOpen}
           onClose={() => setIsCommandPaletteOpen(false)}
           onSelect={handleSlashCommand}
+        />
+
+        {/* Share Modal */}
+        <ShareModal
+          isOpen={isShareModalOpen}
+          onClose={() => setIsShareModalOpen(false)}
+          session={currentSession}
         />
 
         {/* Canvas Panel */}

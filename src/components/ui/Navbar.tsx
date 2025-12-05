@@ -6,7 +6,8 @@ import {
   Settings,
   User,
   Sparkles,
-  LogOut
+  LogOut,
+  Share2
 } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
@@ -17,6 +18,7 @@ interface NavbarProps {
   onNewChat?: () => void;
   onSearchClick?: () => void;
   onSettingsClick?: () => void;
+  onShareClick?: () => void;
   showMenu?: boolean;
   chatTitle?: string;
 }
@@ -26,6 +28,7 @@ export function Navbar({
   onNewChat,
   onSearchClick,
   onSettingsClick,
+  onShareClick,
   showMenu = true,
   chatTitle,
 }: NavbarProps) {
@@ -146,7 +149,6 @@ export function Navbar({
             <span className="hidden sm:inline">New</span>
           </motion.button>
 
-          {/* Search button */}
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
@@ -158,6 +160,21 @@ export function Navbar({
           >
             <Search size={18} />
           </motion.button>
+
+          {/* Share button */}
+          {chatTitle && (
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={onShareClick}
+              className="w-10 h-10 flex items-center justify-center rounded-xl
+                hover:bg-white/10 text-gray-400 hover:text-white transition-all duration-200
+                border border-transparent hover:border-white/10"
+              aria-label="Share conversation"
+            >
+              <Share2 size={18} />
+            </motion.button>
+          )}
 
           {/* Settings button */}
           <motion.button
