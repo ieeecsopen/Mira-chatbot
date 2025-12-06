@@ -149,7 +149,6 @@ interface ThinkingContentProps {
 
 export function ThinkingContent({ content, defaultExpanded = false }: ThinkingContentProps) {
     const [isExpanded, setIsExpanded] = useState(defaultExpanded);
-    const [previousLength, setPreviousLength] = useState(0);
     const [isStreaming, setIsStreaming] = useState(true);
 
     // Auto-expand when defaultExpanded changes to true
@@ -161,9 +160,8 @@ export function ThinkingContent({ content, defaultExpanded = false }: ThinkingCo
 
     // Detect when content stops streaming
     useEffect(() => {
-        setPreviousLength(content.length);
         setIsStreaming(true);
-        
+
         const timer = setTimeout(() => {
             setIsStreaming(false);
         }, 500); // If no new content for 500ms, stop streaming indicator
@@ -173,16 +171,7 @@ export function ThinkingContent({ content, defaultExpanded = false }: ThinkingCo
 
     if (!content) return null;
 
-    // Parse and format thinking content to highlight structure
-    const formatThinkingContent = (text: string) => {
-        // Highlight numbered steps
-        let formatted = text.replace(/(\d+\.\s+\*\*[^*]+\*\*)/g, '<div class="thinking-step">$1</div>');
-        
-        // Highlight section headers
-        formatted = formatted.replace(/(\*\*[^*]+\*\*:)/g, '<span class="thinking-header">$1</span>');
-        
-        return formatted;
-    };
+
 
     const wordCount = content.split(/\s+/).length;
     const estimatedReadTime = Math.ceil(wordCount / 200); // ~200 words per minute
@@ -191,8 +180,8 @@ export function ThinkingContent({ content, defaultExpanded = false }: ThinkingCo
         <motion.div
             initial={{ opacity: 0, height: 0, y: -20 }}
             animate={{ opacity: 1, height: 'auto', y: 0 }}
-            transition={{ 
-                duration: 0.8, 
+            transition={{
+                duration: 0.8,
                 ease: "easeOut",
                 opacity: { duration: 0.6 }
             }}
@@ -246,7 +235,7 @@ export function ThinkingContent({ content, defaultExpanded = false }: ThinkingCo
                     className="text-purple-400 group-hover:text-purple-300 transition-colors"
                 >
                     <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-                        <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
+                        <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
                     </svg>
                 </motion.div>
             </button>
@@ -258,8 +247,8 @@ export function ThinkingContent({ content, defaultExpanded = false }: ThinkingCo
                     height: isExpanded ? 'auto' : 0,
                     opacity: isExpanded ? 1 : 0,
                 }}
-                transition={{ 
-                    duration: 0.6, 
+                transition={{
+                    duration: 0.6,
                     ease: "easeInOut",
                     height: { duration: 0.5 },
                     opacity: { duration: 0.4, delay: 0.1 }
@@ -270,7 +259,7 @@ export function ThinkingContent({ content, defaultExpanded = false }: ThinkingCo
                     <div className="relative">
                         {/* Gradient border effect */}
                         <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 via-blue-500/10 to-indigo-500/10 rounded-lg"></div>
-                        
+
                         {/* Content */}
                         <div className="relative text-sm text-gray-300 leading-relaxed whitespace-pre-wrap bg-black/40 rounded-lg p-4 max-h-[500px] overflow-y-auto border border-purple-500/20 scrollbar-thin scrollbar-thumb-purple-500/30 scrollbar-track-transparent [&_.thinking-step]:my-3 [&_.thinking-step]:pl-4 [&_.thinking-step]:border-l-2 [&_.thinking-step]:border-l-purple-500/40 [&_.thinking-header]:text-purple-200 [&_.thinking-header]:font-semibold">
                             {content}
