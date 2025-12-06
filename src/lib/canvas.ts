@@ -20,6 +20,7 @@ export interface CanvasState {
   isOpen: boolean;
   activeItemId: string | null;
   items: CanvasItem[];
+  viewMode: 'code' | 'preview' | 'split';
 }
 
 // Generate unique ID for canvas items
@@ -85,7 +86,7 @@ function detectLanguage(content: string): string {
 export function extractCodeBlocks(content: string): Array<{ code: string; language: string }> {
   const codeBlockRegex = /```(\w+)?\n([\s\S]*?)```/g;
   const blocks: Array<{ code: string; language: string }> = [];
-  
+
   let match;
   while ((match = codeBlockRegex.exec(content)) !== null) {
     blocks.push({
@@ -93,7 +94,7 @@ export function extractCodeBlocks(content: string): Array<{ code: string; langua
       code: match[2].trim(),
     });
   }
-  
+
   return blocks;
 }
 
@@ -103,20 +104,20 @@ export function generateCanvasTitle(content: string, type: CanvasType): string {
   if (type === 'code') {
     const functionMatch = content.match(/(?:function|def|fn|func)\s+(\w+)/);
     if (functionMatch) return `Function: ${functionMatch[1]}`;
-    
+
     const classMatch = content.match(/(?:class|struct|interface)\s+(\w+)/);
     if (classMatch) return `Class: ${classMatch[1]}`;
-    
+
     const componentMatch = content.match(/(?:export\s+)?(?:default\s+)?(?:function|const)\s+(\w+)/);
     if (componentMatch) return `Component: ${componentMatch[1]}`;
   }
-  
+
   // For documents, use first line
   const firstLine = content.split('\n')[0].replace(/^#*\s*/, '').trim();
   if (firstLine.length > 0 && firstLine.length <= 50) {
     return firstLine;
   }
-  
+
   // Default titles based on type
   const defaultTitles: Record<CanvasType, string> = {
     code: 'Code Snippet',
@@ -126,7 +127,7 @@ export function generateCanvasTitle(content: string, type: CanvasType): string {
     image: 'Image',
     html: 'HTML Preview',
   };
-  
+
   return defaultTitles[type] || 'Canvas Item';
 }
 
@@ -146,7 +147,7 @@ export function getFileExtension(language: string): string {
     markdown: 'md',
     plaintext: 'txt',
   };
-  
+
   return extensions[language] || 'txt';
 }
 

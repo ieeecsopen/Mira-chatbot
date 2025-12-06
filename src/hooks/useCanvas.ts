@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
-import { 
-  type CanvasItem, 
+import {
+  type CanvasItem,
   type CanvasState,
   generateCanvasId,
   detectContentType,
@@ -14,6 +14,7 @@ export function useCanvas() {
     isOpen: false,
     activeItemId: null,
     items: [],
+    viewMode: 'code',
   });
 
   // Load items from storage on mount
@@ -49,11 +50,11 @@ export function useCanvas() {
   }, []);
 
   // Add new item to canvas
-  const addItem = useCallback((content: string, title?: string, type?: CanvasItem['type'], language?: string) => {
+  const addItem = useCallback((content: string, title?: string, type?: CanvasItem['type'], language?: string, initialViewMode?: CanvasState['viewMode']) => {
     const detected = detectContentType(content);
     const finalType = type || detected.type;
     const finalLanguage = language || detected.language;
-    
+
     const newItem: CanvasItem = {
       id: generateCanvasId(),
       type: finalType,
@@ -69,9 +70,15 @@ export function useCanvas() {
       items: [...prev.items, newItem],
       activeItemId: newItem.id,
       isOpen: true,
+      viewMode: initialViewMode || 'code',
     }));
 
     return newItem.id;
+  }, []);
+
+  // Set view mode
+  const setViewMode = useCallback((mode: CanvasState['viewMode']) => {
+    setState(prev => ({ ...prev, viewMode: mode }));
   }, []);
 
   // Update an item
@@ -91,7 +98,7 @@ export function useCanvas() {
     setState(prev => {
       const newItems = prev.items.filter(item => item.id !== id);
       let newActiveId = prev.activeItemId;
-      
+
       if (prev.activeItemId === id) {
         // Select previous or next item
         const deletedIndex = prev.items.findIndex(item => item.id === id);
@@ -122,6 +129,7 @@ export function useCanvas() {
       isOpen: false,
       activeItemId: null,
       items: [],
+      viewMode: 'code',
     });
   }, []);
 
@@ -129,21 +137,21 @@ export function useCanvas() {
   const shouldOpenInCanvas = useCallback((content: string): boolean => {
     // Check for code blocks
     if (/```[\s\S]{50,}```/.test(content)) return true;
-    
+
     // Check for substantial code patterns
-    const codeLines = content.split('\n').filter(line => 
+    const codeLines = content.split('\n').filter(line =>
       /^\s*(import|export|function|class|const|let|var|def|public|private|interface|type)/.test(line)
     );
     if (codeLines.length >= 5) return true;
-    
+
     // Check for tables
     if (/^\|.+\|$/m.test(content) && content.split('\n').filter(l => l.startsWith('|')).length >= 3) {
       return true;
     }
-    
+
     // Check for HTML documents
     if (/<(!DOCTYPE|html|head|body)/i.test(content)) return true;
-    
+
     return false;
   }, []);
 
@@ -156,12 +164,12 @@ export function useCanvas() {
       const code = codeBlockMatch[2].trim();
       return addItem(code, undefined, 'code', language);
     }
-    
+
     // Extract HTML
     if (/<(!DOCTYPE|html)/i.test(content)) {
       return addItem(content, 'HTML Document', 'html');
     }
-    
+
     // Extract tables
     if (/^\|.+\|$/m.test(content)) {
       const tableLines = content.split('\n').filter(l => l.trim().startsWith('|'));
@@ -169,7 +177,7 @@ export function useCanvas() {
         return addItem(tableLines.join('\n'), 'Data Table', 'table');
       }
     }
-    
+
     return null;
   }, [addItem]);
 
@@ -185,6 +193,7 @@ export function useCanvas() {
     clearAll,
     shouldOpenInCanvas,
     extractToCanvas,
+    setViewMode,
   };
 }
 

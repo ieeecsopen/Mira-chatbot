@@ -972,7 +972,11 @@ function App() {
                           }
                           onOpenInCanvas={
                             !isStreaming && msg.role === 'assistant'
-                              ? (code, language) => canvas.addItem(code, undefined, 'code', language)
+                              ? (code, language) => {
+                                const lang = language || 'plaintext';
+                                const isRunnable = ['html', 'javascript', 'js', 'typescript', 'ts', 'jsx', 'tsx'].includes(lang.toLowerCase());
+                                canvas.addItem(code, undefined, 'code', lang, isRunnable ? 'preview' : 'code');
+                              }
                               : undefined
                           }
                           onEdit={
@@ -1139,6 +1143,8 @@ function App() {
           onSelectItem={canvas.selectItem}
           onUpdateItem={canvas.updateItem}
           onDeleteItem={canvas.deleteItem}
+          viewMode={canvas.viewMode}
+          onViewModeChange={canvas.setViewMode}
         />
       </div >
     </AuthProvider >

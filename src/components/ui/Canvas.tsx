@@ -43,6 +43,7 @@ import {
 import {
   copyShareLink,
 } from '../../lib/canvasCollaboration';
+import { ErrorBoundary } from './ErrorBoundary';
 
 interface CanvasProps {
   isOpen: boolean;
@@ -53,9 +54,11 @@ interface CanvasProps {
   onUpdateItem: (id: string, content: string) => void;
   onDeleteItem: (id: string) => void;
   onAddItem?: (item: CanvasItem) => void;
+  viewMode: 'code' | 'preview' | 'split';
+  onViewModeChange: (mode: 'code' | 'preview' | 'split') => void;
 }
 
-type ViewMode = 'code' | 'preview' | 'split';
+// ViewMode type removed as it is now defined in CanvasProps or unused locally
 
 // Icon mapping for canvas types
 const typeIcons: Record<CanvasType, React.ReactNode> = {
@@ -75,12 +78,13 @@ export function Canvas({
   onSelectItem,
   onUpdateItem,
   onDeleteItem,
+  viewMode,
+  onViewModeChange,
 }: CanvasProps) {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState('');
   const [copied, setCopied] = useState(false);
-  const [viewMode, setViewMode] = useState<ViewMode>('code');
   const [showVersionHistory, setShowVersionHistory] = useState(false);
   const [splitRatio, setSplitRatio] = useState(50);
   const [consoleLogs, setConsoleLogs] = useState<ConsoleEntry[]>([]);
@@ -285,7 +289,7 @@ export function Canvas({
                 <Button
                   variant="ghost"
                   size="icon"
-                  onClick={() => setViewMode('code')}
+                  onClick={() => onViewModeChange('code')}
                   className={cn(
                     "w-7 h-7",
                     viewMode === 'code' ? 'text-blue-400 bg-blue-500/20' : 'text-gray-400 hover:text-white'
@@ -297,7 +301,7 @@ export function Canvas({
                 <Button
                   variant="ghost"
                   size="icon"
-                  onClick={() => setViewMode('split')}
+                  onClick={() => onViewModeChange('split')}
                   className={cn(
                     "w-7 h-7",
                     viewMode === 'split' ? 'text-blue-400 bg-blue-500/20' : 'text-gray-400 hover:text-white'
@@ -309,7 +313,7 @@ export function Canvas({
                 <Button
                   variant="ghost"
                   size="icon"
-                  onClick={() => setViewMode('preview')}
+                  onClick={() => onViewModeChange('preview')}
                   className={cn(
                     "w-7 h-7",
                     viewMode === 'preview' ? 'text-blue-400 bg-blue-500/20' : 'text-gray-400 hover:text-white'
@@ -490,18 +494,22 @@ export function Canvas({
                         onSave={handleSave}
                         readOnly={!isEditing}
                       />
+                      <ErrorBoundary>
+                        <PreviewPanel
+                          content={isEditing ? editContent : activeItem.content}
+                          language={activeItem.language || 'html'}
+                          onConsoleLog={handleConsoleLog}
+                        />
+                      </ErrorBoundary>
+                    </SplitPane>
+                  ) : viewMode === 'preview' && canPreview ? (
+                    <ErrorBoundary>
                       <PreviewPanel
                         content={isEditing ? editContent : activeItem.content}
                         language={activeItem.language || 'html'}
                         onConsoleLog={handleConsoleLog}
                       />
-                    </SplitPane>
-                  ) : viewMode === 'preview' && canPreview ? (
-                    <PreviewPanel
-                      content={isEditing ? editContent : activeItem.content}
-                      language={activeItem.language || 'html'}
-                      onConsoleLog={handleConsoleLog}
-                    />
+                    </ErrorBoundary>
                   ) : (
                     <CodeEditor
                       content={isEditing ? editContent : activeItem.content}

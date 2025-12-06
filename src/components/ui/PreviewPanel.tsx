@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { RefreshCw, Smartphone, Tablet, Monitor, AlertCircle } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { Button } from './button';
@@ -210,7 +210,7 @@ export function PreviewPanel({
     }, [onConsoleLog]);
 
     // Generate preview content
-    const previewContent = useCallback(() => {
+    const previewHtml = useMemo(() => {
         try {
             setError(null);
             const raw = generatePreviewContent(content, language);
@@ -219,7 +219,7 @@ export function PreviewPanel({
             setError(e instanceof Error ? e.message : 'Preview error');
             return '';
         }
-    }, [content, language, onConsoleLog]);
+    }, [content, language]);
 
     // Force refresh
     const handleRefresh = useCallback(() => {
@@ -304,7 +304,7 @@ export function PreviewPanel({
                         <iframe
                             key={key}
                             ref={iframeRef}
-                            srcDoc={previewContent()}
+                            srcDoc={previewHtml}
                             className="h-full w-full border-0"
                             sandbox="allow-scripts allow-modals"
                             title="Live Preview"
