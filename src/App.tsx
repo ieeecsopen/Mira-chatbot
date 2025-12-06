@@ -63,6 +63,11 @@ function App() {
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [isEvaluationPanelOpen, setIsEvaluationPanelOpen] = useState(false);
 
+  // Progressive loading state
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [hasMoreMessages, setHasMoreMessages] = useState(false);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
   // Canvas state
   const canvas = useCanvas();
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -106,13 +111,18 @@ function App() {
     const currentSession = chatStorage.getCurrentSession();
     if (currentSession && currentSession.messages.length > 0) {
       setCurrentSessionId(currentSession.id);
-      setMessages(currentSession.messages.map(m => ({
+
+      // Initial load: Get only the last 20 messages
+      const initialMessages = chatStorage.getMessages(currentSession.id, 20, 0);
+      setMessages(initialMessages.map(m => ({
         id: m.id,
         role: m.role,
         content: m.content,
         rating: getRecord(m.id)?.rating,
         feedback: getRecord(m.id)?.feedback
       })));
+
+      setHasMoreMessages(currentSession.messages.length > 20);
       setHasStarted(true);
     }
   }, [getRecord]);
@@ -134,9 +144,75 @@ function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
+  // Smart scroll to bottom - only if streaming or new message added at the bottom
+  const lastMessageIdRef = useRef<string | null>(null);
+
   useEffect(() => {
-    scrollToBottom();
+    const lastMessage = messages[messages.length - 1];
+    const lastMessageId = lastMessage?.id;
+
+    // Check if we should scroll:
+    // 1. We are streaming (always follow stream)
+    // 2. The last message ID changed (new message arrived)
+    // 3. We haven't loaded any messages yet (initial load)
+    const shouldScroll = isStreaming || (lastMessageId !== lastMessageIdRef.current) || !lastMessageIdRef.current;
+
+    if (shouldScroll) {
+      scrollToBottom();
+      lastMessageIdRef.current = lastMessageId || null;
+    }
   }, [messages, isStreaming, scrollToBottom]);
+
+  // Handle loading older messages
+  const loadMoreMessages = useCallback(() => {
+    if (!currentSessionId || isLoadingMore || !hasMoreMessages) return;
+
+    setIsLoadingMore(true);
+    const scrollContainer = scrollContainerRef.current;
+    const prevScrollHeight = scrollContainer?.scrollHeight || 0;
+
+    // Fetch next batch of 20 messages
+    const olderMessages = chatStorage.getMessages(currentSessionId, 20, messages.length);
+
+    if (olderMessages.length > 0) {
+      const olderMapped = olderMessages.map(m => ({
+        id: m.id,
+        role: m.role,
+        content: m.content,
+        rating: getRecord(m.id)?.rating,
+        feedback: getRecord(m.id)?.feedback
+      }));
+
+      setMessages(prev => [...olderMapped, ...prev]);
+
+      // Check if there are more
+      const session = chatStorage.getCurrentSession();
+      if (session) {
+        setHasMoreMessages(session.messages.length > messages.length + olderMessages.length);
+      }
+
+      // Maintain scroll position
+      // We use requestAnimationFrame to ensure the DOM has updated
+      requestAnimationFrame(() => {
+        if (scrollContainer) {
+          const newScrollHeight = scrollContainer.scrollHeight;
+          scrollContainer.scrollTop = newScrollHeight - prevScrollHeight;
+        }
+      });
+    } else {
+      setHasMoreMessages(false);
+    }
+
+    setIsLoadingMore(false);
+  }, [currentSessionId, isLoadingMore, hasMoreMessages, messages.length, getRecord]);
+
+  const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+    const { scrollTop } = e.currentTarget;
+    // Trigger when close to top (e.g., 20px)
+    if (scrollTop < 20 && hasMoreMessages && !isLoadingMore) {
+      loadMoreMessages();
+    }
+  }, [hasMoreMessages, isLoadingMore, loadMoreMessages]);
 
   // Optimized chunk handler with buffering
   const handleStreamChunk = useCallback((chunk: string) => {
@@ -507,15 +583,18 @@ function App() {
 
   // Handle switching to a different chat session
   const handleSelectSession = useCallback((session: ChatSession) => {
-    chatStorage.setCurrentSession(session.id);
     setCurrentSessionId(session.id);
-    setMessages(session.messages.map(m => ({
+
+    // Reset pagination for new session
+    const initialMessages = chatStorage.getMessages(session.id, 20, 0);
+    setMessages(initialMessages.map(m => ({
       id: m.id,
       role: m.role,
       content: m.content,
       rating: getRecord(m.id)?.rating,
       feedback: getRecord(m.id)?.feedback
     })));
+    setHasMoreMessages(session.messages.length > 20);
     setHasStarted(true);
   }, [getRecord]);
 
@@ -578,11 +657,13 @@ function App() {
   }, []);
 
   // Handle clearing current chat (keeps session but clears messages)
+  // Handle clearing current chat (keeps session but clears messages)
   const handleClearChat = useCallback(() => {
     setMessages([]);
     if (currentSessionId) {
       // Clear messages in storage too
       chatStorage.clearCurrentSession();
+      setHasMoreMessages(false);
     }
   }, [currentSessionId]);
 
@@ -927,8 +1008,18 @@ function App() {
               className="flex-1 flex flex-col h-full relative bg-background"
             >
               {/* Messages */}
-              <div className="flex-1 overflow-y-auto p-4 md:px-6 scroll-smooth relative z-0">
+              <div
+                ref={scrollContainerRef}
+                onScroll={handleScroll}
+                className="flex-1 overflow-y-auto p-4 md:px-6 scroll-smooth relative z-0"
+              >
                 <div className="max-w-5xl mx-auto pt-4 md:pt-10 pb-4">
+                  {/* Loading indicator for older messages */}
+                  {isLoadingMore && (
+                    <div className="flex justify-center py-4">
+                      <div className="w-6 h-6 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
+                    </div>
+                  )}
                   {messages.map((msg, index) => (
                     <div key={msg.id}>
                       {/* Show search results before assistant message */}

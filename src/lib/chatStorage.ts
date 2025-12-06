@@ -166,6 +166,25 @@ class ChatStorageManager {
   }
 
   /**
+   * Get a slice of messages for pagination
+   * @param len - Number of messages to return (default 20)
+   * @param offset - Number of messages to skip from the end (default 0)
+   */
+  getMessages(sessionId: string, limit: number = 20, offset: number = 0): StoredMessage[] {
+    const session = this.sessions.get(sessionId);
+    if (!session) return [];
+
+    const totalMessages = session.messages.length;
+
+    // Calculate start and end indices from the end of the array
+    const end = totalMessages - offset;
+    const start = Math.max(0, end - limit);
+
+    // Return the slice
+    return session.messages.slice(start, end);
+  }
+
+  /**
    * Save current session state (call after streaming completes)
    */
   saveCurrentSession(): void {
