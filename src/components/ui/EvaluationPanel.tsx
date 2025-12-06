@@ -76,7 +76,7 @@ export function EvaluationPanel({ isOpen, onClose }: EvaluationPanelProps) {
     const rows = records.map((record) =>
       header
         .map((key) => {
-          const value = (record as Record<string, unknown>)[key];
+          const value = (record as unknown as Record<string, unknown>)[key];
           if (value == null) {
             return '';
           }
