@@ -2,7 +2,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Mail, Lock, User, Sparkles, Loader2, Github } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { GoogleLogin, CredentialResponse } from '@react-oauth/google';
+import { GoogleLogin, type CredentialResponse } from '@react-oauth/google';
 
 interface AuthModalProps {
     isOpen: boolean;
