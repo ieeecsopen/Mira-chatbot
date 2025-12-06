@@ -89,11 +89,11 @@ function extractMetadata($: cheerio.CheerioAPI): ScrapedContent['metadata'] {
 
     // Open Graph metadata
     metadata.siteName = $('meta[property="og:site_name"]').attr('content');
-    metadata.author = $('meta[name="author"]').attr('content') || 
-                     $('meta[property="article:author"]').attr('content');
+    metadata.author = $('meta[name="author"]').attr('content') ||
+        $('meta[property="article:author"]').attr('content');
     metadata.publishDate = $('meta[property="article:published_time"]').attr('content') ||
-                          $('meta[name="publish_date"]').attr('content');
-    
+        $('meta[name="publish_date"]').attr('content');
+
     // Keywords
     const keywordsStr = $('meta[name="keywords"]').attr('content');
     if (keywordsStr) {
@@ -108,7 +108,7 @@ function extractMetadata($: cheerio.CheerioAPI): ScrapedContent['metadata'] {
  */
 function extractImages($: cheerio.CheerioAPI, baseUrl: string): string[] {
     const images: string[] = [];
-    
+
     $('img').each((_, el) => {
         const src = $(el).attr('src');
         if (src) {
@@ -129,7 +129,7 @@ function extractImages($: cheerio.CheerioAPI, baseUrl: string): string[] {
  */
 function extractLinks($: cheerio.CheerioAPI, baseUrl: string): string[] {
     const links: string[] = [];
-    
+
     $('a[href]').each((_, el) => {
         const href = $(el).attr('href');
         if (href && !href.startsWith('#') && !href.startsWith('javascript:')) {
@@ -153,7 +153,7 @@ function extractLinks($: cheerio.CheerioAPI, baseUrl: string): string[] {
  */
 export async function scrapeUrl(url: string, options: ScraperOptions = {}): Promise<ScrapedContent> {
     const opts = { ...DEFAULT_OPTIONS, ...options };
-    
+
     try {
         console.log(`🌐 Scraping: ${url}`);
 
@@ -175,14 +175,14 @@ export async function scrapeUrl(url: string, options: ScraperOptions = {}): Prom
         const $ = cheerio.load(html);
 
         // Extract basic information
-        const title = $('title').text() || 
-                     $('meta[property="og:title"]').attr('content') || 
-                     $('h1').first().text() || 
-                     'Untitled';
+        const title = $('title').text() ||
+            $('meta[property="og:title"]').attr('content') ||
+            $('h1').first().text() ||
+            'Untitled';
 
         const description = $('meta[name="description"]').attr('content') ||
-                           $('meta[property="og:description"]').attr('content') ||
-                           '';
+            $('meta[property="og:description"]').attr('content') ||
+            '';
 
         // Extract main content
         const content = extractMainContent($);
@@ -208,7 +208,7 @@ export async function scrapeUrl(url: string, options: ScraperOptions = {}): Prom
 
     } catch (error) {
         console.error(`❌ Scraping failed for ${url}:`, error);
-        
+
         return {
             title: 'Error',
             description: '',
@@ -230,10 +230,10 @@ export async function scrapeUrls(
     options: ScraperOptions = {}
 ): Promise<ScrapedContent[]> {
     console.log(`🌐 Scraping ${urls.length} URLs...`);
-    
+
     const promises = urls.map(url => scrapeUrl(url, options));
     const results = await Promise.allSettled(promises);
-    
+
     return results.map((result, index) => {
         if (result.status === 'fulfilled') {
             return result.value;
@@ -271,7 +271,7 @@ export async function smartScrape(url: string): Promise<ScrapedContent> {
     try {
         // Try readability first (best for articles)
         const readable = await extractReadableContent(url);
-        
+
         // If we got good content, return it
         if (readable.content.length > 500 && !readable.error) {
             return readable;
@@ -279,8 +279,8 @@ export async function smartScrape(url: string): Promise<ScrapedContent> {
 
         // Otherwise, fallback to regular scraping
         return scrapeUrl(url);
-        
-    } catch (error) {
+
+    } catch {
         // Final fallback
         return scrapeUrl(url);
     }
