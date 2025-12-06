@@ -1,7 +1,8 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Mail, Lock, User, Sparkles, Loader2 } from 'lucide-react';
-import { useState } from 'react';
+import { X, Mail, Lock, User, Sparkles, Loader2, Github } from 'lucide-react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
+import { GoogleLogin, CredentialResponse } from '@react-oauth/google';
 
 interface AuthModalProps {
     isOpen: boolean;
@@ -17,7 +18,27 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
     const [error, setError] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    const { signIn, signUp } = useAuth();
+    const { signIn, signUp, signInWithGoogle, signInWithGitHub, handleGitHubCallback } = useAuth();
+
+    // Check for GitHub callback
+    useEffect(() => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const code = urlParams.get('code');
+        
+        if (code) {
+            handleGitHubCallback(code)
+                .then(() => {
+                    // Clean up URL
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                    onClose();
+                })
+                .catch((err) => {
+                    setError(err.message);
+                    // Clean up URL
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                });
+        }
+    }, [handleGitHubCallback, onClose]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -44,6 +65,42 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Authentication failed');
         } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const handleGoogleSuccess = async (credentialResponse: CredentialResponse) => {
+        if (!credentialResponse.credential) {
+            setError('Failed to get Google credentials');
+            return;
+        }
+
+        setIsSubmitting(true);
+        setError('');
+
+        try {
+            await signInWithGoogle(credentialResponse.credential);
+            onClose();
+            // Reset form
+            setEmail('');
+            setPassword('');
+            setName('');
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Google sign in failed');
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const handleGitHubSignIn = async () => {
+        setIsSubmitting(true);
+        setError('');
+
+        try {
+            await signInWithGitHub();
+            // User will be redirected to GitHub
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'GitHub sign in failed');
             setIsSubmitting(false);
         }
     };
@@ -103,6 +160,42 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
 
                             {/* Form */}
                             <form onSubmit={handleSubmit} className="p-6 space-y-4">
+                                {/* OAuth Buttons */}
+                                <div className="space-y-3">
+                                    <div className="flex justify-center">
+                                        <GoogleLogin
+                                            onSuccess={handleGoogleSuccess}
+                                            onError={() => setError('Google sign in failed')}
+                                            theme="filled_black"
+                                            size="large"
+                                            text={mode === 'signin' ? 'signin_with' : 'signup_with'}
+                                            width="350"
+                                        />
+                                    </div>
+
+                                    <button
+                                        type="button"
+                                        onClick={handleGitHubSignIn}
+                                        disabled={isSubmitting}
+                                        className="w-full py-3 px-4 bg-[#24292e] hover:bg-[#1b1f23] text-white font-medium rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 border border-white/10"
+                                    >
+                                        <Github size={20} />
+                                        <span>{mode === 'signin' ? 'Sign in with GitHub' : 'Sign up with GitHub'}</span>
+                                    </button>
+                                </div>
+
+                                {/* Divider */}
+                                <div className="relative">
+                                    <div className="absolute inset-0 flex items-center">
+                                        <div className="w-full border-t border-white/10"></div>
+                                    </div>
+                                    <div className="relative flex justify-center text-sm">
+                                        <span className="px-4 bg-gradient-to-b from-[#1a1a1a] to-[#0f0f0f] text-gray-500">
+                                            Or continue with email
+                                        </span>
+                                    </div>
+                                </div>
+
                                 {mode === 'signup' && (
                                     <div>
                                         <label className="block text-sm font-medium text-gray-400 mb-2">
