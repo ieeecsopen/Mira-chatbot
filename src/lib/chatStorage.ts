@@ -125,11 +125,11 @@ class ChatStorageManager {
   /**
    * Add a message to the current session
    */
-  addMessage(role: 'user' | 'assistant', content: string): StoredMessage | null {
+  addMessage(role: 'user' | 'assistant', content: string): void {
     const sessionId = this.getCurrentSessionId();
     const session = this.sessions.get(sessionId);
 
-    if (!session) return null;
+    if (!session) return;
 
     const message: StoredMessage = {
       id: `msg_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
@@ -147,7 +147,6 @@ class ChatStorageManager {
     }
 
     this.saveToStorage();
-    return message;
   }
 
   /**

@@ -10,6 +10,7 @@ import {
     Mic,
     ChevronDown,
     SendHorizontal,
+    Brain,
 } from "lucide-react";
 import { MIRA_MODELS } from "../ModelSelector";
 
@@ -24,6 +25,7 @@ export default function RuixenMoonChat({ onStartChat, selectedModel = 'gemini-2.
     const [isFocused, setIsFocused] = useState(false);
     const [showModelMenu, setShowModelMenu] = useState(false);
     const [webSearchEnabled, setWebSearchEnabled] = useState(false);
+    const [deepThinkEnabled, setDeepThinkEnabled] = useState(false);
     const modelMenuRef = useRef<HTMLDivElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -206,6 +208,21 @@ export default function RuixenMoonChat({ onStartChat, selectedModel = 'gemini-2.
                                     title={webSearchEnabled ? "Web search on" : "Web search off"}
                                 >
                                     <Globe size={16} />
+                                </button>
+
+                                {/* DeepThink toggle */}
+                                <button
+                                    type="button"
+                                    onClick={() => setDeepThinkEnabled(!deepThinkEnabled)}
+                                    className={cn(
+                                        "flex items-center justify-center w-8 h-8 rounded-lg transition-all",
+                                        deepThinkEnabled
+                                            ? "bg-purple-500/20 text-purple-400"
+                                            : "text-gray-500 hover:text-white hover:bg-white/5"
+                                    )}
+                                    title={deepThinkEnabled ? "Deep thinking on" : "Deep thinking off"}
+                                >
+                                    <Brain size={16} />
                                 </button>
                             </div>
 

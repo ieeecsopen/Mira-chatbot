@@ -3,8 +3,9 @@ import { motion } from 'framer-motion';
 import { MessageBubble } from './components/MessageBubble';
 import { ChatInput, type SlashCommand } from './components/ChatInput';
 import { LandingPage } from './components/LandingPage';
-import { MIRA_MODELS } from './components/ModelSelector';
+import { ModelSelector, MIRA_MODELS } from './components/ModelSelector';
 import { PanelRightOpen } from 'lucide-react';
+import { Button } from './components/ui/button';
 import { Sidebar } from './components/ui/Sidebar';
 import { streamMessage } from './lib/api';
 import { shouldSearchWeb } from './lib/webSearch';
@@ -13,8 +14,10 @@ import { Canvas } from './components/ui/Canvas';
 import { useCanvas } from './hooks/useCanvas';
 import { Navbar } from './components/ui/Navbar';
 import { SearchMessages } from './components/ui/SearchMessages';
-import { FilePreview, type UploadedFile } from './components/ui/FileUpload';
+import { VoiceInput } from './components/ui/VoiceInput';
+import { FileUpload, FilePreview, type UploadedFile } from './components/ui/FileUpload';
 import { SearchResultsCard } from './components/ui/SearchResultsCard';
+import { DocumentUploadBar } from './components/ui/DocumentUploadBar';
 import { ImageGeneratingCard, ImageDisplay } from './components/ui/ImageGenerator';
 import { getDocumentStore } from './lib/documentStore';
 import { parseImageCommand, generateImage, type GeneratedImage } from './lib/imageGeneration';
@@ -189,7 +192,7 @@ function App() {
     setChatSessions(chatStorage.getRecentSessions(20));
   }, []);
 
-  const handleSend = useCallback(async (text: string, options?: { enableWebSearch?: boolean; responseStyle?: 'concise' | 'detailed' }) => {
+  const handleSend = useCallback(async (text: string, options?: { enableWebSearch?: boolean; responseStyle?: 'concise' | 'detailed'; deepThink?: boolean }) => {
     if (!text.trim()) return;
 
     const autoSearch = shouldSearchWeb(text);
@@ -198,6 +201,7 @@ function App() {
         ? options.enableWebSearch
         : (webSearchEnabled || autoSearch);
     const style = options?.responseStyle || responseStyle;
+    const useDeepThink = options?.deepThink || false;
 
     if (!hasStarted) {
       setHasStarted(true);
@@ -281,7 +285,9 @@ function App() {
       .slice(-MAX_CONTEXT_MESSAGES)
       .map(m => ({ role: m.role, content: m.content }));
 
-    const storedUserMessage = chatStorage.addMessage('user', text);
+    chatStorage.addMessage('user', text);
+    const sessionAfterUser = chatStorage.getCurrentSession();
+    const storedUserMessage = sessionAfterUser?.messages[sessionAfterUser.messages.length - 1];
     const userMessage: Message = {
       id: storedUserMessage?.id || Date.now().toString(),
       role: 'user',
@@ -293,7 +299,9 @@ function App() {
     setIsWaiting(true);
     setIsStreaming(true);
 
-    const storedAssistantMessage = chatStorage.addMessage('assistant', '');
+    chatStorage.addMessage('assistant', '');
+    const sessionAfterAssistant = chatStorage.getCurrentSession();
+    const storedAssistantMessage = sessionAfterAssistant?.messages[sessionAfterAssistant.messages.length - 1];
     const assistantMessage: Message = {
       id: storedAssistantMessage?.id || (Date.now() + 1).toString(),
       role: 'assistant',
@@ -389,6 +397,7 @@ function App() {
         {
           enableWebSearch: useWebSearch,
           responseStyle: style,
+          deepThink: useDeepThink,
           onSearchStart: () => {
             setIsSearchingWeb(true);
           },
@@ -639,13 +648,6 @@ function App() {
     // Remove the last assistant message
     setMessages(prev => prev.slice(0, -1));
 
-    const session = chatStorage.getCurrentSession();
-    if (session && session.messages.length > 0) {
-      session.messages.pop();
-      session.updatedAt = Date.now();
-      chatStorage.saveCurrentSession();
-    }
-
     // Resend the last user message
     // Get history up to the last user message
     const currentHistory = messages
@@ -657,31 +659,14 @@ function App() {
     setIsWaiting(true);
     setIsStreaming(true);
 
-    let assistantMessage: Message | null = null;
-
     try {
-      const storedAssistant = chatStorage.addMessage('assistant', '');
-      assistantMessage = {
-        id: storedAssistant?.id || (Date.now() + 1).toString(),
+      const assistantMessage: Message = {
+        id: (Date.now() + 1).toString(),
         role: 'assistant',
         content: ''
       };
 
-      setMessages(prev => [...prev, assistantMessage as Message]);
-
-      responseTimersRef.current.set(assistantMessage.id, performance.now());
-      startResponse({
-        id: assistantMessage.id,
-        prompt: lastUserMessage.content,
-        model: selectedModel,
-        sessionId: chatStorage.getCurrentSessionId(),
-        startedAt: Date.now(),
-        usedWebSearch: webSearchEnabled,
-        usedDocuments: hasDocuments,
-        responseStyle,
-        attachmentsCount: attachedFiles.length,
-        userMessageChars: lastUserMessage.content.length
-      });
+      setMessages(prev => [...prev, assistantMessage]);
 
       streamBufferRef.current = '';
       lastUpdateRef.current = Date.now();
@@ -689,37 +674,16 @@ function App() {
       await new Promise(resolve => setTimeout(resolve, 100));
       setIsWaiting(false);
 
-      let completionLogged = false;
-
       await streamMessage(
         'user',
         lastUserMessage.content,
         handleStreamChunk,
         () => {
-          completionLogged = true;
           flushStreamBuffer();
-          const startTime = responseTimersRef.current.get(assistantMessage!.id);
-          const latencyMs = typeof startTime === 'number' ? performance.now() - startTime : undefined;
-          completeResponse(assistantMessage!.id, {
-            success: true,
-            latencyMs,
-            model: selectedModel
-          });
-          responseTimersRef.current.delete(assistantMessage!.id);
         },
         (error: string) => {
-          completionLogged = true;
           console.error('Stream error:', error);
           flushStreamBuffer();
-          const startTime = responseTimersRef.current.get(assistantMessage!.id);
-          const latencyMs = typeof startTime === 'number' ? performance.now() - startTime : undefined;
-          completeResponse(assistantMessage!.id, {
-            success: false,
-            latencyMs,
-            error,
-            model: selectedModel
-          });
-          responseTimersRef.current.delete(assistantMessage!.id);
         },
         selectedModel,
         currentHistory,
@@ -727,47 +691,14 @@ function App() {
           responseStyle,
         }
       );
-
-      if (!completionLogged && assistantMessage) {
-        const startTime = responseTimersRef.current.get(assistantMessage.id);
-        const latencyMs = typeof startTime === 'number' ? performance.now() - startTime : undefined;
-        completeResponse(assistantMessage.id, {
-          success: true,
-          latencyMs,
-          model: selectedModel
-        });
-        responseTimersRef.current.delete(assistantMessage.id);
-      }
     } catch (error) {
       console.error('Error regenerating:', error);
       flushStreamBuffer();
-      if (assistantMessage) {
-        const startTime = responseTimersRef.current.get(assistantMessage.id);
-        const latencyMs = typeof startTime === 'number' ? performance.now() - startTime : undefined;
-        completeResponse(assistantMessage.id, {
-          success: false,
-          latencyMs,
-          error: error instanceof Error ? error.message : String(error),
-          model: selectedModel
-        });
-        responseTimersRef.current.delete(assistantMessage.id);
-      }
     } finally {
       setIsStreaming(false);
       setIsWaiting(false);
     }
-  }, [
-    messages,
-    selectedModel,
-    handleStreamChunk,
-    flushStreamBuffer,
-    responseStyle,
-    startResponse,
-    completeResponse,
-    webSearchEnabled,
-    hasDocuments,
-    attachedFiles
-  ]);
+  }, [messages, selectedModel, handleStreamChunk, flushStreamBuffer, responseStyle]);
 
   // Handle editing a message and regenerating from that point
   const handleEditMessage = useCallback(async (messageId: string, newContent: string) => {
@@ -789,18 +720,6 @@ function App() {
 
     setMessages([...truncatedMessages, editedMessage]);
 
-    const session = chatStorage.getCurrentSession();
-    if (session) {
-      const target = session.messages[messageIndex];
-      if (target) {
-        target.content = newContent;
-        target.timestamp = Date.now();
-      }
-      session.messages = session.messages.slice(0, messageIndex + 1);
-      session.updatedAt = Date.now();
-      chatStorage.saveCurrentSession();
-    }
-
     // Get history up to the edited message
     const currentHistory = truncatedMessages
       .filter(m => m.content.length > 0)
@@ -810,32 +729,14 @@ function App() {
     setIsWaiting(true);
     setIsStreaming(true);
 
-    let assistantMessage: Message | null = null;
-    let completionLogged = false;
-
     try {
-      const storedAssistant = chatStorage.addMessage('assistant', '');
-      assistantMessage = {
-        id: storedAssistant?.id || (Date.now() + 1).toString(),
+      const assistantMessage: Message = {
+        id: (Date.now() + 1).toString(),
         role: 'assistant',
         content: ''
       };
 
-      setMessages(prev => [...prev, assistantMessage as Message]);
-
-      responseTimersRef.current.set(assistantMessage.id, performance.now());
-      startResponse({
-        id: assistantMessage.id,
-        prompt: newContent,
-        model: selectedModel,
-        sessionId: chatStorage.getCurrentSessionId(),
-        startedAt: Date.now(),
-        usedWebSearch: webSearchEnabled,
-        usedDocuments: hasDocuments,
-        responseStyle,
-        attachmentsCount: attachedFiles.length,
-        userMessageChars: newContent.length
-      });
+      setMessages(prev => [...prev, assistantMessage]);
 
       streamBufferRef.current = '';
       lastUpdateRef.current = Date.now();
@@ -848,34 +749,16 @@ function App() {
         newContent,
         handleStreamChunk,
         () => {
-          completionLogged = true;
           flushStreamBuffer();
-          if (assistantMessage) {
-            const startTime = responseTimersRef.current.get(assistantMessage.id);
-            const latencyMs = typeof startTime === 'number' ? performance.now() - startTime : undefined;
-            completeResponse(assistantMessage.id, {
-              success: true,
-              latencyMs,
-              model: selectedModel
-            });
-            responseTimersRef.current.delete(assistantMessage.id);
-          }
+          setIsStreaming(false);
+          chatStorage.addMessage('assistant', streamBufferRef.current || '');
+          chatStorage.saveCurrentSession();
+          setChatSessions(chatStorage.getRecentSessions(20));
         },
         (error: string) => {
-          completionLogged = true;
           console.error('Stream error:', error);
           flushStreamBuffer();
-          if (assistantMessage) {
-            const startTime = responseTimersRef.current.get(assistantMessage.id);
-            const latencyMs = typeof startTime === 'number' ? performance.now() - startTime : undefined;
-            completeResponse(assistantMessage.id, {
-              success: false,
-              latencyMs,
-              error,
-              model: selectedModel
-            });
-            responseTimersRef.current.delete(assistantMessage.id);
-          }
+          setIsStreaming(false);
         },
         selectedModel,
         currentHistory,
@@ -883,50 +766,12 @@ function App() {
           responseStyle,
         }
       );
-
-      if (!completionLogged && assistantMessage) {
-        const startTime = responseTimersRef.current.get(assistantMessage.id);
-        const latencyMs = typeof startTime === 'number' ? performance.now() - startTime : undefined;
-        completeResponse(assistantMessage.id, {
-          success: true,
-          latencyMs,
-          model: selectedModel
-        });
-        responseTimersRef.current.delete(assistantMessage.id);
-      }
     } catch (error) {
       console.error('Edit regeneration failed:', error);
-      flushStreamBuffer();
-      if (!completionLogged && assistantMessage) {
-        const startTime = responseTimersRef.current.get(assistantMessage.id);
-        const latencyMs = typeof startTime === 'number' ? performance.now() - startTime : undefined;
-        completeResponse(assistantMessage.id, {
-          success: false,
-          latencyMs,
-          error: error instanceof Error ? error.message : String(error),
-          model: selectedModel
-        });
-        responseTimersRef.current.delete(assistantMessage.id);
-      }
-    } finally {
       setIsWaiting(false);
       setIsStreaming(false);
-      if (assistantMessage) {
-        responseTimersRef.current.delete(assistantMessage.id);
-      }
     }
-  }, [
-    messages,
-    selectedModel,
-    handleStreamChunk,
-    flushStreamBuffer,
-    responseStyle,
-    startResponse,
-    completeResponse,
-    webSearchEnabled,
-    hasDocuments,
-    attachedFiles
-  ]);
+  }, [messages, selectedModel, handleStreamChunk, flushStreamBuffer, responseStyle]);
 
   // Get current session title
   const currentSessionTitle = currentSessionId
@@ -1130,49 +975,64 @@ function App() {
                 transition={{ duration: 0.6, delay: hasStarted ? 0.7 : 0, ease: "easeOut" }}
                 className="p-4 md:p-6 bg-background relative z-10"
               >
-                <div className="max-w-3xl mx-auto space-y-3">
-                  {/* Status indicators - only show when relevant */}
-                  {(hasDocuments || isStreaming || canvas.items.length > 0) && (
-                    <div className="flex items-center justify-center gap-3 text-xs">
-                      {hasDocuments && (
-                        <span className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-orange-500/10 text-orange-400 border border-orange-500/20">
-                          📄 Docs active
-                        </span>
-                      )}
-                      {canvas.items.length > 0 && (
-                        <button
-                          onClick={() => canvas.toggleCanvas()}
-                          className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-blue-500/10 text-blue-400 border border-blue-500/20 hover:bg-blue-500/20 transition-colors"
-                        >
-                          <PanelRightOpen size={12} />
-                          Canvas ({canvas.items.length})
-                        </button>
-                      )}
-                      {isStreaming && (
-                        <span className="text-gray-400 font-mono animate-pulse">
-                          Generating...
-                        </span>
-                      )}
-                    </div>
-                  )}
+                <div className="max-w-3xl mx-auto">
+                  {/* Document Upload Bar - shows when documents are loaded */}
+                  <div className="mb-3">
+                    <DocumentUploadBar onDocumentsChange={updateDocumentStatus} />
+                  </div>
 
-                  {/* Unified Chat Input */}
-                  <ChatInput
-                    onSend={handleSend}
-                    disabled={isStreaming}
-                    onSlashCommand={handleSlashCommand}
-                    webSearchEnabled={webSearchEnabled}
-                    onToggleWebSearch={() => setWebSearchEnabled(prev => !prev)}
-                    responseStyle={responseStyle}
-                    onChangeResponseStyle={setResponseStyle}
-                    selectedModel={selectedModel}
-                    onModelChange={setSelectedModel}
-                    onFilesSelected={handleFilesSelected}
-                    onFileRemove={handleFileRemove}
-                    attachedFiles={attachedFiles}
-                    onVoiceTranscript={handleVoiceTranscript}
-                    onDocumentsChange={updateDocumentStatus}
-                  />
+                  <div className="flex items-center gap-3 mb-3">
+                    <ModelSelector
+                      selectedModel={selectedModel}
+                      onModelChange={setSelectedModel}
+                      disabled={isStreaming}
+                    />
+                    {canvas.items.length > 0 && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => canvas.toggleCanvas()}
+                        className="text-gray-500 hover:text-white gap-2"
+                      >
+                        <PanelRightOpen size={16} />
+                        <span className="text-xs">Canvas ({canvas.items.length})</span>
+                      </Button>
+                    )}
+                    {hasDocuments && (
+                      <span className="text-xs text-orange-400 font-medium">
+                        📄 Document context active
+                      </span>
+                    )}
+                    {isStreaming && (
+                      <span className="text-xs text-gray-400 font-mono animate-pulse">
+                        Generating response...
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <FileUpload
+                      onFilesSelected={handleFilesSelected}
+                      onFileRemove={handleFileRemove}
+                      files={attachedFiles}
+                      disabled={isStreaming}
+                    />
+                    <VoiceInput
+                      onTranscript={handleVoiceTranscript}
+                      disabled={isStreaming}
+                      language="si-LK"
+                    />
+                    <div className="flex-1">
+                      <ChatInput
+                        onSend={handleSend}
+                        disabled={isStreaming}
+                        onSlashCommand={handleSlashCommand}
+                        webSearchEnabled={webSearchEnabled}
+                        onToggleWebSearch={() => setWebSearchEnabled(prev => !prev)}
+                        responseStyle={responseStyle}
+                        onChangeResponseStyle={setResponseStyle}
+                      />
+                    </div>
+                  </div>
                 </div>
               </motion.div>
             </motion.div>

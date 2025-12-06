@@ -335,6 +335,7 @@ export async function streamMessage(
         onSearchStart?: () => void;
         onSearchResults?: (results: SearchResult[]) => void;
         responseStyle?: 'concise' | 'detailed';
+        deepThink?: boolean;
     }
 ) {
     ensureSafeInput(message);
@@ -474,7 +475,7 @@ export async function streamMessage(
 
     for (const model of models) {
         try {
-            console.log(`🤖 Trying streaming with: ${model.name}${historyContents.length > 0 ? ` (with ${historyContents.length} history messages)` : ''}`);
+            console.log(`🤖 Trying streaming with: ${model.name}${historyContents.length > 0 ? ` (with ${historyContents.length} history messages)` : ''}${options?.deepThink ? ' [DEEP THINK MODE]' : ''}`);
             const streamUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model.name}:streamGenerateContent?alt=sse&key=${GEMINI_API_KEY}`;
 
             // Build contents array with history + current message
@@ -513,6 +514,11 @@ export async function streamMessage(
                             parts: [{ text: fullSystemInstruction }]
                         },
                         contents: contents,
+                        generationConfig: options?.deepThink ? {
+                            thinking: {
+                                thinkingMode: "THINKING_MODE_ENABLED"
+                            }
+                        } : undefined,
                     }),
                 }),
                 {
