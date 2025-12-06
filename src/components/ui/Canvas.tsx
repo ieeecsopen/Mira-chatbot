@@ -17,7 +17,6 @@ import {
   ExternalLink,
   ChevronLeft,
   ChevronRight,
-  Play,
   RotateCcw,
   Clock,
   Share2,
@@ -42,8 +41,6 @@ import {
   shouldAutoSave
 } from '../../lib/canvasVersioning';
 import {
-  exportCanvasItem,
-  importCanvasItem,
   copyShareLink,
 } from '../../lib/canvasCollaboration';
 
@@ -78,7 +75,6 @@ export function Canvas({
   onSelectItem,
   onUpdateItem,
   onDeleteItem,
-  onAddItem,
 }: CanvasProps) {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -90,7 +86,7 @@ export function Canvas({
   const [consoleLogs, setConsoleLogs] = useState<ConsoleEntry[]>([]);
   const [showConsole, setShowConsole] = useState(false);
   const [lastSavedContent, setLastSavedContent] = useState('');
-  const autoSaveTimeoutRef = useRef<NodeJS.Timeout>();
+  const autoSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const activeItem = items.find(item => item.id === activeItemId);
   const activeIndex = items.findIndex(item => item.id === activeItemId);
@@ -217,19 +213,6 @@ export function Canvas({
     setIsEditing(true);
     setShowVersionHistory(false);
   }, []);
-
-  // Handle import
-  const handleImport = useCallback(async () => {
-    try {
-      const text = await navigator.clipboard.readText();
-      const item = importCanvasItem(text);
-      if (item && onAddItem) {
-        onAddItem(item);
-      }
-    } catch (err) {
-      console.error('Failed to import:', err);
-    }
-  }, [onAddItem]);
 
   // Determine if preview is available
   const canPreview = activeItem && ['html', 'css', 'javascript', 'js', 'markdown', 'md'].includes(

@@ -1,10 +1,9 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     X,
     RotateCcw,
     Clock,
-    Tag,
     Trash2,
     ChevronDown,
     ChevronRight,
@@ -21,7 +20,6 @@ import {
     deleteVersion,
     formatVersionTime,
     compareVersions,
-    getDiffSummary,
 } from '../../lib/canvasVersioning';
 
 interface VersionHistoryProps {
@@ -88,12 +86,6 @@ export function VersionHistory({
             setSelectedVersion(null);
         }
     }, [itemId, selectedVersion, refreshVersions]);
-
-    // Selected version data
-    const selectedVersionData = useMemo(() => {
-        if (!selectedVersion) return null;
-        return versions.find(v => v.id === selectedVersion);
-    }, [selectedVersion, versions]);
 
     return (
         <motion.div

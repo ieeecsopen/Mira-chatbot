@@ -21,7 +21,7 @@ const DEVICE_SIZES: Record<DeviceSize, { width: string; label: string }> = {
 /**
  * Wrap HTML content with console capture script
  */
-function wrapWithConsole(html: string, onLog: (msg: string, type: string) => void): string {
+function wrapWithConsole(html: string): string {
     // Create a unique identifier for this preview
     const previewId = `preview_${Date.now()}`;
 
@@ -214,9 +214,7 @@ export function PreviewPanel({
         try {
             setError(null);
             const raw = generatePreviewContent(content, language);
-            return wrapWithConsole(raw, (msg, type) => {
-                onConsoleLog?.(msg, type as 'log' | 'error' | 'warn' | 'info');
-            });
+            return wrapWithConsole(raw);
         } catch (e) {
             setError(e instanceof Error ? e.message : 'Preview error');
             return '';

@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect, KeyboardEvent } from 'react';
+import { useState, useCallback, useRef, useEffect, type KeyboardEvent } from 'react';
 import { cn } from '../../lib/utils';
 
 interface CodeEditorProps {
