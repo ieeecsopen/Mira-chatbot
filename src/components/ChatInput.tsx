@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { SendHorizontal, Globe, Paperclip, Mic, ChevronDown, X, Sparkles } from 'lucide-react';
+import { SendHorizontal, Globe, Paperclip, Mic, ChevronDown, X, Sparkles, Brain } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../lib/utils';
 import { Button } from './ui/button';
@@ -8,11 +8,13 @@ import type { UploadedFile } from './ui/FileUpload';
 import { MIRA_MODELS } from './ModelSelector';
 
 interface ChatInputProps {
-    onSend: (message: string, options?: { enableWebSearch?: boolean; responseStyle?: 'concise' | 'detailed' }) => void;
+    onSend: (message: string, options?: { enableWebSearch?: boolean; responseStyle?: 'concise' | 'detailed'; deepThink?: boolean }) => void;
     disabled?: boolean;
     onSlashCommand?: (command: SlashCommand) => void;
     webSearchEnabled?: boolean;
     onToggleWebSearch?: () => void;
+    deepThinkEnabled?: boolean;
+    onToggleDeepThink?: () => void;
     responseStyle: 'concise' | 'detailed';
     onChangeResponseStyle: (style: 'concise' | 'detailed') => void;
     // New integrated props
@@ -31,6 +33,8 @@ export function ChatInput({
     onSlashCommand,
     webSearchEnabled,
     onToggleWebSearch,
+    deepThinkEnabled,
+    onToggleDeepThink,
     responseStyle,
     onChangeResponseStyle,
     selectedModel = 'gemini-2.0-flash',
@@ -111,7 +115,7 @@ export function ChatInput({
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
             if (input.trim() && !disabled && !showSlashMenu) {
-                onSend(input, { enableWebSearch: webSearchEnabled, responseStyle });
+                onSend(input, { enableWebSearch: webSearchEnabled, responseStyle, deepThink: deepThinkEnabled });
                 setInput('');
             }
         }
@@ -124,7 +128,7 @@ export function ChatInput({
 
     const handleSend = () => {
         if (input.trim() && !disabled) {
-            onSend(input, { enableWebSearch: webSearchEnabled, responseStyle });
+            onSend(input, { enableWebSearch: webSearchEnabled, responseStyle, deepThink: deepThinkEnabled });
             setInput('');
         }
     };
@@ -283,6 +287,20 @@ export function ChatInput({
                             title={webSearchEnabled ? "Web search on" : "Web search off"}
                         >
                             <Globe size={16} />
+                        </button>
+
+                        {/* DeepThink toggle */}
+                        <button
+                            onClick={onToggleDeepThink}
+                            className={cn(
+                                "flex items-center justify-center w-8 h-8 rounded-lg transition-all",
+                                deepThinkEnabled
+                                    ? "bg-purple-500/20 text-purple-400"
+                                    : "text-gray-500 hover:text-white hover:bg-white/5"
+                            )}
+                            title={deepThinkEnabled ? "Deep thinking on" : "Deep thinking off"}
+                        >
+                            <Brain size={16} />
                         </button>
                     </div>
 

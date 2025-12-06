@@ -41,6 +41,12 @@ export const MIRA_MODELS: MiraModel[] = [
     displayName: 'Mira අත්හදා',
     description: 'පර්යේෂණාත්මක',
   },
+  {
+    id: 'gemini-2.0-flash-thinking-exp',
+    name: 'gemini-2.0-flash-thinking-exp',
+    displayName: 'Mira චින්තන',
+    description: 'ගැඹුරු චින්තනය සහ විශ්ලේෂණය',
+  },
 ];
 
 interface ModelSelectorProps {
