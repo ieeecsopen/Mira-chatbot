@@ -8,6 +8,7 @@ import { PanelRightOpen } from 'lucide-react';
 import { Button } from './components/ui/button';
 import { Sidebar } from './components/ui/Sidebar';
 import { streamMessage } from './lib/api';
+import { shouldSearchWeb } from './lib/webSearch';
 import { chatStorage, type ChatSession } from './lib/chatStorage';
 import { Canvas } from './components/ui/Canvas';
 import { useCanvas } from './hooks/useCanvas';
@@ -30,6 +31,8 @@ import { MemoryPanel } from './components/ui/MemoryPanel';
 import { WorkspacePanel } from './components/ui/WorkspacePanel';
 import { notificationManager } from './lib/notifications';
 import { TemplatePanel } from './components/ui/TemplatePanel';
+import { useMetrics } from './contexts/MetricsContext';
+import { EvaluationPanel } from './components/ui/EvaluationPanel';
 
 interface Message {
   id: string;
@@ -39,6 +42,8 @@ interface Message {
   generatedImage?: GeneratedImage;
   isGeneratingImage?: boolean;
   imagePrompt?: string;
+  rating?: 'up' | 'down';
+  feedback?: string;
 }
 
 // Maximum number of messages to include for context
@@ -55,12 +60,15 @@ function App() {
   const [selectedModel, setSelectedModel] = useState(MIRA_MODELS[0].id);
   const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
+  const [isEvaluationPanelOpen, setIsEvaluationPanelOpen] = useState(false);
 
   // Canvas state
   const canvas = useCanvas();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const streamBufferRef = useRef<string>('');
   const lastUpdateRef = useRef<number>(0);
+  const responseTimersRef = useRef<Map<string, number>>(new Map());
+  const { startResponse, completeResponse, setRating: setMetricRating, getRecord } = useMetrics();
 
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -97,11 +105,13 @@ function App() {
       setMessages(currentSession.messages.map(m => ({
         id: m.id,
         role: m.role,
-        content: m.content
+        content: m.content,
+        rating: getRecord(m.id)?.rating,
+        feedback: getRecord(m.id)?.feedback
       })));
       setHasStarted(true);
     }
-  }, []);
+  }, [getRecord]);
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -185,7 +195,11 @@ function App() {
   const handleSend = useCallback(async (text: string, options?: { enableWebSearch?: boolean; responseStyle?: 'concise' | 'detailed' }) => {
     if (!text.trim()) return;
 
-    const useWebSearch = options?.enableWebSearch || webSearchEnabled;
+    const autoSearch = shouldSearchWeb(text);
+    const useWebSearch =
+      options?.enableWebSearch !== undefined
+        ? options.enableWebSearch
+        : (webSearchEnabled || autoSearch);
     const style = options?.responseStyle || responseStyle;
 
     if (!hasStarted) {
@@ -265,35 +279,50 @@ function App() {
     }
 
     // Normal message handling
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      role: 'user',
-      content: text
-    };
-
-    // Get current history before adding new message
     const currentHistory = messages
       .filter(m => m.content.length > 0)
       .slice(-MAX_CONTEXT_MESSAGES)
       .map(m => ({ role: m.role, content: m.content }));
 
+    const storedUserMessage = chatStorage.addMessage('user', text);
+    const userMessage: Message = {
+      id: storedUserMessage?.id || Date.now().toString(),
+      role: 'user',
+      content: text
+    };
+
     setMessages(prev => [...prev, userMessage]);
-    chatStorage.addMessage('user', text);
 
     setIsWaiting(true);
     setIsStreaming(true);
 
+    const storedAssistantMessage = chatStorage.addMessage('assistant', '');
+    const assistantMessage: Message = {
+      id: storedAssistantMessage?.id || (Date.now() + 1).toString(),
+      role: 'assistant',
+      content: '',
+      searchResults: []
+    };
+
+    setMessages(prev => [...prev, assistantMessage]);
+
+    responseTimersRef.current.set(assistantMessage.id, performance.now());
+    startResponse({
+      id: assistantMessage.id,
+      prompt: text,
+      model: selectedModel,
+      sessionId: chatStorage.getCurrentSessionId(),
+      startedAt: Date.now(),
+      usedWebSearch: useWebSearch,
+      usedDocuments: hasDocuments,
+      responseStyle: style,
+      attachmentsCount: attachedFiles.length,
+      userMessageChars: text.length
+    });
+
+    let completionLogged = false;
+
     try {
-      const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: '',
-        searchResults: []
-      };
-
-      setMessages(prev => [...prev, assistantMessage]);
-      chatStorage.addMessage('assistant', '');
-
       // Reset buffer state
       streamBufferRef.current = '';
       lastUpdateRef.current = Date.now();
@@ -310,21 +339,38 @@ function App() {
         text,
         handleStreamChunk,
         () => {
-          // onDone callback
+          completionLogged = true;
           flushStreamBuffer();
           setIsSearchingWeb(false);
-          console.log('Stream completed');
 
-          // Send notification if tab is in background
+          const startTime = responseTimersRef.current.get(assistantMessage.id);
+          const latencyMs = typeof startTime === 'number' ? performance.now() - startTime : undefined;
+          completeResponse(assistantMessage.id, {
+            success: true,
+            latencyMs,
+            model: selectedModel
+          });
+          responseTimersRef.current.delete(assistantMessage.id);
+
           const lastContent = streamBufferRef.current || 'Response complete';
           notificationManager.onResponseComplete(lastContent);
         },
         (error: string) => {
-          // onError callback
+          completionLogged = true;
           console.error('Stream error:', error);
           flushStreamBuffer();
           setIsSearchingWeb(false);
-          // Update the last message with error
+
+          const startTime = responseTimersRef.current.get(assistantMessage.id);
+          const latencyMs = typeof startTime === 'number' ? performance.now() - startTime : undefined;
+          completeResponse(assistantMessage.id, {
+            success: false,
+            latencyMs,
+            error,
+            model: selectedModel
+          });
+          responseTimersRef.current.delete(assistantMessage.id);
+
           setMessages(prev => {
             const lastIndex = prev.length - 1;
             if (lastIndex >= 0 && prev[lastIndex].role === 'assistant') {
@@ -342,7 +388,7 @@ function App() {
           });
         },
         selectedModel,
-        currentHistory, // Pass conversation history for multi-turn context
+        currentHistory,
         {
           enableWebSearch: useWebSearch,
           responseStyle: style,
@@ -351,7 +397,6 @@ function App() {
           },
           onSearchResults: (results) => {
             setIsSearchingWeb(false);
-            // Update the assistant message with search results
             setMessages(prev => {
               const lastIndex = prev.length - 1;
               if (lastIndex >= 0 && prev[lastIndex].role === 'assistant') {
@@ -368,15 +413,51 @@ function App() {
           }
         }
       );
+
+      if (!completionLogged) {
+        const startTime = responseTimersRef.current.get(assistantMessage.id);
+        const latencyMs = typeof startTime === 'number' ? performance.now() - startTime : undefined;
+        completeResponse(assistantMessage.id, {
+          success: true,
+          latencyMs,
+          model: selectedModel
+        });
+        responseTimersRef.current.delete(assistantMessage.id);
+      }
     } catch (error) {
       console.error('Error sending message:', error);
       flushStreamBuffer();
       setIsSearchingWeb(false);
+
+      if (!completionLogged) {
+        const startTime = responseTimersRef.current.get(assistantMessage.id);
+        const latencyMs = typeof startTime === 'number' ? performance.now() - startTime : undefined;
+        completeResponse(assistantMessage.id, {
+          success: false,
+          latencyMs,
+          error: error instanceof Error ? error.message : String(error),
+          model: selectedModel
+        });
+        responseTimersRef.current.delete(assistantMessage.id);
+      }
     } finally {
       setIsStreaming(false);
       setIsWaiting(false);
+      responseTimersRef.current.delete(assistantMessage.id);
     }
-  }, [hasStarted, messages, selectedModel, webSearchEnabled, handleStreamChunk, flushStreamBuffer, responseStyle]);
+  }, [
+    hasStarted,
+    messages,
+    selectedModel,
+    webSearchEnabled,
+    handleStreamChunk,
+    flushStreamBuffer,
+    responseStyle,
+    hasDocuments,
+    attachedFiles,
+    startResponse,
+    completeResponse
+  ]);
 
   // Handle switching to a different chat session
   const handleSelectSession = useCallback((session: ChatSession) => {
@@ -385,10 +466,12 @@ function App() {
     setMessages(session.messages.map(m => ({
       id: m.id,
       role: m.role,
-      content: m.content
+      content: m.content,
+      rating: getRecord(m.id)?.rating,
+      feedback: getRecord(m.id)?.feedback
     })));
     setHasStarted(true);
-  }, []);
+  }, [getRecord]);
 
   // Handle selecting session from search
   const handleSelectSessionFromSearch = useCallback((sessionId: string) => {
@@ -412,6 +495,31 @@ function App() {
     // This will be handled by ChatInput
     console.log('Voice transcript:', text);
   }, []);
+
+  const handleRateMessage = useCallback((messageId: string, rating: 'up' | 'down' | null) => {
+    let feedback: string | undefined;
+    if (rating === 'down') {
+      const response = window.prompt('ඔබට අවශ්‍ය නම්, මෙහි අමතර අදහස් එකතු කරන්න (විකල්පය).');
+      if (response && response.trim().length > 0) {
+        feedback = response.trim();
+      }
+    }
+
+    const feedbackValue = rating === 'down' ? feedback : undefined;
+
+    setMessages(prev => prev.map(message => {
+      if (message.id !== messageId || message.role !== 'assistant') {
+        return message;
+      }
+      return {
+        ...message,
+        rating: rating ?? undefined,
+        feedback: feedbackValue
+      };
+    }));
+
+    setMetricRating(messageId, rating, feedbackValue);
+  }, [setMetricRating]);
 
   // Handle creating a new chat
   const handleNewChat = useCallback(() => {
@@ -534,6 +642,13 @@ function App() {
     // Remove the last assistant message
     setMessages(prev => prev.slice(0, -1));
 
+    const session = chatStorage.getCurrentSession();
+    if (session && session.messages.length > 0) {
+      session.messages.pop();
+      session.updatedAt = Date.now();
+      chatStorage.saveCurrentSession();
+    }
+
     // Resend the last user message
     // Get history up to the last user message
     const currentHistory = messages
@@ -545,14 +660,31 @@ function App() {
     setIsWaiting(true);
     setIsStreaming(true);
 
+    let assistantMessage: Message | null = null;
+
     try {
-      const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
+      const storedAssistant = chatStorage.addMessage('assistant', '');
+      assistantMessage = {
+        id: storedAssistant?.id || (Date.now() + 1).toString(),
         role: 'assistant',
         content: ''
       };
 
-      setMessages(prev => [...prev, assistantMessage]);
+      setMessages(prev => [...prev, assistantMessage as Message]);
+
+      responseTimersRef.current.set(assistantMessage.id, performance.now());
+      startResponse({
+        id: assistantMessage.id,
+        prompt: lastUserMessage.content,
+        model: selectedModel,
+        sessionId: chatStorage.getCurrentSessionId(),
+        startedAt: Date.now(),
+        usedWebSearch: webSearchEnabled,
+        usedDocuments: hasDocuments,
+        responseStyle,
+        attachmentsCount: attachedFiles.length,
+        userMessageChars: lastUserMessage.content.length
+      });
 
       streamBufferRef.current = '';
       lastUpdateRef.current = Date.now();
@@ -560,16 +692,37 @@ function App() {
       await new Promise(resolve => setTimeout(resolve, 100));
       setIsWaiting(false);
 
+      let completionLogged = false;
+
       await streamMessage(
         'user',
         lastUserMessage.content,
         handleStreamChunk,
         () => {
+          completionLogged = true;
           flushStreamBuffer();
+          const startTime = responseTimersRef.current.get(assistantMessage!.id);
+          const latencyMs = typeof startTime === 'number' ? performance.now() - startTime : undefined;
+          completeResponse(assistantMessage!.id, {
+            success: true,
+            latencyMs,
+            model: selectedModel
+          });
+          responseTimersRef.current.delete(assistantMessage!.id);
         },
         (error: string) => {
+          completionLogged = true;
           console.error('Stream error:', error);
           flushStreamBuffer();
+          const startTime = responseTimersRef.current.get(assistantMessage!.id);
+          const latencyMs = typeof startTime === 'number' ? performance.now() - startTime : undefined;
+          completeResponse(assistantMessage!.id, {
+            success: false,
+            latencyMs,
+            error,
+            model: selectedModel
+          });
+          responseTimersRef.current.delete(assistantMessage!.id);
         },
         selectedModel,
         currentHistory,
@@ -577,14 +730,47 @@ function App() {
           responseStyle,
         }
       );
+
+      if (!completionLogged && assistantMessage) {
+        const startTime = responseTimersRef.current.get(assistantMessage.id);
+        const latencyMs = typeof startTime === 'number' ? performance.now() - startTime : undefined;
+        completeResponse(assistantMessage.id, {
+          success: true,
+          latencyMs,
+          model: selectedModel
+        });
+        responseTimersRef.current.delete(assistantMessage.id);
+      }
     } catch (error) {
       console.error('Error regenerating:', error);
       flushStreamBuffer();
+      if (assistantMessage) {
+        const startTime = responseTimersRef.current.get(assistantMessage.id);
+        const latencyMs = typeof startTime === 'number' ? performance.now() - startTime : undefined;
+        completeResponse(assistantMessage.id, {
+          success: false,
+          latencyMs,
+          error: error instanceof Error ? error.message : String(error),
+          model: selectedModel
+        });
+        responseTimersRef.current.delete(assistantMessage.id);
+      }
     } finally {
       setIsStreaming(false);
       setIsWaiting(false);
     }
-  }, [messages, selectedModel, handleStreamChunk, flushStreamBuffer, responseStyle]);
+  }, [
+    messages,
+    selectedModel,
+    handleStreamChunk,
+    flushStreamBuffer,
+    responseStyle,
+    startResponse,
+    completeResponse,
+    webSearchEnabled,
+    hasDocuments,
+    attachedFiles
+  ]);
 
   // Handle editing a message and regenerating from that point
   const handleEditMessage = useCallback(async (messageId: string, newContent: string) => {
@@ -606,6 +792,18 @@ function App() {
 
     setMessages([...truncatedMessages, editedMessage]);
 
+    const session = chatStorage.getCurrentSession();
+    if (session) {
+      const target = session.messages[messageIndex];
+      if (target) {
+        target.content = newContent;
+        target.timestamp = Date.now();
+      }
+      session.messages = session.messages.slice(0, messageIndex + 1);
+      session.updatedAt = Date.now();
+      chatStorage.saveCurrentSession();
+    }
+
     // Get history up to the edited message
     const currentHistory = truncatedMessages
       .filter(m => m.content.length > 0)
@@ -615,14 +813,32 @@ function App() {
     setIsWaiting(true);
     setIsStreaming(true);
 
+    let assistantMessage: Message | null = null;
+    let completionLogged = false;
+
     try {
-      const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
+      const storedAssistant = chatStorage.addMessage('assistant', '');
+      assistantMessage = {
+        id: storedAssistant?.id || (Date.now() + 1).toString(),
         role: 'assistant',
         content: ''
       };
 
       setMessages(prev => [...prev, assistantMessage]);
+
+      responseTimersRef.current.set(assistantMessage.id, performance.now());
+      startResponse({
+        id: assistantMessage.id,
+        prompt: newContent,
+        model: selectedModel,
+        sessionId: chatStorage.getCurrentSessionId(),
+        startedAt: Date.now(),
+        usedWebSearch: webSearchEnabled,
+        usedDocuments: hasDocuments,
+        responseStyle,
+        attachmentsCount: attachedFiles.length,
+        userMessageChars: newContent.length
+      });
 
       streamBufferRef.current = '';
       lastUpdateRef.current = Date.now();
@@ -635,16 +851,34 @@ function App() {
         newContent,
         handleStreamChunk,
         () => {
+          completionLogged = true;
           flushStreamBuffer();
-          setIsStreaming(false);
-          chatStorage.addMessage('assistant', streamBufferRef.current || '');
-          chatStorage.saveCurrentSession();
-          setChatSessions(chatStorage.getRecentSessions(20));
+          if (assistantMessage) {
+            const startTime = responseTimersRef.current.get(assistantMessage.id);
+            const latencyMs = typeof startTime === 'number' ? performance.now() - startTime : undefined;
+            completeResponse(assistantMessage.id, {
+              success: true,
+              latencyMs,
+              model: selectedModel
+            });
+            responseTimersRef.current.delete(assistantMessage.id);
+          }
         },
         (error: string) => {
+          completionLogged = true;
           console.error('Stream error:', error);
           flushStreamBuffer();
-          setIsStreaming(false);
+          if (assistantMessage) {
+            const startTime = responseTimersRef.current.get(assistantMessage.id);
+            const latencyMs = typeof startTime === 'number' ? performance.now() - startTime : undefined;
+            completeResponse(assistantMessage.id, {
+              success: false,
+              latencyMs,
+              error,
+              model: selectedModel
+            });
+            responseTimersRef.current.delete(assistantMessage.id);
+          }
         },
         selectedModel,
         currentHistory,
@@ -652,12 +886,50 @@ function App() {
           responseStyle,
         }
       );
+
+      if (!completionLogged && assistantMessage) {
+        const startTime = responseTimersRef.current.get(assistantMessage.id);
+        const latencyMs = typeof startTime === 'number' ? performance.now() - startTime : undefined;
+        completeResponse(assistantMessage.id, {
+          success: true,
+          latencyMs,
+          model: selectedModel
+        });
+        responseTimersRef.current.delete(assistantMessage.id);
+      }
     } catch (error) {
       console.error('Edit regeneration failed:', error);
+      flushStreamBuffer();
+      if (!completionLogged && assistantMessage) {
+        const startTime = responseTimersRef.current.get(assistantMessage.id);
+        const latencyMs = typeof startTime === 'number' ? performance.now() - startTime : undefined;
+        completeResponse(assistantMessage.id, {
+          success: false,
+          latencyMs,
+          error: error instanceof Error ? error.message : String(error),
+          model: selectedModel
+        });
+        responseTimersRef.current.delete(assistantMessage.id);
+      }
+    } finally {
       setIsWaiting(false);
       setIsStreaming(false);
+      if (assistantMessage) {
+        responseTimersRef.current.delete(assistantMessage.id);
+      }
     }
-  }, [messages, selectedModel, handleStreamChunk, flushStreamBuffer, responseStyle]);
+  }, [
+    messages,
+    selectedModel,
+    handleStreamChunk,
+    flushStreamBuffer,
+    responseStyle,
+    startResponse,
+    completeResponse,
+    webSearchEnabled,
+    hasDocuments,
+    attachedFiles
+  ]);
 
   // Get current session title
   const currentSessionTitle = currentSessionId
@@ -733,6 +1005,7 @@ function App() {
               onShareClick={() => setIsShareModalOpen(true)}
               onMemoryClick={() => setIsMemoryPanelOpen(true)}
               onWorkspaceClick={() => setIsWorkspacePanelOpen(true)}
+              onAnalyticsClick={() => setIsEvaluationPanelOpen(true)}
               chatTitle={currentSessionTitle}
             />
           </motion.div>
@@ -825,7 +1098,14 @@ function App() {
                               ? handleEditMessage
                               : undefined
                           }
+                          rating={msg.rating}
+                          onRate={
+                            msg.role === 'assistant'
+                              ? handleRateMessage
+                              : undefined
+                          }
                           searchResults={msg.searchResults}
+                          feedback={msg.feedback}
                         />
                       )}
                     </div>
@@ -941,6 +1221,11 @@ function App() {
         <WorkspacePanel
           isOpen={isWorkspacePanelOpen}
           onClose={() => setIsWorkspacePanelOpen(false)}
+        />
+
+        <EvaluationPanel
+          isOpen={isEvaluationPanelOpen}
+          onClose={() => setIsEvaluationPanelOpen(false)}
         />
 
         {/* Template Panel */}

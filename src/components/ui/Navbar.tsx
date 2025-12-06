@@ -9,7 +9,8 @@ import {
   LogOut,
   Share2,
   Brain,
-  Building2
+  Building2,
+  BarChart3
 } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
@@ -23,6 +24,7 @@ interface NavbarProps {
   onShareClick?: () => void;
   onMemoryClick?: () => void;
   onWorkspaceClick?: () => void;
+  onAnalyticsClick?: () => void;
   showMenu?: boolean;
   chatTitle?: string;
 }
@@ -35,6 +37,7 @@ export function Navbar({
   onShareClick,
   onMemoryClick,
   onWorkspaceClick,
+  onAnalyticsClick,
   showMenu = true,
   chatTitle,
 }: NavbarProps) {
@@ -193,6 +196,19 @@ export function Navbar({
             aria-label="Settings"
           >
             <Settings size={18} />
+          </motion.button>
+
+          {/* Analytics button */}
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={onAnalyticsClick}
+            className="hidden sm:flex w-10 h-10 items-center justify-center rounded-xl
+              hover:bg-white/10 text-gray-400 hover:text-emerald-300 transition-all duration-200
+              border border-transparent hover:border-emerald-400/20"
+            aria-label="Analytics"
+          >
+            <BarChart3 size={18} />
           </motion.button>
 
           {/* Memory button */}

@@ -2,7 +2,7 @@ import { cn } from '../lib/utils';
 import { motion } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Copy, Check, RefreshCw, Maximize2, Quote, Pencil, X, Send, Link as LinkIcon } from 'lucide-react';
+import { Copy, Check, RefreshCw, Maximize2, Quote, Pencil, X, Send, Link as LinkIcon, ThumbsUp, ThumbsDown } from 'lucide-react';
 import { useState, useCallback, memo, useMemo, useRef, useEffect } from 'react';
 import { CodeBlock, InlineCode } from './ui/CodeBlock';
 import { UrlPreview } from './ui/UrlPreview';
@@ -18,6 +18,9 @@ interface MessageBubbleProps {
     onOpenInCanvas?: (content: string, language?: string) => void;
     onEdit?: (messageId: string, newContent: string) => void;
     searchResults?: SearchResult[];
+    onRate?: (messageId: string, rating: 'up' | 'down' | null) => void;
+    rating?: 'up' | 'down';
+    feedback?: string;
 }
 
 // Skeleton loading component
@@ -47,31 +50,6 @@ const createMarkdownComponents = (onOpenInCanvas?: (code: string, language?: str
     // Bold text
     strong: ({ children }: { children?: React.ReactNode }) => (
         <strong className="font-bold text-white">{children}</strong>
-                    </div>
-                )}
-                {/* Web search sources */}
-                {role === 'assistant' && searchResults && searchResults.length > 0 && (
-                    <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                        {searchResults.slice(0, 6).map((result, idx) => (
-                            <a
-                                key={`${result.url}-${idx}`}
-                                href={result.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="flex items-center gap-2 rounded-lg border border-[#30363d] bg-[#0d1117] px-3 py-2 text-sm text-[#c9d1d9] hover:border-orange-400 hover:bg-[#161b22] transition-colors"
-                            >
-                                <span className="flex h-6 w-6 items-center justify-center rounded-md bg-orange-500/20 text-orange-300 text-xs font-semibold">
-                                    {idx + 1}
-                                </span>
-                                <div className="flex-1 min-w-0">
-                                    <p className="truncate font-medium text-[#e6edf3]">{result.title || result.url}</p>
-                                    <p className="truncate text-xs text-[#8b949e]">{result.source || result.url}</p>
-                                </div>
-                                <LinkIcon size={14} className="text-[#8b949e] flex-shrink-0" />
-                            </a>
-                        ))}
-                    </div>
-                )}
     ),
     // Italic text
     em: ({ children }: { children?: React.ReactNode }) => (
@@ -230,7 +208,10 @@ function MessageBubbleComponent({
     onRegenerate,
     onOpenInCanvas,
     onEdit,
-    searchResults
+    searchResults,
+    onRate,
+    rating,
+    feedback
 }: MessageBubbleProps) {
     const [copied, setCopied] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
@@ -310,6 +291,12 @@ function MessageBubbleComponent({
             onOpenInCanvas(code, language);
         }
     }, [content, onOpenInCanvas]);
+
+    const handleRateClick = useCallback((value: 'up' | 'down') => {
+        if (!onRate || !messageId) return;
+        const nextValue = rating === value ? null : value;
+        onRate(messageId, nextValue);
+    }, [onRate, messageId, rating]);
 
     // Create markdown components with canvas handler
     const markdownComponents = useMemo(
@@ -400,7 +387,37 @@ function MessageBubbleComponent({
 
                 {/* Action buttons for assistant messages */}
                 {role === 'assistant' && content && !isStreaming && (
-                    <div className="flex items-center gap-2 mt-3 pt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="flex flex-wrap items-center gap-2 mt-3 pt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        {onRate && messageId && (
+                            <>
+                                <button
+                                    onClick={() => handleRateClick('up')}
+                                    className={cn(
+                                        "flex items-center gap-1.5 text-xs px-2 py-1 rounded border transition-colors",
+                                        rating === 'up'
+                                            ? "border-emerald-400/60 bg-emerald-500/15 text-emerald-300"
+                                            : "border-transparent text-gray-500 hover:text-white hover:bg-white/5"
+                                    )}
+                                    title="Mark as helpful"
+                                >
+                                    <ThumbsUp size={14} className={cn(rating === 'up' ? 'text-emerald-300' : '')} />
+                                    <span>Helpful</span>
+                                </button>
+                                <button
+                                    onClick={() => handleRateClick('down')}
+                                    className={cn(
+                                        "flex items-center gap-1.5 text-xs px-2 py-1 rounded border transition-colors",
+                                        rating === 'down'
+                                            ? "border-red-400/60 bg-red-500/15 text-red-300"
+                                            : "border-transparent text-gray-500 hover:text-white hover:bg-white/5"
+                                    )}
+                                    title="Needs work"
+                                >
+                                    <ThumbsDown size={14} className={cn(rating === 'down' ? 'text-red-300' : '')} />
+                                    <span>Needs work</span>
+                                </button>
+                            </>
+                        )}
                         <button
                             onClick={handleCopy}
                             className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-white transition-colors px-2 py-1 rounded hover:bg-white/5"
@@ -438,6 +455,35 @@ function MessageBubbleComponent({
                                 <span>Regenerate</span>
                             </button>
                         )}
+                    </div>
+                )}
+
+                {role === 'assistant' && feedback && (
+                    <p className="mt-2 text-xs text-[#6e7681] italic">
+                        Feedback: {feedback}
+                    </p>
+                )}
+
+                {role === 'assistant' && searchResults && searchResults.length > 0 && (
+                    <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                        {searchResults.slice(0, 6).map((result, idx) => (
+                            <a
+                                key={`${result.url}-${idx}`}
+                                href={result.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-2 rounded-lg border border-[#30363d] bg-[#0d1117] px-3 py-2 text-sm text-[#c9d1d9] hover:border-orange-400 hover:bg-[#161b22] transition-colors"
+                            >
+                                <span className="flex h-6 w-6 items-center justify-center rounded-md bg-orange-500/20 text-orange-300 text-xs font-semibold">
+                                    {idx + 1}
+                                </span>
+                                <div className="min-w-0 flex-1">
+                                    <p className="truncate font-medium text-[#e6edf3]">{result.title || result.url}</p>
+                                    <p className="truncate text-xs text-[#8b949e]">{result.source || result.url}</p>
+                                </div>
+                                <LinkIcon size={14} className="text-[#8b949e] flex-shrink-0" />
+                            </a>
+                        ))}
                     </div>
                 )}
             </div>

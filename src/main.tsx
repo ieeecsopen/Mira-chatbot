@@ -5,6 +5,7 @@ import { Toaster } from 'sonner'
 import './index.css'
 import App from './App.tsx'
 import { ThemeProvider } from './contexts/ThemeContext'
+import { MetricsProvider } from './contexts/MetricsContext'
 
 // Create a client for React Query
 const queryClient = new QueryClient({
@@ -22,21 +23,23 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
-        <App />
-        <Toaster
-          position="bottom-right"
-          toastOptions={{
-            style: {
-              background: '#161b22',
-              border: '1px solid #30363d',
-              color: '#c9d1d9',
-            },
-            className: 'sonner-toast',
-          }}
-          theme="dark"
-          richColors
-          closeButton
-        />
+        <MetricsProvider>
+          <App />
+          <Toaster
+            position="bottom-right"
+            toastOptions={{
+              style: {
+                background: '#161b22',
+                border: '1px solid #30363d',
+                color: '#c9d1d9',
+              },
+              className: 'sonner-toast',
+            }}
+            theme="dark"
+            richColors
+            closeButton
+          />
+        </MetricsProvider>
       </ThemeProvider>
     </QueryClientProvider>
   </StrictMode>,
