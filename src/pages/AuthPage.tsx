@@ -170,6 +170,8 @@ export function AuthPage() {
                                     size="large"
                                     text={mode === 'signin' ? 'signin_with' : 'signup_with'}
                                     width="350"
+                                    useOneTap={false}
+                                    context={mode === 'signin' ? 'signin' : 'signup'}
                                 />
                             </div>
                         )}
