@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { Routes, Route } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { MessageBubble } from './components/MessageBubble';
 import { ChatInput, type SlashCommand } from './components/ChatInput';
@@ -34,6 +35,7 @@ import { useMetrics } from './contexts/MetricsContext';
 import { EvaluationPanel } from './components/ui/EvaluationPanel';
 import { ModelComparisonPanel, type ComparisonRunState, type ComparisonResultState } from './components/ui/ModelComparisonPanel';
 import { showInfo } from './lib/toast';
+import { AuthPage } from './pages/AuthPage';
 
 interface Message {
   id: string;
@@ -1121,335 +1123,340 @@ function App() {
 
   return (
     <AuthProvider>
-      <div className="flex flex-col h-screen bg-background text-foreground overflow-hidden font-sans selection:bg-white/20 relative">
-        {/* Landing Page - Animates out when chat starts */}
-        <motion.div
-          initial={{ opacity: 1, scale: 1 }}
-          animate={{
-            opacity: hasStarted ? 0 : 1,
-            scale: hasStarted ? 0.95 : 1,
-            pointerEvents: hasStarted ? 'none' : 'auto',
-          }}
-          transition={{ duration: 0.5, ease: "easeInOut" }}
-          className="absolute inset-0 z-30"
-        >
-          <LandingPage
-            onStartChat={handleSend}
-            selectedModel={selectedModel}
-            onModelChange={setSelectedModel}
-          />
-        </motion.div>
-
-        {/* Main Chat Interface - Animates in when chat starts */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: hasStarted ? 1 : 0 }}
-          transition={{ duration: 0.5, delay: hasStarted ? 0.3 : 0 }}
-          className="flex flex-col h-screen"
-          style={{ pointerEvents: hasStarted ? 'auto' : 'none' }}
-        >
-          {/* Navbar - Slides down */}
-          <motion.div
-            initial={{ y: -100, opacity: 0 }}
-            animate={{
-              y: hasStarted ? 0 : -100,
-              opacity: hasStarted ? 1 : 0,
-            }}
-            transition={{ duration: 0.6, delay: hasStarted ? 0.4 : 0, ease: "easeOut" }}
-          >
-            <Navbar
-              onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)}
-              onNewChat={handleNewChat}
-              onSearchClick={() => setIsSearchOpen(true)}
-              onShareClick={() => setIsShareModalOpen(true)}
-              onMemoryClick={() => setIsMemoryPanelOpen(true)}
-              onWorkspaceClick={() => setIsWorkspacePanelOpen(true)}
-              onAnalyticsClick={() => setIsEvaluationPanelOpen(true)}
-              chatTitle={currentSessionTitle}
-            />
-          </motion.div>
-
-          {/* Search Modal */}
-          <SearchMessages
-            isOpen={isSearchOpen}
-            onClose={() => setIsSearchOpen(false)}
-            onSelectSession={handleSelectSessionFromSearch}
-            currentSessionId={currentSessionId || undefined}
-          />
-
-          <div className="flex flex-1 pt-16 overflow-hidden">
-            {/* Sidebar - Slides in from left */}
+      <Routes>
+        <Route path="/auth" element={<AuthPage />} />
+        <Route path="*" element={
+          <div className="flex flex-col h-screen bg-background text-foreground overflow-hidden font-sans selection:bg-white/20 relative">
+            {/* Landing Page - Animates out when chat starts */}
             <motion.div
-              initial={{ x: -280, opacity: 0 }}
+              initial={{ opacity: 1, scale: 1 }}
               animate={{
-                x: hasStarted ? 0 : -280,
-                opacity: hasStarted ? 1 : 0,
+                opacity: hasStarted ? 0 : 1,
+                scale: hasStarted ? 0.95 : 1,
+                pointerEvents: hasStarted ? 'none' : 'auto',
               }}
-              transition={{ duration: 0.6, delay: hasStarted ? 0.5 : 0, ease: "easeOut" }}
+              transition={{ duration: 0.5, ease: "easeInOut" }}
+              className="absolute inset-0 z-30"
             >
-              <Sidebar
-                chatSessions={chatSessions}
-                currentSessionId={currentSessionId}
-                onNewChat={handleNewChat}
-                onSelectSession={handleSelectSession}
-                onDeleteSession={handleDeleteSession}
+              <LandingPage
+                onStartChat={handleSend}
+                selectedModel={selectedModel}
+                onModelChange={setSelectedModel}
               />
             </motion.div>
 
-            {/* Main Chat Area - Fades in */}
+            {/* Main Chat Interface - Animates in when chat starts */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: hasStarted ? 1 : 0 }}
-              transition={{ duration: 0.5, delay: hasStarted ? 0.6 : 0 }}
-              className="flex-1 flex flex-col h-full relative bg-background"
+              transition={{ duration: 0.5, delay: hasStarted ? 0.3 : 0 }}
+              className="flex flex-col h-screen"
+              style={{ pointerEvents: hasStarted ? 'auto' : 'none' }}
             >
-              {/* Messages */}
-              <div
-                ref={scrollContainerRef}
-                onScroll={handleScroll}
-                className="flex-1 overflow-y-auto p-4 md:px-6 scroll-smooth relative z-0"
-              >
-                <div className="max-w-5xl mx-auto pt-4 md:pt-10 pb-4">
-                  {/* Loading indicator for older messages */}
-                  {isLoadingMore && (
-                    <div className="flex justify-center py-4">
-                      <div className="w-6 h-6 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
-                    </div>
-                  )}
-                  {messages.map((msg, index) => (
-                    <div key={msg.id}>
-                      {/* Show search results before assistant message */}
-                      {msg.role === 'assistant' && msg.searchResults && msg.searchResults.length > 0 && (
-                        <SearchResultsCard
-                          results={msg.searchResults}
-                          query={messages[index - 1]?.content || ''}
-                        />
-                      )}
-                      {/* Show searching indicator */}
-                      {msg.role === 'assistant' && isSearchingWeb && index === messages.length - 1 && (
-                        <SearchResultsCard
-                          results={[]}
-                          query={messages[index - 1]?.content || ''}
-                          isSearching={true}
-                        />
-                      )}
-                      {/* Show image generating indicator */}
-                      {msg.role === 'assistant' && msg.isGeneratingImage && msg.imagePrompt && (
-                        <ImageGeneratingCard prompt={msg.imagePrompt} />
-                      )}
-                      {/* Show generated image */}
-                      {msg.role === 'assistant' && msg.generatedImage && (
-                        <ImageDisplay
-                          image={msg.generatedImage}
-                          onRegenerate={(prompt) => handleSend(`/imagine ${prompt}`)}
-                        />
-                      )}
-                      {/* Show message bubble (skip if only showing image) */}
-                      {!(msg.role === 'assistant' && msg.isGeneratingImage && !msg.content) && (
-                        <MessageBubble
-                          role={msg.role}
-                          content={msg.content}
-                          messageId={msg.id}
-                          isStreaming={isStreaming && index === messages.length - 1 && msg.role === 'assistant'}
-                          isWaiting={isWaiting && index === messages.length - 1 && msg.role === 'assistant'}
-                          onRegenerate={
-                            !isStreaming && msg.role === 'assistant' && index === messages.length - 1 && !msg.generatedImage
-                              ? handleRegenerate
-                              : undefined
-                          }
-                          onCompare={
-                            !isStreaming && msg.role === 'assistant'
-                              ? handleOpenComparisonPanel
-                              : undefined
-                          }
-                          onOpenInCanvas={
-                            !isStreaming && msg.role === 'assistant'
-                              ? (code, language) => {
-                                const lang = language || 'plaintext';
-                                const isRunnable = ['html', 'javascript', 'js', 'typescript', 'ts', 'jsx', 'tsx'].includes(lang.toLowerCase());
-                                canvas.addItem(code, undefined, 'code', lang, isRunnable ? 'preview' : 'code');
-                              }
-                              : undefined
-                          }
-                          onEdit={
-                            !isStreaming && msg.role === 'user'
-                              ? handleEditMessage
-                              : undefined
-                          }
-                          rating={msg.rating}
-                          onRate={
-                            msg.role === 'assistant'
-                              ? handleRateMessage
-                              : undefined
-                          }
-                          searchResults={msg.searchResults}
-                          feedback={msg.feedback}
-                          thinkingContent={msg.thinkingContent}
-                          isThinking={msg.isThinking}
-                        />
-                      )}
-                    </div>
-                  ))}
-                  <div ref={messagesEndRef} className="h-4" />
-                </div>
-              </div>
-
-              {/* File Preview */}
-              {attachedFiles.length > 0 && (
-                <div className="px-4 md:px-6 bg-background">
-                  <div className="max-w-5xl mx-auto">
-                    <FilePreview files={attachedFiles} onRemove={handleFileRemove} compact />
-                  </div>
-                </div>
-              )}
-
-              {/* Input Area - Slides up */}
+              {/* Navbar - Slides down */}
               <motion.div
-                initial={{ y: 100, opacity: 0 }}
+                initial={{ y: -100, opacity: 0 }}
                 animate={{
-                  y: hasStarted ? 0 : 100,
+                  y: hasStarted ? 0 : -100,
                   opacity: hasStarted ? 1 : 0,
                 }}
-                transition={{ duration: 0.6, delay: hasStarted ? 0.7 : 0, ease: "easeOut" }}
-                className="p-4 md:p-6 bg-background relative z-10"
+                transition={{ duration: 0.6, delay: hasStarted ? 0.4 : 0, ease: "easeOut" }}
               >
-                <div className="max-w-5xl mx-auto">
-                  {/* Document Upload Bar - shows when documents are loaded */}
-                  <div className="mb-3">
-                    <DocumentUploadBar onDocumentsChange={updateDocumentStatus} />
-                  </div>
-
-                  <div className="flex items-center gap-3 mb-3">
-                    <ModelSelector
-                      selectedModel={selectedModel}
-                      onModelChange={setSelectedModel}
-                      disabled={isStreaming}
-                    />
-                    {canvas.items.length > 0 && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => canvas.toggleCanvas()}
-                        className="text-gray-500 hover:text-white gap-2"
-                      >
-                        <PanelRightOpen size={16} />
-                        <span className="text-xs">Canvas ({canvas.items.length})</span>
-                      </Button>
-                    )}
-                    {hasDocuments && (
-                      <span className="text-xs text-orange-400 font-medium">
-                        📄 Document context active
-                      </span>
-                    )}
-                    {isStreaming && (
-                      <span className="text-xs text-gray-400 font-mono animate-pulse">
-                        Generating response...
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Hidden FileUpload to support ChatInput's file picker */}
-                  <div className="hidden">
-                    <FileUpload
-                      onFilesSelected={handleFilesSelected}
-                      onFileRemove={handleFileRemove}
-                      files={attachedFiles}
-                      disabled={isStreaming}
-                    />
-                  </div>
-
-                  <ChatInput
-                    onSend={handleSend}
-                    disabled={isStreaming}
-                    onSlashCommand={handleSlashCommand}
-                    webSearchEnabled={webSearchEnabled}
-                    onToggleWebSearch={() => setWebSearchEnabled(prev => !prev)}
-                    deepThinkEnabled={deepThinkEnabled}
-                    onToggleDeepThink={() => setDeepThinkEnabled(prev => !prev)}
-                    responseStyle={responseStyle}
-                    onChangeResponseStyle={setResponseStyle}
-                    attachedFiles={attachedFiles}
-                    onFileRemove={handleFileRemove}
-                    onVoiceTranscript={handleVoiceTranscript}
-                  />
-                </div>
+                <Navbar
+                  onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                  onNewChat={handleNewChat}
+                  onSearchClick={() => setIsSearchOpen(true)}
+                  onShareClick={() => setIsShareModalOpen(true)}
+                  onMemoryClick={() => setIsMemoryPanelOpen(true)}
+                  onWorkspaceClick={() => setIsWorkspacePanelOpen(true)}
+                  onAnalyticsClick={() => setIsEvaluationPanelOpen(true)}
+                  chatTitle={currentSessionTitle}
+                />
               </motion.div>
+
+              {/* Search Modal */}
+              <SearchMessages
+                isOpen={isSearchOpen}
+                onClose={() => setIsSearchOpen(false)}
+                onSelectSession={handleSelectSessionFromSearch}
+                currentSessionId={currentSessionId || undefined}
+              />
+
+              <div className="flex flex-1 pt-16 overflow-hidden">
+                {/* Sidebar - Slides in from left */}
+                <motion.div
+                  initial={{ x: -280, opacity: 0 }}
+                  animate={{
+                    x: hasStarted ? 0 : -280,
+                    opacity: hasStarted ? 1 : 0,
+                  }}
+                  transition={{ duration: 0.6, delay: hasStarted ? 0.5 : 0, ease: "easeOut" }}
+                >
+                  <Sidebar
+                    chatSessions={chatSessions}
+                    currentSessionId={currentSessionId}
+                    onNewChat={handleNewChat}
+                    onSelectSession={handleSelectSession}
+                    onDeleteSession={handleDeleteSession}
+                  />
+                </motion.div>
+
+                {/* Main Chat Area - Fades in */}
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: hasStarted ? 1 : 0 }}
+                  transition={{ duration: 0.5, delay: hasStarted ? 0.6 : 0 }}
+                  className="flex-1 flex flex-col h-full relative bg-background"
+                >
+                  {/* Messages */}
+                  <div
+                    ref={scrollContainerRef}
+                    onScroll={handleScroll}
+                    className="flex-1 overflow-y-auto p-4 md:px-6 scroll-smooth relative z-0"
+                  >
+                    <div className="max-w-5xl mx-auto pt-4 md:pt-10 pb-4">
+                      {/* Loading indicator for older messages */}
+                      {isLoadingMore && (
+                        <div className="flex justify-center py-4">
+                          <div className="w-6 h-6 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
+                        </div>
+                      )}
+                      {messages.map((msg, index) => (
+                        <div key={msg.id}>
+                          {/* Show search results before assistant message */}
+                          {msg.role === 'assistant' && msg.searchResults && msg.searchResults.length > 0 && (
+                            <SearchResultsCard
+                              results={msg.searchResults}
+                              query={messages[index - 1]?.content || ''}
+                            />
+                          )}
+                          {/* Show searching indicator */}
+                          {msg.role === 'assistant' && isSearchingWeb && index === messages.length - 1 && (
+                            <SearchResultsCard
+                              results={[]}
+                              query={messages[index - 1]?.content || ''}
+                              isSearching={true}
+                            />
+                          )}
+                          {/* Show image generating indicator */}
+                          {msg.role === 'assistant' && msg.isGeneratingImage && msg.imagePrompt && (
+                            <ImageGeneratingCard prompt={msg.imagePrompt} />
+                          )}
+                          {/* Show generated image */}
+                          {msg.role === 'assistant' && msg.generatedImage && (
+                            <ImageDisplay
+                              image={msg.generatedImage}
+                              onRegenerate={(prompt) => handleSend(`/imagine ${prompt}`)}
+                            />
+                          )}
+                          {/* Show message bubble (skip if only showing image) */}
+                          {!(msg.role === 'assistant' && msg.isGeneratingImage && !msg.content) && (
+                            <MessageBubble
+                              role={msg.role}
+                              content={msg.content}
+                              messageId={msg.id}
+                              isStreaming={isStreaming && index === messages.length - 1 && msg.role === 'assistant'}
+                              isWaiting={isWaiting && index === messages.length - 1 && msg.role === 'assistant'}
+                              onRegenerate={
+                                !isStreaming && msg.role === 'assistant' && index === messages.length - 1 && !msg.generatedImage
+                                  ? handleRegenerate
+                                  : undefined
+                              }
+                              onCompare={
+                                !isStreaming && msg.role === 'assistant'
+                                  ? handleOpenComparisonPanel
+                                  : undefined
+                              }
+                              onOpenInCanvas={
+                                !isStreaming && msg.role === 'assistant'
+                                  ? (code, language) => {
+                                    const lang = language || 'plaintext';
+                                    const isRunnable = ['html', 'javascript', 'js', 'typescript', 'ts', 'jsx', 'tsx'].includes(lang.toLowerCase());
+                                    canvas.addItem(code, undefined, 'code', lang, isRunnable ? 'preview' : 'code');
+                                  }
+                                  : undefined
+                              }
+                              onEdit={
+                                !isStreaming && msg.role === 'user'
+                                  ? handleEditMessage
+                                  : undefined
+                              }
+                              rating={msg.rating}
+                              onRate={
+                                msg.role === 'assistant'
+                                  ? handleRateMessage
+                                  : undefined
+                              }
+                              searchResults={msg.searchResults}
+                              feedback={msg.feedback}
+                              thinkingContent={msg.thinkingContent}
+                              isThinking={msg.isThinking}
+                            />
+                          )}
+                        </div>
+                      ))}
+                      <div ref={messagesEndRef} className="h-4" />
+                    </div>
+                  </div>
+
+                  {/* File Preview */}
+                  {attachedFiles.length > 0 && (
+                    <div className="px-4 md:px-6 bg-background">
+                      <div className="max-w-5xl mx-auto">
+                        <FilePreview files={attachedFiles} onRemove={handleFileRemove} compact />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Input Area - Slides up */}
+                  <motion.div
+                    initial={{ y: 100, opacity: 0 }}
+                    animate={{
+                      y: hasStarted ? 0 : 100,
+                      opacity: hasStarted ? 1 : 0,
+                    }}
+                    transition={{ duration: 0.6, delay: hasStarted ? 0.7 : 0, ease: "easeOut" }}
+                    className="p-4 md:p-6 bg-background relative z-10"
+                  >
+                    <div className="max-w-5xl mx-auto">
+                      {/* Document Upload Bar - shows when documents are loaded */}
+                      <div className="mb-3">
+                        <DocumentUploadBar onDocumentsChange={updateDocumentStatus} />
+                      </div>
+
+                      <div className="flex items-center gap-3 mb-3">
+                        <ModelSelector
+                          selectedModel={selectedModel}
+                          onModelChange={setSelectedModel}
+                          disabled={isStreaming}
+                        />
+                        {canvas.items.length > 0 && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => canvas.toggleCanvas()}
+                            className="text-gray-500 hover:text-white gap-2"
+                          >
+                            <PanelRightOpen size={16} />
+                            <span className="text-xs">Canvas ({canvas.items.length})</span>
+                          </Button>
+                        )}
+                        {hasDocuments && (
+                          <span className="text-xs text-orange-400 font-medium">
+                            📄 Document context active
+                          </span>
+                        )}
+                        {isStreaming && (
+                          <span className="text-xs text-gray-400 font-mono animate-pulse">
+                            Generating response...
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Hidden FileUpload to support ChatInput's file picker */}
+                      <div className="hidden">
+                        <FileUpload
+                          onFilesSelected={handleFilesSelected}
+                          onFileRemove={handleFileRemove}
+                          files={attachedFiles}
+                          disabled={isStreaming}
+                        />
+                      </div>
+
+                      <ChatInput
+                        onSend={handleSend}
+                        disabled={isStreaming}
+                        onSlashCommand={handleSlashCommand}
+                        webSearchEnabled={webSearchEnabled}
+                        onToggleWebSearch={() => setWebSearchEnabled(prev => !prev)}
+                        deepThinkEnabled={deepThinkEnabled}
+                        onToggleDeepThink={() => setDeepThinkEnabled(prev => !prev)}
+                        responseStyle={responseStyle}
+                        onChangeResponseStyle={setResponseStyle}
+                        attachedFiles={attachedFiles}
+                        onFileRemove={handleFileRemove}
+                        onVoiceTranscript={handleVoiceTranscript}
+                      />
+                    </div>
+                  </motion.div>
+                </motion.div>
+              </div>
             </motion.div>
+
+            <ModelComparisonPanel
+              isOpen={!!comparisonContext}
+              prompt={comparisonContext?.prompt || ''}
+              suggestedModels={comparisonContext?.suggestedModels || [selectedModel]}
+              availableModels={MIRA_MODELS}
+              onClose={handleCloseComparisonPanel}
+              onCompare={handleStartComparison}
+              comparisonRun={comparisonRun}
+            />
+
+            {/* Command Palette */}
+            <CommandPalette
+              isOpen={isCommandPaletteOpen}
+              onClose={() => setIsCommandPaletteOpen(false)}
+              onSelect={handleSlashCommand}
+            />
+
+            {/* Share Modal */}
+            <ShareModal
+              isOpen={isShareModalOpen}
+              onClose={() => setIsShareModalOpen(false)}
+              session={currentSession}
+            />
+
+            {/* Memory Panel */}
+            <MemoryPanel
+              isOpen={isMemoryPanelOpen}
+              onClose={() => setIsMemoryPanelOpen(false)}
+            />
+
+            {/* Workspace Panel */}
+            <WorkspacePanel
+              isOpen={isWorkspacePanelOpen}
+              onClose={() => setIsWorkspacePanelOpen(false)}
+            />
+
+            <EvaluationPanel
+              isOpen={isEvaluationPanelOpen}
+              onClose={() => setIsEvaluationPanelOpen(false)}
+            />
+
+            {/* Template Panel */}
+            <TemplatePanel
+              isOpen={isTemplatePanelOpen}
+              onClose={() => setIsTemplatePanelOpen(false)}
+              onSelectTemplate={(prompt) => {
+                // Insert the template prompt - user will need to complete it
+                const input = document.querySelector('textarea') as HTMLTextAreaElement;
+                if (input) {
+                  input.value = prompt;
+                  input.focus();
+                  // Trigger input event to update React state
+                  const event = new Event('input', { bubbles: true });
+                  input.dispatchEvent(event);
+                }
+              }}
+            />
+
+            {/* Canvas Panel */}
+            <Canvas
+              isOpen={canvas.isOpen}
+              onClose={canvas.closeCanvas}
+              items={canvas.items}
+              activeItemId={canvas.activeItemId}
+              onSelectItem={canvas.selectItem}
+              onUpdateItem={canvas.updateItem}
+              onDeleteItem={canvas.deleteItem}
+              viewMode={canvas.viewMode}
+              onViewModeChange={canvas.setViewMode}
+            />
           </div>
-        </motion.div>
-
-        <ModelComparisonPanel
-          isOpen={!!comparisonContext}
-          prompt={comparisonContext?.prompt || ''}
-          suggestedModels={comparisonContext?.suggestedModels || [selectedModel]}
-          availableModels={MIRA_MODELS}
-          onClose={handleCloseComparisonPanel}
-          onCompare={handleStartComparison}
-          comparisonRun={comparisonRun}
-        />
-
-        {/* Command Palette */}
-        <CommandPalette
-          isOpen={isCommandPaletteOpen}
-          onClose={() => setIsCommandPaletteOpen(false)}
-          onSelect={handleSlashCommand}
-        />
-
-        {/* Share Modal */}
-        <ShareModal
-          isOpen={isShareModalOpen}
-          onClose={() => setIsShareModalOpen(false)}
-          session={currentSession}
-        />
-
-        {/* Memory Panel */}
-        <MemoryPanel
-          isOpen={isMemoryPanelOpen}
-          onClose={() => setIsMemoryPanelOpen(false)}
-        />
-
-        {/* Workspace Panel */}
-        <WorkspacePanel
-          isOpen={isWorkspacePanelOpen}
-          onClose={() => setIsWorkspacePanelOpen(false)}
-        />
-
-        <EvaluationPanel
-          isOpen={isEvaluationPanelOpen}
-          onClose={() => setIsEvaluationPanelOpen(false)}
-        />
-
-        {/* Template Panel */}
-        <TemplatePanel
-          isOpen={isTemplatePanelOpen}
-          onClose={() => setIsTemplatePanelOpen(false)}
-          onSelectTemplate={(prompt) => {
-            // Insert the template prompt - user will need to complete it
-            const input = document.querySelector('textarea') as HTMLTextAreaElement;
-            if (input) {
-              input.value = prompt;
-              input.focus();
-              // Trigger input event to update React state
-              const event = new Event('input', { bubbles: true });
-              input.dispatchEvent(event);
-            }
-          }}
-        />
-
-        {/* Canvas Panel */}
-        <Canvas
-          isOpen={canvas.isOpen}
-          onClose={canvas.closeCanvas}
-          items={canvas.items}
-          activeItemId={canvas.activeItemId}
-          onSelectItem={canvas.selectItem}
-          onUpdateItem={canvas.updateItem}
-          onDeleteItem={canvas.deleteItem}
-          viewMode={canvas.viewMode}
-          onViewModeChange={canvas.setViewMode}
-        />
-      </div >
-    </AuthProvider >
+        } />
+      </Routes>
+    </AuthProvider>
   );
 }
 
