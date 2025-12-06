@@ -3,9 +3,8 @@ import { motion } from 'framer-motion';
 import { MessageBubble } from './components/MessageBubble';
 import { ChatInput, type SlashCommand } from './components/ChatInput';
 import { LandingPage } from './components/LandingPage';
-import { ModelSelector, MIRA_MODELS } from './components/ModelSelector';
+import { MIRA_MODELS } from './components/ModelSelector';
 import { PanelRightOpen } from 'lucide-react';
-import { Button } from './components/ui/button';
 import { Sidebar } from './components/ui/Sidebar';
 import { streamMessage } from './lib/api';
 import { shouldSearchWeb } from './lib/webSearch';
@@ -14,10 +13,8 @@ import { Canvas } from './components/ui/Canvas';
 import { useCanvas } from './hooks/useCanvas';
 import { Navbar } from './components/ui/Navbar';
 import { SearchMessages } from './components/ui/SearchMessages';
-import { VoiceInput } from './components/ui/VoiceInput';
-import { FileUpload, FilePreview, type UploadedFile } from './components/ui/FileUpload';
+import { FilePreview, type UploadedFile } from './components/ui/FileUpload';
 import { SearchResultsCard } from './components/ui/SearchResultsCard';
-import { DocumentUploadBar } from './components/ui/DocumentUploadBar';
 import { ImageGeneratingCard, ImageDisplay } from './components/ui/ImageGenerator';
 import { getDocumentStore } from './lib/documentStore';
 import { parseImageCommand, generateImage, type GeneratedImage } from './lib/imageGeneration';
@@ -1133,64 +1130,49 @@ function App() {
                 transition={{ duration: 0.6, delay: hasStarted ? 0.7 : 0, ease: "easeOut" }}
                 className="p-4 md:p-6 bg-background relative z-10"
               >
-                <div className="max-w-3xl mx-auto">
-                  {/* Document Upload Bar - shows when documents are loaded */}
-                  <div className="mb-3">
-                    <DocumentUploadBar onDocumentsChange={updateDocumentStatus} />
-                  </div>
-
-                  <div className="flex items-center gap-3 mb-3">
-                    <ModelSelector
-                      selectedModel={selectedModel}
-                      onModelChange={setSelectedModel}
-                      disabled={isStreaming}
-                    />
-                    {canvas.items.length > 0 && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => canvas.toggleCanvas()}
-                        className="text-gray-500 hover:text-white gap-2"
-                      >
-                        <PanelRightOpen size={16} />
-                        <span className="text-xs">Canvas ({canvas.items.length})</span>
-                      </Button>
-                    )}
-                    {hasDocuments && (
-                      <span className="text-xs text-orange-400 font-medium">
-                        📄 Document context active
-                      </span>
-                    )}
-                    {isStreaming && (
-                      <span className="text-xs text-gray-400 font-mono animate-pulse">
-                        Generating response...
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <FileUpload
-                      onFilesSelected={handleFilesSelected}
-                      onFileRemove={handleFileRemove}
-                      files={attachedFiles}
-                      disabled={isStreaming}
-                    />
-                    <VoiceInput
-                      onTranscript={handleVoiceTranscript}
-                      disabled={isStreaming}
-                      language="si-LK"
-                    />
-                    <div className="flex-1">
-                      <ChatInput
-                        onSend={handleSend}
-                        disabled={isStreaming}
-                        onSlashCommand={handleSlashCommand}
-                        webSearchEnabled={webSearchEnabled}
-                        onToggleWebSearch={() => setWebSearchEnabled(prev => !prev)}
-                        responseStyle={responseStyle}
-                        onChangeResponseStyle={setResponseStyle}
-                      />
+                <div className="max-w-3xl mx-auto space-y-3">
+                  {/* Status indicators - only show when relevant */}
+                  {(hasDocuments || isStreaming || canvas.items.length > 0) && (
+                    <div className="flex items-center justify-center gap-3 text-xs">
+                      {hasDocuments && (
+                        <span className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-orange-500/10 text-orange-400 border border-orange-500/20">
+                          📄 Docs active
+                        </span>
+                      )}
+                      {canvas.items.length > 0 && (
+                        <button
+                          onClick={() => canvas.toggleCanvas()}
+                          className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-blue-500/10 text-blue-400 border border-blue-500/20 hover:bg-blue-500/20 transition-colors"
+                        >
+                          <PanelRightOpen size={12} />
+                          Canvas ({canvas.items.length})
+                        </button>
+                      )}
+                      {isStreaming && (
+                        <span className="text-gray-400 font-mono animate-pulse">
+                          Generating...
+                        </span>
+                      )}
                     </div>
-                  </div>
+                  )}
+
+                  {/* Unified Chat Input */}
+                  <ChatInput
+                    onSend={handleSend}
+                    disabled={isStreaming}
+                    onSlashCommand={handleSlashCommand}
+                    webSearchEnabled={webSearchEnabled}
+                    onToggleWebSearch={() => setWebSearchEnabled(prev => !prev)}
+                    responseStyle={responseStyle}
+                    onChangeResponseStyle={setResponseStyle}
+                    selectedModel={selectedModel}
+                    onModelChange={setSelectedModel}
+                    onFilesSelected={handleFilesSelected}
+                    onFileRemove={handleFileRemove}
+                    attachedFiles={attachedFiles}
+                    onVoiceTranscript={handleVoiceTranscript}
+                    onDocumentsChange={updateDocumentStatus}
+                  />
                 </div>
               </motion.div>
             </motion.div>

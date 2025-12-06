@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   Menu,
   Plus,
@@ -10,7 +10,9 @@ import {
   Share2,
   Brain,
   Building2,
-  BarChart3
+  BarChart3,
+  MoreHorizontal,
+  X
 } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
@@ -42,17 +44,22 @@ export function Navbar({
   chatTitle,
 }: NavbarProps) {
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const [isToolsMenuOpen, setIsToolsMenuOpen] = useState(false);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
   const userMenuRef = useRef<HTMLDivElement>(null);
+  const toolsMenuRef = useRef<HTMLDivElement>(null);
 
   const { user, isAuthenticated, signOut } = useAuth();
 
-  // Close user menu when clicking outside
+  // Close menus when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
         setIsUserMenuOpen(false);
+      }
+      if (toolsMenuRef.current && !toolsMenuRef.current.contains(event.target as Node)) {
+        setIsToolsMenuOpen(false);
       }
     };
 
@@ -75,256 +82,221 @@ export function Navbar({
     setIsUserMenuOpen(false);
   };
 
+  const handleToolAction = (action?: () => void) => {
+    action?.();
+    setIsToolsMenuOpen(false);
+  };
+
+  // Tools menu items
+  const toolsMenuItems = [
+    { icon: Search, label: 'Search', shortcut: '⌘K', onClick: onSearchClick },
+    ...(chatTitle ? [{ icon: Share2, label: 'Share Chat', onClick: onShareClick }] : []),
+    { icon: Settings, label: 'Settings', onClick: onSettingsClick },
+    { icon: BarChart3, label: 'Analytics', onClick: onAnalyticsClick, color: 'text-emerald-400' },
+    { icon: Brain, label: 'Memory', onClick: onMemoryClick, color: 'text-purple-400' },
+    { icon: Building2, label: 'Workspaces', onClick: onWorkspaceClick, color: 'text-blue-400' },
+  ];
+
   return (
     <motion.header
       initial={{ y: -20, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
-      className="fixed top-0 left-0 right-0 h-16 z-40
+      className="fixed top-0 left-0 right-0 h-14 z-40
         bg-[#0a0a0a]/95 backdrop-blur-xl
-        border-b border-white/[0.08]
-        shadow-lg shadow-black/20"
+        border-b border-white/[0.06]"
     >
-      {/* Subtle gradient overlay */}
-      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/[0.02] to-transparent pointer-events-none" />
-
-      <div className="relative h-full max-w-[1800px] mx-auto px-4 md:px-6 flex items-center justify-between">
-        {/* Left section */}
-        <div className="flex items-center gap-3 md:gap-4">
+      <div className="relative h-full max-w-[1800px] mx-auto px-4 flex items-center justify-between">
+        {/* Left section - Logo */}
+        <div className="flex items-center gap-3">
           {showMenu && (
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               onClick={onMenuClick}
-              className="w-10 h-10 flex items-center justify-center rounded-xl
-                hover:bg-white/10 text-gray-400 hover:text-white transition-all duration-200
-                md:hidden border border-transparent hover:border-white/10"
+              className="w-9 h-9 flex items-center justify-center rounded-lg
+                hover:bg-white/10 text-gray-400 hover:text-white transition-all
+                md:hidden"
               aria-label="Toggle menu"
             >
-              <Menu size={20} />
+              <Menu size={18} />
             </motion.button>
           )}
 
           {/* Logo */}
           <motion.div
-            className="flex items-center gap-2.5"
+            className="flex items-center gap-2"
             whileHover={{ scale: 1.02 }}
           >
-            <div className="relative">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center shadow-lg shadow-orange-500/25">
-                <Sparkles size={18} className="text-white" />
-              </div>
-              <div className="absolute -inset-0.5 bg-gradient-to-r from-orange-500 to-orange-600 rounded-xl blur opacity-30 -z-10" />
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center shadow-lg shadow-orange-500/20">
+              <Sparkles size={16} className="text-white" />
             </div>
-            <span className="text-xl font-bold text-white tracking-tight hidden sm:block
-              bg-gradient-to-r from-white to-gray-300 bg-clip-text">
+            <span className="text-lg font-semibold text-white tracking-tight hidden sm:block">
               Mira
             </span>
           </motion.div>
-
-          {/* Chat title */}
-          {chatTitle && (
-            <>
-              <div className="w-px h-6 bg-gradient-to-b from-transparent via-white/20 to-transparent mx-1 hidden md:block" />
-              <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10">
-                <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-                <span className="text-sm text-gray-300 font-medium truncate max-w-[250px]">
-                  {chatTitle}
-                </span>
-              </div>
-            </>
-          )}
         </div>
 
-        {/* Center section - Navigation tabs */}
-        <div className="hidden lg:flex items-center gap-1">
-          <NavTab active>Chat</NavTab>
-          <NavTab disabled>Explore</NavTab>
-          <NavTab disabled>Library</NavTab>
-        </div>
+        {/* Center - Chat title (only when exists) */}
+        {chatTitle && (
+          <div className="absolute left-1/2 -translate-x-1/2 hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 max-w-[300px]">
+            <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse shrink-0" />
+            <span className="text-sm text-gray-300 truncate">
+              {chatTitle}
+            </span>
+          </div>
+        )}
 
-        {/* Right section */}
+        {/* Right section - Actions */}
         <div className="flex items-center gap-2">
-          {/* New Chat button */}
+          {/* New Chat - Primary action */}
           <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
+            whileHover={{ scale: 1.03 }}
+            whileTap={{ scale: 0.97 }}
             onClick={onNewChat}
-            className="group h-10 px-4 md:px-5 flex items-center gap-2 rounded-xl
-              bg-gradient-to-r from-white to-gray-100 hover:from-gray-100 hover:to-white
-              text-black font-semibold text-sm transition-all duration-200
-              shadow-lg shadow-white/10 hover:shadow-white/20"
+            className="h-9 px-4 flex items-center gap-2 rounded-lg
+              bg-white hover:bg-gray-100
+              text-black font-medium text-sm transition-all
+              shadow-sm"
           >
-            <Plus size={18} className="transition-transform group-hover:rotate-90" />
+            <Plus size={16} />
             <span className="hidden sm:inline">New</span>
           </motion.button>
 
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={onSearchClick}
-            className="w-10 h-10 flex items-center justify-center rounded-xl
-              hover:bg-white/10 text-gray-400 hover:text-white transition-all duration-200
-              border border-transparent hover:border-white/10"
-            aria-label="Search"
-          >
-            <Search size={18} />
-          </motion.button>
-
-          {/* Share button */}
-          {chatTitle && (
+          {/* Tools Menu - Progressive disclosure */}
+          <div className="relative" ref={toolsMenuRef}>
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              onClick={onShareClick}
-              className="w-10 h-10 flex items-center justify-center rounded-xl
-                hover:bg-white/10 text-gray-400 hover:text-white transition-all duration-200
-                border border-transparent hover:border-white/10"
-              aria-label="Share conversation"
+              onClick={() => setIsToolsMenuOpen(!isToolsMenuOpen)}
+              className={`w-9 h-9 flex items-center justify-center rounded-lg
+                transition-all ${isToolsMenuOpen
+                  ? 'bg-white/15 text-white'
+                  : 'hover:bg-white/10 text-gray-400 hover:text-white'
+                }`}
+              aria-label="Tools menu"
             >
-              <Share2 size={18} />
+              {isToolsMenuOpen ? <X size={18} /> : <MoreHorizontal size={18} />}
             </motion.button>
-          )}
 
-          {/* Settings button */}
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={onSettingsClick}
-            className="hidden sm:flex w-10 h-10 items-center justify-center rounded-xl
-              hover:bg-white/10 text-gray-400 hover:text-white transition-all duration-200
-              border border-transparent hover:border-white/10"
-            aria-label="Settings"
-          >
-            <Settings size={18} />
-          </motion.button>
+            {/* Tools Dropdown */}
+            <AnimatePresence>
+              {isToolsMenuOpen && (
+                <motion.div
+                  initial={{ opacity: 0, y: -8, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -8, scale: 0.95 }}
+                  transition={{ duration: 0.15 }}
+                  className="absolute right-0 mt-2 w-56 rounded-xl overflow-hidden
+                    bg-[#1a1a1a] border border-white/10
+                    shadow-xl shadow-black/40 z-50"
+                >
+                  <div className="p-1.5">
+                    {toolsMenuItems.map((item) => (
+                      <button
+                        key={item.label}
+                        onClick={() => handleToolAction(item.onClick)}
+                        className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg
+                          transition-all text-sm font-medium
+                          ${item.color || 'text-gray-300'} hover:text-white hover:bg-white/10`}
+                      >
+                        <item.icon size={16} />
+                        <span className="flex-1 text-left">{item.label}</span>
+                        {item.shortcut && (
+                          <span className="text-[10px] text-gray-600 font-mono">{item.shortcut}</span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
 
-          {/* Analytics button */}
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={onAnalyticsClick}
-            className="hidden sm:flex w-10 h-10 items-center justify-center rounded-xl
-              hover:bg-white/10 text-gray-400 hover:text-emerald-300 transition-all duration-200
-              border border-transparent hover:border-emerald-400/20"
-            aria-label="Analytics"
-          >
-            <BarChart3 size={18} />
-          </motion.button>
-
-          {/* Memory button */}
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={onMemoryClick}
-            className="hidden sm:flex w-10 h-10 items-center justify-center rounded-xl
-              hover:bg-white/10 text-gray-400 hover:text-purple-400 transition-all duration-200
-              border border-transparent hover:border-purple-500/20"
-            aria-label="Memory"
-          >
-            <Brain size={18} />
-          </motion.button>
-
-          {/* Workspace button */}
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={onWorkspaceClick}
-            className="hidden sm:flex w-10 h-10 items-center justify-center rounded-xl
-              hover:bg-white/10 text-gray-400 hover:text-blue-400 transition-all duration-200
-              border border-transparent hover:border-blue-500/20"
-            aria-label="Workspaces"
-          >
-            <Building2 size={18} />
-          </motion.button>
-
-          {/* Auth buttons / User menu */}
+          {/* User Menu */}
           {isAuthenticated ? (
             <div className="relative" ref={userMenuRef}>
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-                className="relative w-10 h-10 flex items-center justify-center rounded-xl
+                className="relative w-9 h-9 flex items-center justify-center rounded-lg
                   bg-gradient-to-br from-gray-800 to-gray-900
                   hover:from-gray-700 hover:to-gray-800
-                  text-white transition-all duration-200
-                  border border-white/20 shadow-lg"
+                  text-white transition-all border border-white/10"
                 aria-label="User menu"
               >
-                <User size={18} />
-                <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-[#0a0a0a] rounded-full" />
+                <User size={16} />
+                <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-green-500 border-2 border-[#0a0a0a] rounded-full" />
               </motion.button>
 
               {/* User dropdown */}
-              {isUserMenuOpen && (
-                <motion.div
-                  initial={{ opacity: 0, y: -10, scale: 0.95 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  className="absolute right-0 mt-3 w-64 rounded-2xl overflow-hidden
-                    bg-gradient-to-b from-[#1a1a1a] to-[#0f0f0f]
-                    border border-white/10
-                    shadow-2xl shadow-black/50 z-50"
-                >
-                  {/* User info header */}
-                  <div className="p-4 border-b border-white/10 bg-white/5">
-                    <div className="flex items-center gap-3">
-                      <div className="relative">
-                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-gray-800 to-gray-900
-                          flex items-center justify-center border border-white/20 shadow-lg">
-                          <User size={20} className="text-white" />
+              <AnimatePresence>
+                {isUserMenuOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -8, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -8, scale: 0.95 }}
+                    transition={{ duration: 0.15 }}
+                    className="absolute right-0 mt-2 w-56 rounded-xl overflow-hidden
+                      bg-[#1a1a1a] border border-white/10
+                      shadow-xl shadow-black/40 z-50"
+                  >
+                    {/* User info header */}
+                    <div className="p-3 border-b border-white/10 bg-white/5">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-gray-800 to-gray-900
+                          flex items-center justify-center border border-white/10">
+                          <User size={16} className="text-white" />
                         </div>
-                        <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-green-500 border-2 border-[#1a1a1a] rounded-full" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-white truncate">{user?.name || 'User'}</p>
-                        <p className="text-xs text-gray-500 truncate">{user?.email}</p>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-white text-sm truncate">{user?.name || 'User'}</p>
+                          <p className="text-xs text-gray-500 truncate">{user?.email}</p>
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  {/* Menu items */}
-                  <div className="p-2">
-                    <UserMenuItem icon={User} label="Profile" />
-                    <UserMenuItem icon={Settings} label="Settings" onClick={onSettingsClick} />
-                    <UserMenuItem icon={Sparkles} label="Upgrade to Pro" badge="New" variant="premium" />
-                  </div>
+                    {/* Menu items */}
+                    <div className="p-1.5">
+                      <UserMenuItem icon={User} label="Profile" />
+                      <UserMenuItem icon={Settings} label="Settings" onClick={onSettingsClick} />
+                      <UserMenuItem icon={Sparkles} label="Upgrade to Pro" badge="New" variant="premium" />
+                    </div>
 
-                  {/* Danger zone */}
-                  <div className="p-2 border-t border-white/10">
-                    <button
-                      onClick={handleSignOut}
-                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl
-                        text-gray-400 hover:text-white hover:bg-white/5
-                        transition-all duration-150 text-sm font-medium"
-                    >
-                      <LogOut size={16} />
-                      <span>Sign Out</span>
-                    </button>
-                  </div>
-                </motion.div>
-              )}
+                    {/* Sign out */}
+                    <div className="p-1.5 border-t border-white/10">
+                      <button
+                        onClick={handleSignOut}
+                        className="w-full flex items-center gap-3 px-3 py-2 rounded-lg
+                          text-gray-400 hover:text-white hover:bg-white/10
+                          transition-all text-sm font-medium"
+                      >
+                        <LogOut size={16} />
+                        <span>Sign Out</span>
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           ) : (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
               <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.97 }}
                 onClick={handleSignIn}
-                className="h-10 px-4 flex items-center rounded-xl
+                className="h-9 px-3 flex items-center rounded-lg
                   hover:bg-white/10 text-gray-300 hover:text-white
-                  text-sm font-semibold transition-all duration-200
-                  border border-transparent hover:border-white/10"
+                  text-sm font-medium transition-all"
               >
                 Sign in
               </motion.button>
               <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.97 }}
                 onClick={handleSignUp}
-                className="h-10 px-4 flex items-center rounded-xl
-                  bg-white text-black hover:bg-gray-200
-                  text-sm font-semibold transition-all duration-200
-                  shadow-lg shadow-white/10"
+                className="h-9 px-3 flex items-center rounded-lg
+                  bg-white text-black hover:bg-gray-100
+                  text-sm font-medium transition-all"
               >
                 Sign up
               </motion.button>
@@ -343,39 +315,6 @@ export function Navbar({
   );
 }
 
-// Nav tab component
-interface NavTabProps {
-  children: React.ReactNode;
-  active?: boolean;
-  disabled?: boolean;
-  onClick?: () => void;
-}
-
-function NavTab({ children, active, disabled, onClick }: NavTabProps) {
-  return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      className={`relative px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200
-        ${active
-          ? 'text-white bg-white/10 shadow-lg border border-white/10'
-          : disabled
-            ? 'text-gray-600 cursor-not-allowed'
-            : 'text-gray-400 hover:text-white hover:bg-white/5 border border-transparent hover:border-white/10'
-        }`}
-    >
-      {active && (
-        <motion.div
-          layoutId="activeTab"
-          className="absolute inset-0 bg-white/5 rounded-xl -z-10"
-          transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
-        />
-      )}
-      {children}
-    </button>
-  );
-}
-
 // User menu item
 interface UserMenuItemProps {
   icon: React.ComponentType<{ size?: number }>;
@@ -389,11 +328,11 @@ function UserMenuItem({ icon: Icon, label, onClick, badge, variant = 'default' }
   return (
     <button
       onClick={onClick}
-      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl
-        transition-all duration-150 text-sm font-medium
+      className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg
+        transition-all text-sm font-medium
         ${variant === 'premium'
-          ? 'text-orange-400 hover:text-orange-300 hover:bg-orange-500/10 border border-transparent hover:border-orange-500/20'
-          : 'text-gray-300 hover:text-white hover:bg-white/5'
+          ? 'text-orange-400 hover:text-orange-300 hover:bg-orange-500/10'
+          : 'text-gray-300 hover:text-white hover:bg-white/10'
         }`}
     >
       <Icon size={16} />
