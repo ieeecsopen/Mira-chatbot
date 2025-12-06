@@ -445,66 +445,34 @@ export async function streamMessage(
             : [...AVAILABLE_MODELS].sort((a, b) => a.priority - b.priority);
     }
 
-    // Build conversation history for API
-    const historyContents = conversationHistory
-        ? conversationHistory.map(msg => ({
-            role: msg.role === 'assistant' ? 'model' : 'user',
-            parts: [{ text: msg.content }]
-        }))
-        : [];
-
     let lastError: Error | null = null;
     let fullResponse = ''; // Collect full response for caching
 
     for (const model of models) {
         try {
-            console.log(`🤖 Trying streaming with: ${model.name}${historyContents.length > 0 ? ` (with ${historyContents.length} history messages)` : ''}${options?.deepThink ? ' [DEEP THINK MODE]' : ''}`);
-            const streamUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model.name}:streamGenerateContent?alt=sse&key=${GEMINI_API_KEY}`;
+            console.log(`🤖 Trying streaming with: ${model.name}${conversationHistory && conversationHistory.length > 0 ? ` (with ${conversationHistory.length} history messages)` : ''}${options?.deepThink ? ' [DEEP THINK MODE]' : ''}`);
 
-            // Build contents array with history + current message
-            const contents = [
-                ...historyContents,
-                {
-                    role: 'user',
-                    parts: [{ text: enhancedMessage }]
-                }
-            ];
+            // Use our backend proxy instead of calling Gemini directly
+            // This hides the API key and Gemini endpoints from the browser Network tab
+            const streamUrl = '/api/chat';
 
-            // Build system instruction with memory context
+            // Get memory context to pass to backend
             const memoryContext = getMemoryContext();
-            const styleInstruction = options?.responseStyle === 'concise'
-                ? 'Respond concisely in 2-3 sentences focusing on the key answer.'
-                : options?.responseStyle === 'detailed'
-                    ? 'Provide a detailed, step-by-step explanation with helpful specifics when relevant.'
-                    : '';
 
-            const searchInstruction = useGeminiSearch
-                ? 'Use Google Search to find current, up-to-date information. Always cite your sources.'
-                : '';
-
-            // Add deep thinking instruction if enabled
-            const thinkingInstruction = options?.deepThink
-                ? `\n\n## DEEP THINKING MODE ACTIVATED:\nYou must think carefully and thoroughly before answering. Take your time to reason through the problem step by step.\n\nShow your complete reasoning process by:\n\n1. **Initial Understanding**: Restate the question in your own words and identify what is being asked\n2. **Problem Decomposition**: Break down the question into smaller, manageable parts\n3. **Knowledge Gathering**: Identify what information and concepts are relevant\n4. **Multiple Perspectives**: Consider different angles and approaches to the problem\n5. **Critical Analysis**: Evaluate evidence, identify assumptions, and consider counterarguments\n6. **Synthesis**: Connect the pieces together to form a coherent understanding\n7. **Verification**: Double-check your reasoning for logical consistency\n8. **Conclusion**: Arrive at a well-reasoned final answer\n\nIMPORTANT: Be thorough and explicit in your reasoning. Don't skip steps. Show your work.\n\nFormat your response as:\n<thinking>\n[Write your detailed, step-by-step reasoning process here. Be verbose and thorough. Show all your mental steps.]\n</thinking>\n\n<answer>\n[Provide your final, well-considered answer here]\n</answer>`
-                : '';
-
-            const fullSystemInstruction = memoryContext
-                ? `${SYSTEM_INSTRUCTION}${memoryContext}${styleInstruction ? `\n\n${styleInstruction}` : ''}${searchInstruction ? `\n\n${searchInstruction}` : ''}${thinkingInstruction}`
-                : `${SYSTEM_INSTRUCTION}${styleInstruction ? `\n\n${styleInstruction}` : ''}${searchInstruction ? `\n\n${searchInstruction}` : ''}${thinkingInstruction}`;
-
-            // Build request body
-            const requestBody: any = {
-                system_instruction: {
-                    parts: [{ text: fullSystemInstruction }]
-                },
-                contents: contents,
+            // Build request body for our backend proxy
+            // The backend handles the Gemini API format conversion
+            const requestBody = {
+                message: enhancedMessage,
+                model: model.name,
+                history: conversationHistory || [],
+                options: {
+                    enableWebSearch: useGeminiSearch,
+                    responseStyle: options?.responseStyle,
+                    deepThink: options?.deepThink,
+                    memoryContext: memoryContext || undefined,
+                    documentContext: documentContext || undefined,
+                }
             };
-
-            // Add Google Search tool if enabled
-            if (useGeminiSearch) {
-                requestBody.tools = [{
-                    googleSearch: {}
-                }];
-            }
 
             const { success, data: response, error: fetchError, attempts, totalTimeMs } = await withRetry(
                 () => fetch(streamUrl, {

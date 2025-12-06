@@ -369,12 +369,12 @@ function MessageBubbleComponent({
                                 <ThinkingIndicator isThinking={true} startTime={Date.now()} />
                             )}
 
-                            {/* Show thinking content first (expanded by default after thinking completes) */}
+                            {/* Show thinking content first (collapsed by default) */}
                             {role === 'assistant' && thinkingContent && (
                                 <>
                                     <ThinkingContent
                                         content={thinkingContent}
-                                        defaultExpanded={true}
+                                        defaultExpanded={false}
                                     />
 
                                     {/* Separator and Answer header */}
