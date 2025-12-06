@@ -80,8 +80,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 throw new Error(response.data.error || 'Sign in failed');
             }
         } catch (error) {
-            if (axios.isAxiosError(error) && error.response?.data?.error) {
-                throw new Error(error.response.data.error);
+            if (axios.isAxiosError(error)) {
+                if (error.code === 'ERR_NETWORK' || error.response?.status === 500) {
+                    throw new Error('Authentication server is not available. Please ensure the backend is running or deploy to production.');
+                }
+                if (error.response?.data?.error) {
+                    throw new Error(error.response.data.error);
+                }
             }
             throw new Error('Sign in failed. Please check your credentials.');
         } finally {
@@ -106,8 +111,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 throw new Error(response.data.error || 'Sign up failed');
             }
         } catch (error) {
-            if (axios.isAxiosError(error) && error.response?.data?.error) {
-                throw new Error(error.response.data.error);
+            if (axios.isAxiosError(error)) {
+                if (error.code === 'ERR_NETWORK' || error.response?.status === 500) {
+                    throw new Error('Authentication server is not available. Please ensure the backend is running or deploy to production.');
+                }
+                if (error.response?.data?.error) {
+                    throw new Error(error.response.data.error);
+                }
             }
             throw new Error('Sign up failed. Please try again.');
         } finally {
@@ -130,8 +140,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 throw new Error(response.data.error || 'Google sign in failed');
             }
         } catch (error) {
-            if (axios.isAxiosError(error) && error.response?.data?.error) {
-                throw new Error(error.response.data.error);
+            if (axios.isAxiosError(error)) {
+                if (error.response?.status === 500) {
+                    throw new Error('Google authentication is only available in production. Please deploy to Vercel or use email/password for local testing.');
+                }
+                if (error.response?.data?.error) {
+                    throw new Error(error.response.data.error);
+                }
             }
             throw new Error('Google sign in failed. Please try again.');
         } finally {
@@ -150,6 +165,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             }
         } catch (error) {
             console.error('GitHub auth error:', error);
+            if (axios.isAxiosError(error) && error.response?.status === 500) {
+                throw new Error('GitHub authentication is only available in production. Please deploy to Vercel or use email/password for local testing.');
+            }
             throw new Error('Failed to initiate GitHub sign in');
         }
     };
