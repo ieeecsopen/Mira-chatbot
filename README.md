@@ -109,7 +109,13 @@ Create a `.env` file in the project root:
 
 ```env
 VITE_GEMINI_API_KEY=your_gemini_api_key_here
+
+# Optional: For enhanced web search (recommended for production)
+VITE_BRAVE_API_KEY=your_brave_api_key_here
+VITE_SERPER_API_KEY=your_serper_api_key_here
 ```
+
+**Note**: Without web search API keys, the app will use free providers, but results may be less current. See [Web Search Guide](docs/WEB_SEARCH_GUIDE.md) for details.
 
 ### Running the Application
 
@@ -129,6 +135,11 @@ The application will be available at `http://localhost:5173`
 ---
 
 ## 📖 Documentation
+
+### Complete Guides
+
+- **[Web Search Configuration Guide](docs/WEB_SEARCH_GUIDE.md)** - Setup and optimize web search for real-time information
+- **[Web Scraping Documentation](docs/WEB_SCRAPING.md)** - Understanding the web scraping module
 
 ### Slash Commands
 

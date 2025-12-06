@@ -94,7 +94,7 @@ import { singlishToSinhala, detectSinglish } from './singlish';
 import { correctGrammar, enhanceSinhalaText } from './grammar';
 import { buildRAGContext, getDirectAnswer } from './rag';
 import { responseCache } from './cache';
-import { webSearch, formatSearchResultsForAI, type SearchResult } from './webSearch';
+import type { SearchResult } from './webSearch';
 import { getDocumentStore } from './documentStore';
 import { getMemoryContext } from './userMemory';
 import { withRetry } from './retry';
@@ -336,6 +336,8 @@ export async function streamMessage(
         onSearchResults?: (results: SearchResult[]) => void;
         responseStyle?: 'concise' | 'detailed';
         deepThink?: boolean;
+        onThinkingChunk?: (thinking: string) => void;
+        onThinkingDone?: () => void;
     }
 ) {
     ensureSafeInput(message);
@@ -361,26 +363,13 @@ export async function streamMessage(
         }
     }
 
-    // Handle web search if enabled
-    let webSearchContext = '';
-    let searchResults: SearchResult[] = [];
-
-    if (options?.enableWebSearch) {
-        console.log('🌐 Web search enabled, searching...');
-        options.onSearchStart?.();
-
-        try {
-            const searchResponse = await webSearch(message);
-            searchResults = searchResponse.results;
-
-            if (searchResults.length > 0) {
-                webSearchContext = formatSearchResultsForAI(searchResults);
-                options.onSearchResults?.(searchResults);
-                console.log(`✅ Found ${searchResults.length} search results`);
-            }
-        } catch (error) {
-            console.warn('Web search failed:', error);
-        }
+    // Gemini will handle web search natively via grounding
+    // Just track if web search is enabled
+    const useGeminiSearch = options?.enableWebSearch || false;
+    
+    if (useGeminiSearch) {
+        console.log('🌐 Web search enabled - using Gemini Google Search grounding');
+        options?.onSearchStart?.();
     }
 
     // Check cache for similar queries (only for simple queries without much context)
@@ -421,19 +410,13 @@ export async function streamMessage(
         return;
     }
 
-    // Build enhanced prompt with RAG context and web search context
+    // Build enhanced prompt with RAG context
     let enhancedMessage = buildEnhancedPrompt(processed, ragContext);
 
     // Add document context if available
     if (documentContext) {
         enhancedMessage = `[DOCUMENT CONTEXT - Use this information to answer questions about the uploaded documents]\n${documentContext}\n[END DOCUMENT CONTEXT]\n\n${enhancedMessage}`;
         console.log('📄 Document context added to prompt');
-    }
-
-    // Add web search context if available
-    if (webSearchContext) {
-        enhancedMessage = `${webSearchContext}\n\n${enhancedMessage}`;
-        console.log('🌐 Web search context added to prompt');
     }
 
     if (ragContext) {
@@ -495,13 +478,33 @@ export async function streamMessage(
                     ? 'Provide a detailed, step-by-step explanation with helpful specifics when relevant.'
                     : '';
 
-            const citationInstruction = webSearchContext
-                ? 'When you use web results, cite them inline using [1], [2], etc.'
+            const searchInstruction = useGeminiSearch
+                ? 'Use Google Search to find current, up-to-date information. Always cite your sources.'
+                : '';
+
+            // Add deep thinking instruction if enabled
+            const thinkingInstruction = options?.deepThink
+                ? `\n\n## DEEP THINKING MODE:\nBefore answering, think deeply about the question. Show your reasoning process by:\n1. Breaking down the problem\n2. Considering multiple perspectives\n3. Analyzing key factors\n4. Reaching a well-reasoned conclusion\n\nFormat your response as:\n<thinking>\n[Your detailed reasoning process here]\n</thinking>\n\n<answer>\n[Your final answer here]\n</answer>`
                 : '';
 
             const fullSystemInstruction = memoryContext
-                ? `${SYSTEM_INSTRUCTION}${memoryContext}${styleInstruction ? `\n\n${styleInstruction}` : ''}${citationInstruction ? `\n\n${citationInstruction}` : ''}`
-                : `${SYSTEM_INSTRUCTION}${styleInstruction ? `\n\n${styleInstruction}` : ''}${citationInstruction ? `\n\n${citationInstruction}` : ''}`;
+                ? `${SYSTEM_INSTRUCTION}${memoryContext}${styleInstruction ? `\n\n${styleInstruction}` : ''}${searchInstruction ? `\n\n${searchInstruction}` : ''}${thinkingInstruction}`
+                : `${SYSTEM_INSTRUCTION}${styleInstruction ? `\n\n${styleInstruction}` : ''}${searchInstruction ? `\n\n${searchInstruction}` : ''}${thinkingInstruction}`;
+
+            // Build request body
+            const requestBody: any = {
+                system_instruction: {
+                    parts: [{ text: fullSystemInstruction }]
+                },
+                contents: contents,
+            };
+
+            // Add Google Search tool if enabled
+            if (useGeminiSearch) {
+                requestBody.tools = [{
+                    googleSearch: {}
+                }];
+            }
 
             const { success, data: response, error: fetchError, attempts, totalTimeMs } = await withRetry(
                 () => fetch(streamUrl, {
@@ -509,17 +512,7 @@ export async function streamMessage(
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({
-                        system_instruction: {
-                            parts: [{ text: fullSystemInstruction }]
-                        },
-                        contents: contents,
-                        generationConfig: options?.deepThink ? {
-                            thinking: {
-                                thinkingMode: "THINKING_MODE_ENABLED"
-                            }
-                        } : undefined,
-                    }),
+                    body: JSON.stringify(requestBody),
                 }),
                 {
                     maxAttempts: 3,
@@ -546,7 +539,7 @@ export async function streamMessage(
                 totalMs: Date.now() - requestStart,
                 hasRag: !!ragContext,
                 hasDocs: !!documentContext,
-                hasWeb: !!webSearchContext,
+                geminiSearch: useGeminiSearch,
             });
 
             const reader = response.body?.getReader();
@@ -557,6 +550,10 @@ export async function streamMessage(
             }
 
             let buffer = '';
+            let thinkingBuffer = '';
+            let answerBuffer = '';
+            let inThinkingTag = false;
+            let inAnswerTag = false;
 
             while (true) {
                 const { done, value } = await reader.read();
@@ -578,10 +575,98 @@ export async function streamMessage(
 
                         try {
                             const data = JSON.parse(jsonStr);
-                            const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+                            const candidate = data.candidates?.[0];
+                            const text = candidate?.content?.parts?.[0]?.text;
+                            
                             if (text) {
                                 fullResponse += text; // Collect for caching
-                                onChunk(text);
+                                
+                                // Parse thinking and answer tags if deep think is enabled
+                                if (options?.deepThink) {
+                                    let processText = text;
+                                    
+                                    while (processText.length > 0) {
+                                        if (!inThinkingTag && !inAnswerTag) {
+                                            // Look for opening tags
+                                            const thinkingStart = processText.indexOf('<thinking>');
+                                            const answerStart = processText.indexOf('<answer>');
+                                            
+                                            if (thinkingStart !== -1 && (answerStart === -1 || thinkingStart < answerStart)) {
+                                                // Found thinking tag
+                                                inThinkingTag = true;
+                                                processText = processText.slice(thinkingStart + 10);
+                                            } else if (answerStart !== -1) {
+                                                // Found answer tag
+                                                inAnswerTag = true;
+                                                processText = processText.slice(answerStart + 8);
+                                            } else {
+                                                // No tags found, treat as regular content
+                                                onChunk(processText);
+                                                break;
+                                            }
+                                        } else if (inThinkingTag) {
+                                            // Look for closing thinking tag
+                                            const thinkingEnd = processText.indexOf('</thinking>');
+                                            if (thinkingEnd !== -1) {
+                                                thinkingBuffer += processText.slice(0, thinkingEnd);
+                                                if (options?.onThinkingChunk) {
+                                                    options.onThinkingChunk(processText.slice(0, thinkingEnd));
+                                                }
+                                                inThinkingTag = false;
+                                                if (options?.onThinkingDone) {
+                                                    options.onThinkingDone();
+                                                }
+                                                processText = processText.slice(thinkingEnd + 11);
+                                            } else {
+                                                // Still in thinking tag
+                                                thinkingBuffer += processText;
+                                                if (options?.onThinkingChunk) {
+                                                    options.onThinkingChunk(processText);
+                                                }
+                                                break;
+                                            }
+                                        } else if (inAnswerTag) {
+                                            // Look for closing answer tag
+                                            const answerEnd = processText.indexOf('</answer>');
+                                            if (answerEnd !== -1) {
+                                                const answerPart = processText.slice(0, answerEnd);
+                                                answerBuffer += answerPart;
+                                                onChunk(answerPart);
+                                                inAnswerTag = false;
+                                                processText = processText.slice(answerEnd + 9);
+                                            } else {
+                                                // Still in answer tag
+                                                answerBuffer += processText;
+                                                onChunk(processText);
+                                                break;
+                                            }
+                                        }
+                                    }
+                                } else {
+                                    // No deep think, stream normally
+                                    onChunk(text);
+                                }
+                            }
+                            
+                            // Extract grounding metadata (search results)
+                            if (useGeminiSearch && candidate?.groundingMetadata) {
+                                const metadata = candidate.groundingMetadata;
+                                if (metadata.webSearchQueries) {
+                                    console.log('🔍 Google Search queries:', metadata.webSearchQueries);
+                                }
+                                if (metadata.groundingChunks) {
+                                    console.log('📚 Sources found:', metadata.groundingChunks.length);
+                                    // Optionally notify about search results
+                                    if (options?.onSearchResults && metadata.groundingChunks.length > 0) {
+                                        const searchResults: SearchResult[] = metadata.groundingChunks.map((chunk: any) => ({
+                                            title: chunk.web?.title || 'Web Result',
+                                            url: chunk.web?.uri || '',
+                                            snippet: chunk.web?.snippet || '',
+                                            source: new URL(chunk.web?.uri || 'https://google.com').hostname,
+                                        }));
+                                        options.onSearchResults(searchResults);
+                                    }
+                                }
                             }
                         } catch (e) {
                             console.warn('Failed to parse SSE data:', jsonStr, e);

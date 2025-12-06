@@ -6,6 +6,7 @@ import { Copy, Check, RefreshCw, Maximize2, Quote, Pencil, X, Send, Link as Link
 import { useState, useCallback, memo, useMemo, useRef, useEffect } from 'react';
 import { CodeBlock, InlineCode } from './ui/CodeBlock';
 import { UrlPreview } from './ui/UrlPreview';
+import { ThinkingIndicator, ThinkingContent } from './ui/ThinkingIndicator';
 import type { SearchResult } from '../lib/webSearch';
 
 interface MessageBubbleProps {
@@ -21,6 +22,8 @@ interface MessageBubbleProps {
     onRate?: (messageId: string, rating: 'up' | 'down' | null) => void;
     rating?: 'up' | 'down';
     feedback?: string;
+    thinkingContent?: string;
+    isThinking?: boolean;
 }
 
 // Skeleton loading component
@@ -211,7 +214,9 @@ function MessageBubbleComponent({
     searchResults,
     onRate,
     rating,
-    feedback
+    feedback,
+    thinkingContent,
+    isThinking
 }: MessageBubbleProps) {
     const [copied, setCopied] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
@@ -328,6 +333,8 @@ function MessageBubbleComponent({
                         <SkeletonLoader />
                     ) : showTyping ? (
                         <TypingIndicator />
+                    ) : isThinking && role === 'assistant' ? (
+                        <ThinkingIndicator isThinking={true} startTime={Date.now()} />
                     ) : isEditing && role === 'user' ? (
                         // Edit Mode UI
                         <div className="flex flex-col gap-2">
@@ -359,6 +366,9 @@ function MessageBubbleComponent({
                         </div>
                     ) : (
                         <>
+                            {role === 'assistant' && thinkingContent && (
+                                <ThinkingContent content={thinkingContent} defaultExpanded={false} />
+                            )}
                             <ReactMarkdown
                                 remarkPlugins={[remarkGfm]}
                                 components={markdownComponents}

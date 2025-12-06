@@ -15,6 +15,8 @@ interface Message {
     generatedImage?: GeneratedImage;
     isGeneratingImage?: boolean;
     imagePrompt?: string;
+    thinkingContent?: string;
+    isThinking?: boolean;
 }
 
 interface VirtualizedMessageListProps {
@@ -136,6 +138,8 @@ const MessageRow = memo(({
                                 ? onOpenInCanvas
                                 : undefined
                         }
+                        thinkingContent={message.thinkingContent}
+                        isThinking={message.isThinking}
                     />
                 )}
             </div>

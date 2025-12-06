@@ -43,6 +43,8 @@ interface Message {
   imagePrompt?: string;
   rating?: 'up' | 'down';
   feedback?: string;
+  thinkingContent?: string;
+  isThinking?: boolean;
 }
 
 // Maximum number of messages to include for context
@@ -413,6 +415,37 @@ function App() {
                   {
                     ...prev[lastIndex],
                     searchResults: results
+                  }
+                ];
+              }
+              return prev;
+            });
+          },
+          onThinkingChunk: (thinking) => {
+            setMessages(prev => {
+              const lastIndex = prev.length - 1;
+              if (lastIndex >= 0 && prev[lastIndex].role === 'assistant') {
+                return [
+                  ...prev.slice(0, lastIndex),
+                  {
+                    ...prev[lastIndex],
+                    isThinking: true,
+                    thinkingContent: (prev[lastIndex].thinkingContent || '') + thinking
+                  }
+                ];
+              }
+              return prev;
+            });
+          },
+          onThinkingDone: () => {
+            setMessages(prev => {
+              const lastIndex = prev.length - 1;
+              if (lastIndex >= 0 && prev[lastIndex].role === 'assistant') {
+                return [
+                  ...prev.slice(0, lastIndex),
+                  {
+                    ...prev[lastIndex],
+                    isThinking: false
                   }
                 ];
               }
@@ -950,6 +983,8 @@ function App() {
                           }
                           searchResults={msg.searchResults}
                           feedback={msg.feedback}
+                          thinkingContent={msg.thinkingContent}
+                          isThinking={msg.isThinking}
                         />
                       )}
                     </div>
