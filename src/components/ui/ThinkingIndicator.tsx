@@ -221,6 +221,17 @@ export function ThinkingContent({ content, defaultExpanded = false }: ThinkingCo
                 <div className="flex-1">
                     <span className="text-sm font-semibold text-purple-300 flex items-center gap-2">
                         Reasoning Process
+                        {isStreaming && (
+                            <motion.span
+                                animate={{ opacity: [0.4, 1, 0.4] }}
+                                transition={{ duration: 1.5, repeat: Infinity }}
+                                className="flex items-center gap-1"
+                            >
+                                <span className="w-1 h-1 rounded-full bg-purple-400"></span>
+                                <span className="w-1 h-1 rounded-full bg-purple-400"></span>
+                                <span className="w-1 h-1 rounded-full bg-purple-400"></span>
+                            </motion.span>
+                        )}
                         <span className="text-xs font-normal text-gray-500">
                             ({wordCount} words, ~{estimatedReadTime} min read)
                         </span>
@@ -261,18 +272,7 @@ export function ThinkingContent({ content, defaultExpanded = false }: ThinkingCo
                         <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 via-blue-500/10 to-indigo-500/10 rounded-lg"></div>
                         
                         {/* Content */}
-                        <div className="relative text-sm text-gray-300 leading-relaxed whitespace-pre-wrap bg-black/40 rounded-lg p-4 max-h-[500px] overflow-y-auto border border-purple-500/20 scrollbar-thin scrollbar-thumb-purple-500/30 scrollbar-track-transparent">
-                            <style jsx>{`
-                                .thinking-step {
-                                    margin: 0.75rem 0;
-                                    padding-left: 1rem;
-                                    border-left: 2px solid rgb(168, 85, 247, 0.4);
-                                }
-                                .thinking-header {
-                                    color: rgb(196, 181, 253);
-                                    font-weight: 600;
-                                }
-                            `}</style>
+                        <div className="relative text-sm text-gray-300 leading-relaxed whitespace-pre-wrap bg-black/40 rounded-lg p-4 max-h-[500px] overflow-y-auto border border-purple-500/20 scrollbar-thin scrollbar-thumb-purple-500/30 scrollbar-track-transparent [&_.thinking-step]:my-3 [&_.thinking-step]:pl-4 [&_.thinking-step]:border-l-2 [&_.thinking-step]:border-l-purple-500/40 [&_.thinking-header]:text-purple-200 [&_.thinking-header]:font-semibold">
                             {content}
                         </div>
                     </div>

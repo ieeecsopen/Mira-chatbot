@@ -60,28 +60,28 @@ const createMarkdownComponents = (onOpenInCanvas?: (code: string, language?: str
     ),
     // Paragraphs
     p: ({ children }: { children?: React.ReactNode }) => (
-        <p className="mb-4 last:mb-0 leading-relaxed">{children}</p>
+        <p className="mb-2 last:mb-0 leading-relaxed">{children}</p>
     ),
     // Unordered Lists - Enhanced styling
     ul: ({ children }: { children?: React.ReactNode }) => (
-        <ul className="my-4 ml-2 space-y-2 list-none">
+        <ul className="my-2 ml-2 space-y-1 list-none">
             {children}
         </ul>
     ),
     // Ordered Lists - Enhanced styling
     ol: ({ children }: { children?: React.ReactNode }) => (
-        <ol className="my-4 ml-2 space-y-2 list-none counter-reset-item">
+        <ol className="my-2 ml-2 space-y-1 list-none counter-reset-item">
             {children}
         </ol>
     ),
     // List items with custom bullets/numbers
     li: ({ children, ordered, index }: { children?: React.ReactNode; ordered?: boolean; index?: number }) => (
-        <li className="flex gap-3 text-[#c9d1d9]">
+        <li className="flex gap-2 text-[#c9d1d9]">
             <span className={cn(
-                "flex-shrink-0 mt-1",
+                "flex-shrink-0",
                 ordered
                     ? "text-orange-400 font-medium min-w-[1.5rem]"
-                    : "text-[#7ee787]"
+                    : "text-orange-400"
             )}>
                 {ordered ? `${(index || 0) + 1}.` : '•'}
             </span>
@@ -323,7 +323,7 @@ function MessageBubbleComponent({
             )}
         >
             <div className={cn(
-                "max-w-[90%] md:max-w-[80%] text-lg leading-relaxed relative",
+                "max-w-full text-lg leading-relaxed relative",
                 role === 'user'
                     ? "bg-[#161b22] text-[#c9d1d9] px-5 py-3 rounded-2xl border border-[#30363d]"
                     : "text-gray-100 px-0 py-2"
@@ -368,15 +368,15 @@ function MessageBubbleComponent({
                             {role === 'assistant' && isThinking && !thinkingContent && (
                                 <ThinkingIndicator isThinking={true} startTime={Date.now()} />
                             )}
-                            
+
                             {/* Show thinking content first (expanded by default after thinking completes) */}
                             {role === 'assistant' && thinkingContent && (
                                 <>
-                                    <ThinkingContent 
-                                        content={thinkingContent} 
+                                    <ThinkingContent
+                                        content={thinkingContent}
                                         defaultExpanded={true}
                                     />
-                                    
+
                                     {/* Separator and Answer header */}
                                     {content && (
                                         <div className="mb-3 flex items-center gap-3">
@@ -390,7 +390,7 @@ function MessageBubbleComponent({
                                     )}
                                 </>
                             )}
-                            
+
                             {/* Show answer below thinking content */}
                             {content && (
                                 <>

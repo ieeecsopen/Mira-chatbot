@@ -205,7 +205,9 @@ function App() {
         ? options.enableWebSearch
         : (webSearchEnabled || autoSearch);
     const style = options?.responseStyle || responseStyle;
-    const useDeepThink = options?.deepThink || false;
+    const useDeepThink = options?.deepThink !== undefined
+      ? options.deepThink
+      : deepThinkEnabled;
 
     if (!hasStarted) {
       setHasStarted(true);
@@ -925,8 +927,8 @@ function App() {
               className="flex-1 flex flex-col h-full relative bg-background"
             >
               {/* Messages */}
-              <div className="flex-1 overflow-y-auto p-4 md:p-0 scroll-smooth relative z-0">
-                <div className="max-w-3xl mx-auto pt-4 md:pt-10 pb-4">
+              <div className="flex-1 overflow-y-auto p-4 md:px-6 scroll-smooth relative z-0">
+                <div className="max-w-5xl mx-auto pt-4 md:pt-10 pb-4">
                   {messages.map((msg, index) => (
                     <div key={msg.id}>
                       {/* Show search results before assistant message */}
@@ -999,7 +1001,7 @@ function App() {
               {/* File Preview */}
               {attachedFiles.length > 0 && (
                 <div className="px-4 md:px-6 bg-background">
-                  <div className="max-w-3xl mx-auto">
+                  <div className="max-w-5xl mx-auto">
                     <FilePreview files={attachedFiles} onRemove={handleFileRemove} compact />
                   </div>
                 </div>
@@ -1015,7 +1017,7 @@ function App() {
                 transition={{ duration: 0.6, delay: hasStarted ? 0.7 : 0, ease: "easeOut" }}
                 className="p-4 md:p-6 bg-background relative z-10"
               >
-                <div className="max-w-3xl mx-auto">
+                <div className="max-w-5xl mx-auto">
                   {/* Document Upload Bar - shows when documents are loaded */}
                   <div className="mb-3">
                     <DocumentUploadBar onDocumentsChange={updateDocumentStatus} />

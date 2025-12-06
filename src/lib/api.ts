@@ -366,7 +366,7 @@ export async function streamMessage(
     // Gemini will handle web search natively via grounding
     // Just track if web search is enabled
     const useGeminiSearch = options?.enableWebSearch || false;
-    
+
     if (useGeminiSearch) {
         console.log('🌐 Web search enabled - using Gemini Google Search grounding');
         options?.onSearchStart?.();
@@ -550,10 +550,6 @@ export async function streamMessage(
             }
 
             let buffer = '';
-            let thinkingBuffer = '';
-            let answerBuffer = '';
-            let inThinkingTag = false;
-            let inAnswerTag = false;
 
             while (true) {
                 const { done, value } = await reader.read();
@@ -577,100 +573,26 @@ export async function streamMessage(
                             const data = JSON.parse(jsonStr);
                             const candidate = data.candidates?.[0];
                             const text = candidate?.content?.parts?.[0]?.text;
-                            
+
                             if (text) {
                                 fullResponse += text; // Collect for caching
-                                
-                                // Parse thinking and answer tags if deep think is enabled
-                                if (options?.deepThink) {
-                                    let processText = text;
-                                    
-                                    while (processText.length > 0) {
-                                        if (!inThinkingTag && !inAnswerTag) {
-                                            // Look for opening tags
-                                            const thinkingStart = processText.indexOf('<thinking>');
-                                            const answerStart = processText.indexOf('<answer>');
-                                            
-                                            if (thinkingStart !== -1 && (answerStart === -1 || thinkingStart < answerStart)) {
-                                                // Found thinking tag
-                                                inThinkingTag = true;
-                                                processText = processText.slice(thinkingStart + 10);
-                                            } else if (answerStart !== -1) {
-                                                // Found answer tag
-                                                inAnswerTag = true;
-                                                processText = processText.slice(answerStart + 8);
-                                            } else {
-                                                // No tags found, treat as regular content
-                                                onChunk(processText);
-                                                break;
-                                            }
-                                        } else if (inThinkingTag) {
-                                            // Look for closing thinking tag
-                                            const thinkingEnd = processText.indexOf('</thinking>');
-                                            if (thinkingEnd !== -1) {
-                                                const finalThinkingChunk = processText.slice(0, thinkingEnd);
-                                                thinkingBuffer += finalThinkingChunk;
-                                                if (options?.onThinkingChunk) {
-                                                    // Stream thinking character by character for dramatic effect
-                                                    for (let i = 0; i < finalThinkingChunk.length; i++) {
-                                                        options.onThinkingChunk(finalThinkingChunk[i]);
-                                                        // Longer delay for reading comprehension
-                                                        await new Promise(resolve => setTimeout(resolve, 35));
-                                                    }
-                                                }
-                                                inThinkingTag = false;
-                                                if (options?.onThinkingDone) {
-                                                    // Longer pause before transitioning to answer (keep thinking visible)
-                                                    await new Promise(resolve => setTimeout(resolve, 2000));
-                                                    options.onThinkingDone();
-                                                }
-                                                processText = processText.slice(thinkingEnd + 11);
-                                            } else {
-                                                // Still in thinking tag - stream slowly character by character
-                                                thinkingBuffer += processText;
-                                                if (options?.onThinkingChunk) {
-                                                    // Character by character with meaningful delays
-                                                    for (let i = 0; i < processText.length; i++) {
-                                                        options.onThinkingChunk(processText[i]);
-                                                        // Slow, thoughtful character streaming
-                                                        await new Promise(resolve => setTimeout(resolve, 30));
-                                                    }
-                                                }
-                                                break;
-                                            }
-                                        } else if (inAnswerTag) {
-                                            // Look for closing answer tag
-                                            const answerEnd = processText.indexOf('</answer>');
-                                            if (answerEnd !== -1) {
-                                                const answerPart = processText.slice(0, answerEnd);
-                                                answerBuffer += answerPart;
-                                                // Deliver answer word by word at measured pace
-                                                const words = answerPart.split(/\s+/);
-                                                for (let i = 0; i < words.length; i++) {
-                                                    onChunk(words[i] + (i < words.length - 1 ? ' ' : ''));
-                                                    // Thoughtful word-by-word delivery
-                                                    await new Promise(resolve => setTimeout(resolve, 80));
-                                                }
-                                                inAnswerTag = false;
-                                                processText = processText.slice(answerEnd + 9);
-                                            } else {
-                                                // Still in answer tag - word by word delivery
-                                                answerBuffer += processText;
-                                                const words = processText.split(/\s+/);
-                                                for (let i = 0; i < words.length; i++) {
-                                                    onChunk(words[i] + (i < words.length - 1 ? ' ' : ''));
-                                                    await new Promise(resolve => setTimeout(resolve, 75));
-                                                }
-                                                break;
-                                            }
-                                        }
-                                    }
-                                } else {
-                                    // No deep think, stream normally
-                                    onChunk(text);
+
+                                // Process content: make thinking italic, remove answer tags
+                                let outputText = text;
+
+                                // Replace <thinking> with italic start and </thinking> with italic end
+                                outputText = outputText.replace(/<thinking>/g, '\n\n*🧠 Thinking: ');
+                                outputText = outputText.replace(/<\/thinking>/g, '*\n\n');
+
+                                // Remove answer tags but keep content
+                                outputText = outputText.replace(/<answer>/g, '**Answer:**\n');
+                                outputText = outputText.replace(/<\/answer>/g, '');
+
+                                if (outputText) {
+                                    onChunk(outputText);
                                 }
                             }
-                            
+
                             // Extract grounding metadata (search results)
                             if (useGeminiSearch && candidate?.groundingMetadata) {
                                 const metadata = candidate.groundingMetadata;
@@ -679,7 +601,6 @@ export async function streamMessage(
                                 }
                                 if (metadata.groundingChunks) {
                                     console.log('📚 Sources found:', metadata.groundingChunks.length);
-                                    // Optionally notify about search results
                                     if (options?.onSearchResults && metadata.groundingChunks.length > 0) {
                                         const searchResults: SearchResult[] = metadata.groundingChunks.map((chunk: any) => ({
                                             title: chunk.web?.title || 'Web Result',
