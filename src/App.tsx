@@ -32,7 +32,7 @@ import { notificationManager } from './lib/notifications';
 import { TemplatePanel } from './components/ui/TemplatePanel';
 import { useMetrics } from './contexts/MetricsContext';
 import { EvaluationPanel } from './components/ui/EvaluationPanel';
-import { ModelComparisonPanel, type ComparisonRunState } from './components/ui/ModelComparisonPanel';
+import { ModelComparisonPanel, type ComparisonRunState, type ComparisonResultState } from './components/ui/ModelComparisonPanel';
 import { showInfo } from './lib/toast';
 
 interface Message {
@@ -1010,7 +1010,7 @@ function App() {
     const runId = `cmp_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
     const labelLookup = Object.fromEntries(MIRA_MODELS.map(model => [model.id, model.displayName]));
 
-    const results = uniqueModels.reduce<ComparisonRunState['results']>((acc, modelId) => {
+    const results = uniqueModels.reduce<Record<string, ComparisonResultState>>((acc, modelId) => {
       acc[modelId] = {
         modelId,
         label: labelLookup[modelId] || modelId,
@@ -1026,7 +1026,7 @@ function App() {
       results,
     });
 
-    const updateResult = (modelId: string, updater: (prev: ComparisonRunState['results'][string]) => ComparisonRunState['results'][string]) => {
+    const updateResult = (modelId: string, updater: (prev: ComparisonResultState) => ComparisonResultState) => {
       setComparisonRun(prev => {
         if (!prev || prev.id !== runId || !prev.results[modelId]) return prev;
         return {

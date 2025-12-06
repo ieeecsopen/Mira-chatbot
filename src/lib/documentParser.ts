@@ -32,11 +32,45 @@ export interface DocumentChunk {
     pageNumber?: number;
     startIndex: number;
     endIndex: number;
+    sectionTitle?: string;
 }
 
 // Chunk configuration
 const CHUNK_SIZE = 1000; // characters per chunk
 const CHUNK_OVERLAP = 200; // overlap between chunks
+const HEADING_SCAN_WINDOW = 2000;
+
+const HEADING_REGEX = /^(#{1,6}\s+[^\n]+)|^(?:[-*]|\d+\.)\s+[^\n]+|^[A-Z][^\n]{0,80}:$/gm;
+
+function findPreviousHeading(text: string, index: number): string | undefined {
+    const searchStart = Math.max(0, index - HEADING_SCAN_WINDOW);
+    const slice = text.slice(searchStart, index);
+    let heading: string | undefined;
+    let match: RegExpExecArray | null;
+
+    HEADING_REGEX.lastIndex = 0;
+    while ((match = HEADING_REGEX.exec(slice)) !== null) {
+        heading = match[0].replace(/^#+\s*/, '').trim();
+    }
+
+    return heading;
+}
+
+function findNextHeadingBoundary(text: string, start: number, minOffset: number, maxOffset: number): number | null {
+    const windowEnd = Math.min(text.length, start + maxOffset);
+    const window = text.slice(start, windowEnd);
+    let match: RegExpExecArray | null;
+
+    const headingBoundaryRegex = /\n(#{1,6}\s+[^\n]+|(?:[-*]|\d+\.)\s+[^\n]+)/g;
+    while ((match = headingBoundaryRegex.exec(window)) !== null) {
+        const absoluteIndex = start + match.index;
+        if (absoluteIndex - start >= minOffset) {
+            return absoluteIndex;
+        }
+    }
+
+    return null;
+}
 
 /**
  * Generate a unique ID
@@ -55,6 +89,16 @@ function chunkText(text: string, chunkSize = CHUNK_SIZE, overlap = CHUNK_OVERLAP
     while (startIndex < text.length) {
         let endIndex = startIndex + chunkSize;
 
+        const headingBoundary = findNextHeadingBoundary(
+            text,
+            startIndex,
+            Math.floor(chunkSize * 0.5),
+            Math.floor(chunkSize * 1.5)
+        );
+        if (headingBoundary) {
+            endIndex = headingBoundary;
+        }
+
         // Try to break at sentence or paragraph boundary
         if (endIndex < text.length) {
             const breakPoints = ['\n\n', '\n', '. ', '? ', '! ', '; '];
@@ -69,11 +113,13 @@ function chunkText(text: string, chunkSize = CHUNK_SIZE, overlap = CHUNK_OVERLAP
 
         const content = text.slice(startIndex, endIndex).trim();
         if (content.length > 0) {
+            const sectionTitle = findPreviousHeading(text, startIndex);
             chunks.push({
                 id: `chunk_${chunks.length}`,
                 content,
                 startIndex,
                 endIndex,
+                sectionTitle,
             });
         }
 
