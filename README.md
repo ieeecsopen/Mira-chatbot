@@ -1,73 +1,294 @@
-# React + TypeScript + Vite
+<div align="center">
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+![Mira AI Chatbot](docs/images/hero-banner.png)
 
-Currently, two official plugins are available:
+# MIRA - Intelligent Sinhala AI Assistant 🤖
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+[![React](https://img.shields.io/badge/React-19.2-61DAFB?style=for-the-badge&logo=react&logoColor=white)](https://react.dev/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Vite](https://img.shields.io/badge/Vite-7.2-646CFF?style=for-the-badge&logo=vite&logoColor=white)](https://vitejs.dev/)
+[![TailwindCSS](https://img.shields.io/badge/Tailwind-4.1-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
+[![Gemini AI](https://img.shields.io/badge/Gemini-AI-4285F4?style=for-the-badge&logo=google&logoColor=white)](https://ai.google.dev/)
 
-## React Compiler
+**A modern, feature-rich AI chatbot with native Sinhala language support, built with React and powered by Google's Gemini AI.**
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+[Features](#-features) • [Quick Start](#-quick-start) • [Documentation](#-documentation) • [Architecture](#-architecture) • [Contributing](#-contributing)
 
-## Expanding the ESLint configuration
+</div>
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+---
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+## ✨ Overview
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+**Mira** (මීරා) is a sophisticated AI chatbot specifically designed for Sinhala speakers. It seamlessly handles both Sinhala script and Singlish (romanized Sinhala), providing intelligent responses powered by Google's Gemini AI models. The application features a stunning dark-themed UI with smooth animations and a comprehensive set of productivity features.
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+![Chat Interface](docs/images/chat-interface.png)
+
+## 🎯 Features
+
+![Features Overview](docs/images/features.png)
+
+### 🗣️ **Native Sinhala Language Support**
+
+![Sinhala Support](docs/images/sinhala-support.png)
+
+- **Singlish to Sinhala Conversion**: Automatically converts romanized Sinhala to native script
+- **Grammar Enhancement**: Built-in grammar correction and text enhancement
+- **Cultural Awareness**: Responses include proper Sri Lankan greetings and courteous language
+
+### 🧠 **AI-Powered Capabilities**
+
+| Feature | Description |
+|---------|-------------|
+| **Multi-Model Support** | Switch between Gemini 2.0 Flash, Gemini 1.5 Pro, and experimental models |
+| **Streaming Responses** | Real-time token-by-token response streaming |
+| **Context Memory** | Remembers user preferences and previous conversations |
+| **RAG System** | Retrieval-Augmented Generation for accurate document-based answers |
+
+### 📁 **Document Intelligence**
+
+- **PDF Parsing**: Extract and analyze PDF documents
+- **DOCX Support**: Process Microsoft Word documents
+- **Text Files**: Support for TXT and Markdown files
+- **Embeddings**: Semantic search across uploaded documents
+
+### 🔍 **Web Search Integration**
+
+- Real-time web search for current information
+- Search results displayed alongside AI responses
+- Source citations for transparency
+
+### 🎨 **Image Generation**
+
+- Create images using `/imagine` command
+- Describe what you want, and Mira generates it
+- Download and share generated images
+
+### 🎤 **Voice Input**
+
+- Native speech recognition support
+- Optimized for Sinhala language (si-LK)
+- Hands-free chatting experience
+
+### 🎨 **Premium UI/UX**
+
+- Beautiful dark theme with glassmorphism effects
+- Smooth Framer Motion animations
+- Responsive design for all screen sizes
+- Command palette (`Ctrl+K`) for quick actions
+- Slash commands for power users
+
+---
+
+## 🚀 Quick Start
+
+### Prerequisites
+
+- **Node.js** 18.0 or higher
+- **npm** or **yarn** package manager
+- **Google Gemini API Key** ([Get one here](https://aistudio.google.com/))
+
+### Installation
+
+```bash
+# Clone the repository
+git clone https://github.com/Hesara2003/Mira-chatbot.git
+cd Mira-chatbot
+
+# Install dependencies
+npm install
+
+# Configure environment variables
+cp .env.example .env
+# Edit .env and add your VITE_GEMINI_API_KEY
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+### Environment Setup
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+Create a `.env` file in the project root:
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```env
+VITE_GEMINI_API_KEY=your_gemini_api_key_here
 ```
+
+### Running the Application
+
+```bash
+# Development mode with hot-reload
+npm run dev
+
+# Build for production
+npm run build
+
+# Preview production build
+npm run preview
+```
+
+The application will be available at `http://localhost:5173`
+
+---
+
+## 📖 Documentation
+
+### Slash Commands
+
+Mira supports a variety of slash commands for quick actions:
+
+| Command | Description |
+|---------|-------------|
+| `/clear` | Clear current chat history |
+| `/new` | Start a new chat session |
+| `/search` | Open message search |
+| `/upload` | Upload a file |
+| `/web` | Toggle web search |
+| `/model` | Cycle through AI models |
+| `/imagine <prompt>` | Generate an image |
+| `/code` | Get coding assistance |
+| `/summarize` | Summarize the conversation |
+| `/template` | Open templates panel |
+| `/help` | Show available commands |
+
+### Keyboard Shortcuts
+
+| Shortcut | Action |
+|----------|--------|
+| `Ctrl + K` | Open command palette |
+| `Ctrl + N` | New chat |
+| `Ctrl + /` | Focus chat input |
+| `Enter` | Send message |
+| `Shift + Enter` | New line in message |
+
+### Response Styles
+
+Toggle between response styles for different needs:
+
+- **Concise**: Brief, to-the-point answers
+- **Detailed**: Comprehensive explanations
+
+---
+
+## 🏗️ Architecture
+
+![Architecture Diagram](docs/images/architecture.png)
+
+### Tech Stack
+
+```
+Frontend
+├── React 19.2          # UI Framework
+├── TypeScript 5.9      # Type Safety
+├── Vite 7.2            # Build Tool
+├── TailwindCSS 4.1     # Styling
+├── Framer Motion       # Animations
+└── Radix UI            # Accessible Components
+
+AI & Processing
+├── Google Gemini AI    # LLM Backend
+├── RAG System          # Document Retrieval
+├── Embeddings          # Semantic Search
+├── PDF.js              # PDF Parsing
+└── Mammoth             # DOCX Parsing
+
+Features
+├── Web Search          # Real-time Information
+├── Image Generation    # AI Image Creation
+├── Voice Input         # Speech Recognition
+└── Singlish Converter  # Language Processing
+```
+
+### Project Structure
+
+```
+src/
+├── components/           # React components
+│   ├── ui/              # UI components (Canvas, Navbar, Panels, etc.)
+│   ├── ChatInput.tsx    # Message input component
+│   ├── MessageBubble.tsx # Chat message display
+│   └── LandingPage.tsx  # Landing page
+│
+├── lib/                 # Core libraries
+│   ├── api.ts           # Gemini API integration
+│   ├── singlish.ts      # Singlish to Sinhala converter
+│   ├── rag.ts           # RAG implementation
+│   ├── embeddings.ts    # Text embeddings
+│   ├── documentParser.ts # PDF/DOCX parsing
+│   ├── webSearch.ts     # Web search integration
+│   ├── imageGeneration.ts # Image generation
+│   ├── chatStorage.ts   # Chat persistence
+│   ├── userMemory.ts    # User preferences
+│   └── cache.ts         # Response caching
+│
+├── contexts/            # React contexts
+├── hooks/               # Custom React hooks
+└── App.tsx              # Main application
+```
+
+---
+
+## 🔧 Configuration
+
+### Available Models
+
+Mira supports multiple Gemini AI models:
+
+| Model | Category | Best For |
+|-------|----------|----------|
+| `gemini-2.0-flash` | Balanced | General purpose, fast responses |
+| `gemini-2.0-flash-exp` | Experimental | Latest features |
+| `gemini-1.5-pro` | Quality | Complex reasoning tasks |
+| `gemini-1.5-flash` | Fast | Quick interactions |
+| `learnlm-2.0-flash-experimental` | Learning | Educational content |
+
+### Customization
+
+The application can be customized through:
+
+- **Theme**: Dark theme with customizable accent colors
+- **Language**: Primary support for Sinhala and English
+- **Response Style**: Toggle between concise and detailed responses
+- **Model Selection**: Choose your preferred AI model
+
+---
+
+## 🤝 Contributing
+
+We welcome contributions! Please follow these steps:
+
+1. **Fork** the repository
+2. **Create** a feature branch (`git checkout -b feature/amazing-feature`)
+3. **Commit** your changes (`git commit -m 'Add amazing feature'`)
+4. **Push** to the branch (`git push origin feature/amazing-feature`)
+5. **Open** a Pull Request
+
+### Development Guidelines
+
+- Follow TypeScript best practices
+- Write descriptive commit messages
+- Add tests for new features
+- Update documentation as needed
+
+---
+
+## 📜 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+---
+
+## 🙏 Acknowledgments
+
+- **Google Gemini** for the powerful AI capabilities
+- **Radix UI** for accessible component primitives
+- **Framer Motion** for smooth animations
+- **TailwindCSS** for utility-first styling
+- The open-source community for inspiration and tools
+
+---
+
+<div align="center">
+
+**Built with ❤️ for the Sri Lankan community**
+
+[⬆ Back to Top](#mira---intelligent-sinhala-ai-assistant-)
+
+</div>

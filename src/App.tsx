@@ -824,7 +824,7 @@ function App() {
         content: ''
       };
 
-      setMessages(prev => [...prev, assistantMessage]);
+      setMessages(prev => [...prev, assistantMessage as Message]);
 
       responseTimersRef.current.set(assistantMessage.id, performance.now());
       startResponse({
