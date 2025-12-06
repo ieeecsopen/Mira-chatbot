@@ -14,7 +14,6 @@ import { Canvas } from './components/ui/Canvas';
 import { useCanvas } from './hooks/useCanvas';
 import { Navbar } from './components/ui/Navbar';
 import { SearchMessages } from './components/ui/SearchMessages';
-import { VoiceInput } from './components/ui/VoiceInput';
 import { FileUpload, FilePreview, type UploadedFile } from './components/ui/FileUpload';
 import { SearchResultsCard } from './components/ui/SearchResultsCard';
 import { DocumentUploadBar } from './components/ui/DocumentUploadBar';
@@ -84,6 +83,9 @@ function App() {
   // Web search state
   const [webSearchEnabled, setWebSearchEnabled] = useState(false);
   const [isSearchingWeb, setIsSearchingWeb] = useState(false);
+
+  // DeepThink state
+  const [deepThinkEnabled, setDeepThinkEnabled] = useState(false);
 
   // Document state - track if documents are loaded for context indicator
   const [hasDocuments, setHasDocuments] = useState(() => getDocumentStore().getAll().length > 0);
@@ -1009,30 +1011,31 @@ function App() {
                       </span>
                     )}
                   </div>
-                  <div className="flex items-center gap-2">
+
+                  {/* Hidden FileUpload to support ChatInput's file picker */}
+                  <div className="hidden">
                     <FileUpload
                       onFilesSelected={handleFilesSelected}
                       onFileRemove={handleFileRemove}
                       files={attachedFiles}
                       disabled={isStreaming}
                     />
-                    <VoiceInput
-                      onTranscript={handleVoiceTranscript}
-                      disabled={isStreaming}
-                      language="si-LK"
-                    />
-                    <div className="flex-1">
-                      <ChatInput
-                        onSend={handleSend}
-                        disabled={isStreaming}
-                        onSlashCommand={handleSlashCommand}
-                        webSearchEnabled={webSearchEnabled}
-                        onToggleWebSearch={() => setWebSearchEnabled(prev => !prev)}
-                        responseStyle={responseStyle}
-                        onChangeResponseStyle={setResponseStyle}
-                      />
-                    </div>
                   </div>
+
+                  <ChatInput
+                    onSend={handleSend}
+                    disabled={isStreaming}
+                    onSlashCommand={handleSlashCommand}
+                    webSearchEnabled={webSearchEnabled}
+                    onToggleWebSearch={() => setWebSearchEnabled(prev => !prev)}
+                    deepThinkEnabled={deepThinkEnabled}
+                    onToggleDeepThink={() => setDeepThinkEnabled(prev => !prev)}
+                    responseStyle={responseStyle}
+                    onChangeResponseStyle={setResponseStyle}
+                    attachedFiles={attachedFiles}
+                    onFileRemove={handleFileRemove}
+                    onVoiceTranscript={handleVoiceTranscript}
+                  />
                 </div>
               </motion.div>
             </motion.div>
@@ -1097,8 +1100,8 @@ function App() {
           onUpdateItem={canvas.updateItem}
           onDeleteItem={canvas.deleteItem}
         />
-      </div>
-    </AuthProvider>
+      </div >
+    </AuthProvider >
   );
 }
 

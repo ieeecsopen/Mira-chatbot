@@ -1,11 +1,14 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { SendHorizontal, Globe, Paperclip, Mic, ChevronDown, X, Sparkles, Brain } from 'lucide-react';
+import {
+    SendHorizontal, Paperclip, Mic, ChevronDown, X,
+    Plus, Telescope, ShoppingBag, Image as ImageIcon,
+    Lightbulb, MoreHorizontal, AudioLines
+} from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../lib/utils';
 import { Button } from './ui/button';
 import { SlashCommandMenu, type SlashCommand } from './ui/SlashCommandMenu';
 import type { UploadedFile } from './ui/FileUpload';
-import { MIRA_MODELS } from './ModelSelector';
 
 interface ChatInputProps {
     onSend: (message: string, options?: { enableWebSearch?: boolean; responseStyle?: 'concise' | 'detailed'; deepThink?: boolean }) => void;
@@ -46,13 +49,11 @@ export function ChatInput({
     const [input, setInput] = useState('');
     const [showSlashMenu, setShowSlashMenu] = useState(false);
     const [slashQuery, setSlashQuery] = useState('');
-    const [showModelMenu, setShowModelMenu] = useState(false);
+    const [showPlusMenu, setShowPlusMenu] = useState(false);
     const [isRecording, setIsRecording] = useState(false);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
-    const modelMenuRef = useRef<HTMLDivElement>(null);
-
-    const currentModel = MIRA_MODELS.find(m => m.id === selectedModel) || MIRA_MODELS[0];
+    const plusMenuRef = useRef<HTMLDivElement>(null);
 
     const adjustHeight = () => {
         const textarea = textareaRef.current;
@@ -80,8 +81,8 @@ export function ChatInput({
     // Close menus when clicking outside
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
-            if (modelMenuRef.current && !modelMenuRef.current.contains(event.target as Node)) {
-                setShowModelMenu(false);
+            if (plusMenuRef.current && !plusMenuRef.current.contains(event.target as Node)) {
+                setShowPlusMenu(false);
             }
         };
 
@@ -122,7 +123,7 @@ export function ChatInput({
 
         if (e.key === 'Escape') {
             if (showSlashMenu) setShowSlashMenu(false);
-            if (showModelMenu) setShowModelMenu(false);
+            if (showPlusMenu) setShowPlusMenu(false);
         }
     };
 
@@ -134,9 +135,10 @@ export function ChatInput({
     };
 
     const handleFileClick = () => {
-        // Trigger file upload dialog - we'll use the existing FileUpload component
+        // Trigger file upload dialog
         const fileInput = document.querySelector('input[type="file"][data-chat-upload]') as HTMLInputElement;
         if (fileInput) fileInput.click();
+        setShowPlusMenu(false);
     };
 
     const toggleVoiceRecording = () => {
@@ -144,10 +146,8 @@ export function ChatInput({
 
         if (isRecording) {
             setIsRecording(false);
-            // Voice recognition would stop here
         } else {
             setIsRecording(true);
-            // Voice recognition would start here
         }
     };
 
@@ -161,7 +161,90 @@ export function ChatInput({
                 onClose={handleCloseSlashMenu}
             />
 
+            {/* Plus Menu Popover */}
+            <AnimatePresence>
+                {showPlusMenu && (
+                    <motion.div
+                        ref={plusMenuRef}
+                        initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                        transition={{ duration: 0.1 }}
+                        className="absolute bottom-full left-0 mb-3 w-64 bg-[#1e1e1e] border border-white/10 rounded-xl shadow-2xl z-50 overflow-hidden"
+                    >
+                        <div className="p-1.5 space-y-0.5">
+                            <button
+                                onClick={handleFileClick}
+                                className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-gray-300 hover:text-white hover:bg-white/5 rounded-lg transition-colors text-left"
+                            >
+                                <Paperclip size={18} className="text-gray-400" />
+                                <span>Add photos & files</span>
+                            </button>
 
+                            <div className="h-px bg-white/5 my-1" />
+
+                            <button
+                                onClick={() => {
+                                    onToggleWebSearch?.();
+                                    setShowPlusMenu(false);
+                                }}
+                                className={cn(
+                                    "w-full flex items-center gap-3 px-3 py-2.5 text-sm rounded-lg transition-colors text-left",
+                                    webSearchEnabled ? "text-orange-400 bg-orange-500/10" : "text-gray-300 hover:text-white hover:bg-white/5"
+                                )}
+                            >
+                                <Telescope size={18} className={webSearchEnabled ? "text-orange-400" : "text-gray-400"} />
+                                <span>Deep research</span>
+                                {webSearchEnabled && <span className="ml-auto text-[10px] font-medium opacity-60">ON</span>}
+                            </button>
+
+                            <button
+                                className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-gray-500 hover:text-gray-400 hover:bg-white/5 rounded-lg transition-colors text-left cursor-not-allowed"
+                            >
+                                <ShoppingBag size={18} className="text-gray-600" />
+                                <span>Shopping research</span>
+                            </button>
+
+                            <button
+                                onClick={() => {
+                                    setInput('/imagine ');
+                                    textareaRef.current?.focus();
+                                    setShowPlusMenu(false);
+                                }}
+                                className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-gray-300 hover:text-white hover:bg-white/5 rounded-lg transition-colors text-left"
+                            >
+                                <ImageIcon size={18} className="text-gray-400" />
+                                <span>Create image</span>
+                            </button>
+
+                            <button
+                                onClick={() => {
+                                    onToggleDeepThink?.();
+                                    setShowPlusMenu(false);
+                                }}
+                                className={cn(
+                                    "w-full flex items-center gap-3 px-3 py-2.5 text-sm rounded-lg transition-colors text-left",
+                                    deepThinkEnabled ? "text-purple-400 bg-purple-500/10" : "text-gray-300 hover:text-white hover:bg-white/5"
+                                )}
+                            >
+                                <Lightbulb size={18} className={deepThinkEnabled ? "text-purple-400" : "text-gray-400"} />
+                                <span>Thinking</span>
+                                {deepThinkEnabled && <span className="ml-auto text-[10px] font-medium opacity-60">ON</span>}
+                            </button>
+
+                            <div className="h-px bg-white/5 my-1" />
+
+                            <button
+                                className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-gray-300 hover:text-white hover:bg-white/5 rounded-lg transition-colors text-left"
+                            >
+                                <MoreHorizontal size={18} className="text-gray-400" />
+                                <span>More</span>
+                                <ChevronDown size={14} className="ml-auto text-gray-500 -rotate-90" />
+                            </button>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
             {/* Attached files preview */}
             <AnimatePresence>
@@ -170,18 +253,18 @@ export function ChatInput({
                         initial={{ height: 0, opacity: 0 }}
                         animate={{ height: 'auto', opacity: 1 }}
                         exit={{ height: 0, opacity: 0 }}
-                        className="mb-2 flex flex-wrap gap-2"
+                        className="mb-2 flex flex-wrap gap-2 px-1"
                     >
                         {attachedFiles.map(file => (
                             <div
                                 key={file.id}
-                                className="flex items-center gap-2 px-2 py-1 rounded-lg bg-white/5 border border-white/10 text-xs text-gray-300"
+                                className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#2a2a2a] border border-white/10 text-xs text-gray-300"
                             >
                                 <Paperclip size={12} />
                                 <span className="max-w-[120px] truncate">{file.file.name}</span>
                                 <button
                                     onClick={() => onFileRemove?.(file.id)}
-                                    className="text-gray-500 hover:text-white"
+                                    className="text-gray-500 hover:text-white ml-1"
                                 >
                                     <X size={12} />
                                 </button>
@@ -191,178 +274,92 @@ export function ChatInput({
                 )}
             </AnimatePresence>
 
-            {/* Main input container - Single unified row */}
+            {/* Main input container - Rounded Pill Shape */}
             <div className={cn(
-                "relative w-full bg-[#161b22]/90 backdrop-blur-xl rounded-2xl transition-all duration-200",
-                "border border-[#30363d]/80 shadow-lg shadow-black/10"
+                "relative w-full bg-[#1a1a1a] rounded-[28px] transition-all duration-200",
+                "border border-white/10 shadow-lg shadow-black/20 flex items-end p-2 gap-2"
             )}>
-                <div className="flex items-end gap-1 p-2">
-                    {/* Left actions - compact */}
-                    <div className="flex items-center gap-1 pb-1">
-                        {/* Model selector - compact dropdown */}
-                        <div className="relative" ref={modelMenuRef}>
-                            <button
-                                onClick={() => setShowModelMenu(!showModelMenu)}
-                                className={cn(
-                                    "flex items-center gap-1.5 h-8 px-2 rounded-lg text-xs font-medium transition-all",
-                                    showModelMenu
-                                        ? "bg-white/10 text-white"
-                                        : "text-gray-400 hover:text-white hover:bg-white/5"
-                                )}
-                            >
-                                <Sparkles size={14} className="text-orange-400" />
-                                <span className="hidden sm:inline">{currentModel.displayName}</span>
-                                <ChevronDown size={12} className={cn(
-                                    "transition-transform",
-                                    showModelMenu && "rotate-180"
-                                )} />
-                            </button>
+                {/* Plus Button */}
+                <button
+                    onClick={() => setShowPlusMenu(!showPlusMenu)}
+                    className={cn(
+                        "flex items-center justify-center w-10 h-10 rounded-full transition-all shrink-0",
+                        showPlusMenu ? "bg-white text-black rotate-45" : "bg-[#2a2a2a] text-gray-400 hover:text-white hover:bg-[#333]"
+                    )}
+                >
+                    <Plus size={20} />
+                </button>
 
-                            <AnimatePresence>
-                                {showModelMenu && (
-                                    <motion.div
-                                        initial={{ opacity: 0, y: 8 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        exit={{ opacity: 0, y: 8 }}
-                                        className="absolute bottom-full left-0 mb-2 w-56 rounded-lg overflow-hidden
-                                            bg-[#1a1a1a] border border-white/10 shadow-xl z-50"
-                                    >
-                                        {MIRA_MODELS.map(model => (
-                                            <button
-                                                key={model.id}
-                                                onClick={() => {
-                                                    onModelChange?.(model.id);
-                                                    setShowModelMenu(false);
-                                                }}
-                                                className={cn(
-                                                    "w-full flex flex-col items-start px-3 py-2.5 text-left transition-all",
-                                                    selectedModel === model.id
-                                                        ? "bg-orange-500/10 text-orange-400"
-                                                        : "text-gray-400 hover:text-white hover:bg-white/5"
-                                                )}
-                                            >
-                                                <span className="text-xs font-medium">{model.displayName}</span>
-                                                <span className="text-[10px] text-gray-500">{model.description}</span>
-                                            </button>
-                                        ))}
-                                    </motion.div>
-                                )}
-                            </AnimatePresence>
-                        </div>
-
-                        {/* File upload button */}
-                        <button
-                            onClick={handleFileClick}
-                            disabled={disabled}
-                            className="flex items-center justify-center w-8 h-8 rounded-lg text-gray-500 hover:text-white hover:bg-white/5 transition-all disabled:opacity-50"
-                            title="Attach file"
-                        >
-                            <Paperclip size={16} />
-                        </button>
-
-                        {/* Voice input button */}
-                        <button
-                            onClick={toggleVoiceRecording}
-                            disabled={disabled}
-                            className={cn(
-                                "flex items-center justify-center w-8 h-8 rounded-lg transition-all disabled:opacity-50",
-                                isRecording
-                                    ? "bg-red-500/20 text-red-400 animate-pulse"
-                                    : "text-gray-500 hover:text-white hover:bg-white/5"
-                            )}
-                            title="Voice input"
-                        >
-                            <Mic size={16} />
-                        </button>
-
-                        {/* Web search toggle */}
-                        <button
-                            onClick={onToggleWebSearch}
-                            className={cn(
-                                "flex items-center justify-center w-8 h-8 rounded-lg transition-all",
-                                webSearchEnabled
-                                    ? "bg-orange-500/20 text-orange-400"
-                                    : "text-gray-500 hover:text-white hover:bg-white/5"
-                            )}
-                            title={webSearchEnabled ? "Web search on" : "Web search off"}
-                        >
-                            <Globe size={16} />
-                        </button>
-
-                        {/* DeepThink toggle */}
-                        <button
-                            onClick={onToggleDeepThink}
-                            className={cn(
-                                "flex items-center justify-center w-8 h-8 rounded-lg transition-all",
-                                deepThinkEnabled
-                                    ? "bg-purple-500/20 text-purple-400"
-                                    : "text-gray-500 hover:text-white hover:bg-white/5"
-                            )}
-                            title={deepThinkEnabled ? "Deep thinking on" : "Deep thinking off"}
-                        >
-                            <Brain size={16} />
-                        </button>
-                    </div>
-
-                    {/* Divider */}
-                    <div className="w-px h-6 bg-white/10 mx-1 mb-1" />
-
-                    {/* Textarea */}
+                {/* Textarea */}
+                <div className="flex-1 py-2.5 min-h-[44px]">
                     <textarea
                         ref={textareaRef}
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
                         onKeyDown={handleKeyDown}
-                        placeholder="Ask anything..."
+                        placeholder="Ask anything"
                         rows={1}
                         disabled={disabled}
-                        className="flex-1 max-h-[160px] py-2 px-2 bg-transparent border-none resize-none focus:outline-none text-[15px] text-white placeholder-gray-500 disabled:opacity-50 leading-relaxed"
+                        className="w-full bg-transparent border-none resize-none focus:outline-none text-[16px] text-white placeholder-gray-500 disabled:opacity-50 leading-relaxed max-h-[200px]"
                     />
+                </div>
 
-                    {/* Response style & Send */}
-                    <div className="flex items-center gap-1 pb-1">
-                        {/* Response style toggle - minimal */}
-                        <div className="hidden sm:flex items-center gap-0.5 rounded-lg bg-white/5 p-0.5">
-                            {(['concise', 'detailed'] as const).map((style) => (
-                                <button
-                                    key={style}
-                                    type="button"
-                                    onClick={() => onChangeResponseStyle(style)}
-                                    className={cn(
-                                        'text-[10px] px-2 py-1 rounded transition-all font-medium',
-                                        responseStyle === style
-                                            ? 'bg-white text-black'
-                                            : 'text-gray-500 hover:text-white'
-                                    )}
-                                >
-                                    {style === 'concise' ? 'Brief' : 'Full'}
-                                </button>
-                            ))}
-                        </div>
+                {/* Right Actions */}
+                <div className="flex items-center gap-1 pb-1">
+                    {/* Voice Input */}
+                    <button
+                        onClick={toggleVoiceRecording}
+                        disabled={disabled}
+                        className={cn(
+                            "flex items-center justify-center w-10 h-10 rounded-full transition-all disabled:opacity-50",
+                            isRecording
+                                ? "bg-red-500/20 text-red-400 animate-pulse"
+                                : "text-gray-400 hover:text-white hover:bg-[#2a2a2a]"
+                        )}
+                        title="Voice input"
+                    >
+                        <Mic size={20} />
+                    </button>
 
-                        {/* Send Button */}
+                    {/* Voice Mode / Waveform - Only show when empty */}
+                    {!input.trim() && (
+                        <button
+                            disabled={disabled}
+                            className="flex items-center justify-center w-10 h-10 rounded-full bg-white text-black hover:bg-gray-200 transition-all disabled:opacity-50 shrink-0"
+                            title="Voice Mode"
+                        >
+                            <AudioLines size={20} />
+                        </button>
+                    )}
+
+                    {/* Send Button - Only show when typing */}
+                    {input.trim() && (
                         <Button
                             onClick={handleSend}
                             disabled={!input.trim() || disabled}
                             size="icon"
-                            className={cn(
-                                "rounded-lg transition-all duration-200 w-8 h-8 shrink-0",
-                                input.trim()
-                                    ? "bg-white text-black hover:bg-gray-200"
-                                    : "bg-white/5 text-gray-600 cursor-not-allowed"
-                            )}
+                            className="rounded-full w-10 h-10 bg-white text-black hover:bg-gray-200 shadow-lg shrink-0"
                         >
-                            <SendHorizontal size={16} />
+                            <SendHorizontal size={20} />
                         </Button>
-                    </div>
+                    )}
                 </div>
             </div>
 
-            {/* Minimal hint */}
-            <div className="text-center mt-2">
-                <span className="text-[10px] text-gray-600">
-                    Type <kbd className="px-1 py-0.5 rounded bg-white/5 text-gray-500 font-mono text-[9px]">/</kbd> for commands
-                </span>
+            {/* Active Mode Indicators (below input) */}
+            <div className="flex items-center gap-3 px-4 mt-2">
+                {webSearchEnabled && (
+                    <div className="flex items-center gap-1.5 text-[10px] text-orange-400 font-medium">
+                        <Telescope size={12} />
+                        <span>Deep Research Active</span>
+                    </div>
+                )}
+                {deepThinkEnabled && (
+                    <div className="flex items-center gap-1.5 text-[10px] text-purple-400 font-medium">
+                        <Lightbulb size={12} />
+                        <span>Thinking Mode Active</span>
+                    </div>
+                )}
             </div>
         </div>
     );

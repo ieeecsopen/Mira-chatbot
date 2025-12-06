@@ -77,21 +77,21 @@ export function FileUpload({
   const processFiles = useCallback(async (fileList: FileList | File[]) => {
     const filesArray = Array.from(fileList);
     const remainingSlots = maxFiles - files.length;
-    
+
     if (remainingSlots <= 0) {
       return;
     }
 
     const filesToProcess = filesArray.slice(0, remainingSlots);
-    
+
     const processedFiles: UploadedFile[] = await Promise.all(
       filesToProcess.map(async (file) => {
         const id = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
         const type = getFileType(file);
         const error = validateFile(file);
-        
+
         let preview: string | undefined;
-        
+
         // Generate preview for images
         if (type === 'image' && !error) {
           try {
@@ -189,6 +189,7 @@ export function FileUpload({
         onChange={handleFileInputChange}
         className="hidden"
         disabled={disabled}
+        data-chat-upload="true"
       />
 
       {/* Upload button */}
@@ -273,7 +274,7 @@ export function FilePreview({ files, onRemove, compact = false }: FilePreviewPro
         <AnimatePresence>
           {files.map((file) => {
             const Icon = file.type === 'image' ? Image : file.type === 'document' ? FileText : File;
-            
+
             return (
               <motion.div
                 key={file.id}
@@ -295,7 +296,7 @@ export function FilePreview({ files, onRemove, compact = false }: FilePreviewPro
                     <Icon size={24} className="text-gray-400" />
                   </div>
                 )}
-                
+
                 {file.uploading && (
                   <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
                     <Loader2 size={20} className="animate-spin text-white" />
@@ -323,7 +324,7 @@ export function FilePreview({ files, onRemove, compact = false }: FilePreviewPro
       <AnimatePresence>
         {files.map((file) => {
           const Icon = file.type === 'image' ? Image : file.type === 'document' ? FileText : File;
-          
+
           return (
             <motion.div
               key={file.id}
