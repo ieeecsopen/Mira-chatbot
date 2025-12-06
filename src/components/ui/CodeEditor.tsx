@@ -94,6 +94,7 @@ export function CodeEditor({
     placeholder = 'Start typing...',
 }: CodeEditorProps) {
     const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const preRef = useRef<HTMLPreElement>(null);
     const lineNumbersRef = useRef<HTMLDivElement>(null);
     const [currentLine, setCurrentLine] = useState(1);
     const [isFocused, setIsFocused] = useState(false);
@@ -101,10 +102,16 @@ export function CodeEditor({
     const lines = content.split('\n');
     const lineCount = lines.length;
 
-    // Sync scroll between textarea and line numbers
+    // Sync scroll between textarea, line numbers, and syntax highlight
     const handleScroll = useCallback(() => {
-        if (textareaRef.current && lineNumbersRef.current) {
-            lineNumbersRef.current.scrollTop = textareaRef.current.scrollTop;
+        if (textareaRef.current) {
+            if (lineNumbersRef.current) {
+                lineNumbersRef.current.scrollTop = textareaRef.current.scrollTop;
+            }
+            if (preRef.current) {
+                preRef.current.scrollTop = textareaRef.current.scrollTop;
+                preRef.current.scrollLeft = textareaRef.current.scrollLeft;
+            }
         }
     }, []);
 
@@ -230,11 +237,20 @@ export function CodeEditor({
             <div className="relative flex-1 overflow-hidden">
                 {/* Syntax highlighted display (behind textarea) */}
                 <pre
+                    ref={preRef}
                     className={cn(
-                        'pointer-events-none absolute inset-0 overflow-auto whitespace-pre-wrap break-words p-4 leading-6',
+                        'pointer-events-none absolute inset-0 m-0 overflow-auto p-4',
                         theme === 'dark' ? 'text-gray-100' : 'text-gray-800'
                     )}
                     aria-hidden="true"
+                    style={{
+                        fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace',
+                        fontSize: '14px',
+                        lineHeight: '24px',
+                        whiteSpace: 'pre',
+                        wordWrap: 'normal',
+                        overflowWrap: 'normal',
+                    }}
                 >
                     <code
                         dangerouslySetInnerHTML={{
@@ -255,25 +271,34 @@ export function CodeEditor({
                     readOnly={readOnly}
                     placeholder={placeholder}
                     spellCheck={false}
+                    wrap="off"
                     className={cn(
-                        'absolute inset-0 h-full w-full resize-none overflow-auto whitespace-pre-wrap break-words p-4 leading-6',
+                        'absolute inset-0 m-0 h-full w-full resize-none overflow-auto p-4',
                         'bg-transparent caret-blue-400',
                         'focus:outline-none',
-                        // Make text transparent but keep caret visible
-                        'text-transparent',
+                        'text-transparent selection:bg-blue-500/30',
                         readOnly && 'cursor-default'
                     )}
                     style={{
+                        fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace',
+                        fontSize: '14px',
+                        lineHeight: '24px',
+                        whiteSpace: 'pre',
+                        wordWrap: 'normal',
+                        overflowWrap: 'normal',
                         caretColor: theme === 'dark' ? '#60a5fa' : '#2563eb',
                     }}
                 />
 
                 {/* Placeholder */}
                 {!content && (
-                    <div className={cn(
-                        'pointer-events-none absolute left-4 top-4 leading-6',
-                        theme === 'dark' ? 'text-gray-600' : 'text-gray-400'
-                    )}>
+                    <div
+                        className={cn(
+                            'pointer-events-none absolute left-4 top-4',
+                            theme === 'dark' ? 'text-gray-600' : 'text-gray-400'
+                        )}
+                        style={{ lineHeight: '24px' }}
+                    >
                         {placeholder}
                     </div>
                 )}
@@ -287,8 +312,8 @@ export function CodeEditor({
                         theme === 'dark' ? 'bg-white/5' : 'bg-blue-50'
                     )}
                     style={{
-                        top: `calc(1rem + ${(currentLine - 1) * 1.5}rem)`,
-                        height: '1.5rem',
+                        top: `calc(1rem + ${(currentLine - 1) * 24}px)`,
+                        height: '24px',
                     }}
                 />
             )}
