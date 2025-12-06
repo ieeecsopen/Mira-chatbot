@@ -1,15 +1,17 @@
 "use client";
 
-import { useState } from "react";
-import { motion } from "framer-motion";
+import { useState, useRef, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "../../lib/utils";
 import {
-    Search,
+    Globe,
     Sparkles,
-    ImageIcon,
+    Paperclip,
     Mic,
-    User2,
+    ChevronDown,
+    SendHorizontal,
 } from "lucide-react";
+import { MIRA_MODELS } from "../ModelSelector";
 
 interface RuixenMoonChatProps {
     onStartChat?: (message: string) => void;
@@ -17,16 +19,40 @@ interface RuixenMoonChatProps {
     onModelChange?: (modelId: string) => void;
 }
 
-const actionButtons = [
-    { icon: Search, label: "Deep Search", color: "from-blue-500/20 to-cyan-500/20", hoverColor: "hover:from-blue-500/30 hover:to-cyan-500/30", textColor: "text-blue-400" },
-    { icon: ImageIcon, label: "Create Image", color: "from-purple-500/20 to-pink-500/20", hoverColor: "hover:from-purple-500/30 hover:to-pink-500/30", textColor: "text-purple-400" },
-    { icon: User2, label: "Pick Personas", color: "from-green-500/20 to-emerald-500/20", hoverColor: "hover:from-green-500/30 hover:to-emerald-500/30", textColor: "text-green-400" },
-    { icon: Mic, label: "Voice", color: "from-orange-500/20 to-red-500/20", hoverColor: "hover:from-orange-500/30 hover:to-red-500/30", textColor: "text-orange-400" },
-];
-
-export default function RuixenMoonChat({ onStartChat }: RuixenMoonChatProps) {
+export default function RuixenMoonChat({ onStartChat, selectedModel = 'gemini-2.0-flash', onModelChange }: RuixenMoonChatProps) {
     const [message, setMessage] = useState("");
     const [isFocused, setIsFocused] = useState(false);
+    const [showModelMenu, setShowModelMenu] = useState(false);
+    const [webSearchEnabled, setWebSearchEnabled] = useState(false);
+    const modelMenuRef = useRef<HTMLDivElement>(null);
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+    const currentModel = MIRA_MODELS.find(m => m.id === selectedModel) || MIRA_MODELS[0];
+
+    // Close model menu when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (modelMenuRef.current && !modelMenuRef.current.contains(event.target as Node)) {
+                setShowModelMenu(false);
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    // Auto-resize textarea
+    const adjustHeight = () => {
+        const textarea = textareaRef.current;
+        if (textarea) {
+            textarea.style.height = 'auto';
+            textarea.style.height = `${Math.min(textarea.scrollHeight, 120)}px`;
+        }
+    };
+
+    useEffect(() => {
+        adjustHeight();
+    }, [message]);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -45,7 +71,7 @@ export default function RuixenMoonChat({ onStartChat }: RuixenMoonChatProps) {
 
     return (
         <div className="relative w-full h-screen bg-[#0a0a0a] flex flex-col items-center justify-center overflow-hidden">
-            {/* Animated GIF Background */}
+            {/* Animated Background */}
             <div
                 className="absolute inset-0 opacity-30"
                 style={{
@@ -56,12 +82,12 @@ export default function RuixenMoonChat({ onStartChat }: RuixenMoonChatProps) {
                 }}
             />
 
-            {/* Dark overlay for better text readability */}
+            {/* Dark overlay */}
             <div className="absolute inset-0 bg-gradient-to-b from-[#0a0a0a]/60 via-[#0a0a0a]/70 to-[#0a0a0a]/80" />
 
             {/* Main Content */}
             <div className="relative z-10 w-full max-w-2xl px-6 flex flex-col items-center">
-                {/* Simple Logo */}
+                {/* Logo */}
                 <motion.div
                     initial={{ opacity: 0, scale: 0.9 }}
                     animate={{ opacity: 1, scale: 1 }}
@@ -71,89 +97,170 @@ export default function RuixenMoonChat({ onStartChat }: RuixenMoonChatProps) {
                     <div className="w-12 h-12 rounded-xl bg-white/5 backdrop-blur-sm flex items-center justify-center border border-white/10">
                         <Sparkles size={24} className="text-white" />
                     </div>
-                    <h1 className="text-5xl font-bold text-white tracking-tight">
-                        Mira
-                    </h1>
+                    <div>
+                        <h1 className="text-4xl font-bold text-white tracking-tight">Mira</h1>
+                        <p className="text-sm text-gray-500">මීරා</p>
+                    </div>
                 </motion.div>
 
-                {/* Search Input */}
+                {/* Unified Input - Similar to ChatInput */}
                 <motion.form
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.5, delay: 0.1 }}
                     onSubmit={handleSubmit}
-                    className="w-full mb-8"
+                    className="w-full mb-6"
                 >
                     <div
                         className={cn(
-                            "relative bg-[#1a1a1a]/60 backdrop-blur-xl rounded-full transition-all duration-300 border",
+                            "relative bg-[#161b22]/90 backdrop-blur-xl rounded-2xl transition-all duration-300 border",
                             isFocused
-                                ? "border-white/20 shadow-2xl shadow-white/5"
-                                : "border-white/10 shadow-lg shadow-black/20"
+                                ? "border-white/20 shadow-2xl shadow-white/5 ring-1 ring-white/10"
+                                : "border-[#30363d]/80 shadow-lg shadow-black/20"
                         )}
                     >
-                        <div className="flex items-center gap-3 px-6 py-4">
-                            <Sparkles size={18} className="text-gray-500 flex-shrink-0" />
-                            <input
-                                type="text"
+                        <div className="flex items-end gap-1 p-3">
+                            {/* Left actions */}
+                            <div className="flex items-center gap-1 pb-1">
+                                {/* Model selector */}
+                                <div className="relative" ref={modelMenuRef}>
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowModelMenu(!showModelMenu)}
+                                        className={cn(
+                                            "flex items-center gap-1.5 h-8 px-2 rounded-lg text-xs font-medium transition-all",
+                                            showModelMenu
+                                                ? "bg-white/10 text-white"
+                                                : "text-gray-400 hover:text-white hover:bg-white/5"
+                                        )}
+                                    >
+                                        <Sparkles size={14} className="text-orange-400" />
+                                        <span className="hidden sm:inline">{currentModel.displayName}</span>
+                                        <ChevronDown size={12} className={cn(
+                                            "transition-transform",
+                                            showModelMenu && "rotate-180"
+                                        )} />
+                                    </button>
+
+                                    <AnimatePresence>
+                                        {showModelMenu && (
+                                            <motion.div
+                                                initial={{ opacity: 0, y: 8 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                exit={{ opacity: 0, y: 8 }}
+                                                className="absolute bottom-full left-0 mb-2 w-56 rounded-lg overflow-hidden
+                                                    bg-[#1a1a1a] border border-white/10 shadow-xl z-50"
+                                            >
+                                                {MIRA_MODELS.map(model => (
+                                                    <button
+                                                        type="button"
+                                                        key={model.id}
+                                                        onClick={() => {
+                                                            onModelChange?.(model.id);
+                                                            setShowModelMenu(false);
+                                                        }}
+                                                        className={cn(
+                                                            "w-full flex flex-col items-start px-3 py-2.5 text-left transition-all",
+                                                            selectedModel === model.id
+                                                                ? "bg-orange-500/10 text-orange-400"
+                                                                : "text-gray-400 hover:text-white hover:bg-white/5"
+                                                        )}
+                                                    >
+                                                        <span className="text-xs font-medium">{model.displayName}</span>
+                                                        <span className="text-[10px] text-gray-500">{model.description}</span>
+                                                    </button>
+                                                ))}
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
+                                </div>
+
+                                {/* File upload */}
+                                <button
+                                    type="button"
+                                    className="flex items-center justify-center w-8 h-8 rounded-lg text-gray-500 hover:text-white hover:bg-white/5 transition-all"
+                                    title="Attach file"
+                                >
+                                    <Paperclip size={16} />
+                                </button>
+
+                                {/* Voice input */}
+                                <button
+                                    type="button"
+                                    className="flex items-center justify-center w-8 h-8 rounded-lg text-gray-500 hover:text-white hover:bg-white/5 transition-all"
+                                    title="Voice input"
+                                >
+                                    <Mic size={16} />
+                                </button>
+
+                                {/* Web search toggle */}
+                                <button
+                                    type="button"
+                                    onClick={() => setWebSearchEnabled(!webSearchEnabled)}
+                                    className={cn(
+                                        "flex items-center justify-center w-8 h-8 rounded-lg transition-all",
+                                        webSearchEnabled
+                                            ? "bg-orange-500/20 text-orange-400"
+                                            : "text-gray-500 hover:text-white hover:bg-white/5"
+                                    )}
+                                    title={webSearchEnabled ? "Web search on" : "Web search off"}
+                                >
+                                    <Globe size={16} />
+                                </button>
+                            </div>
+
+                            {/* Divider */}
+                            <div className="w-px h-6 bg-white/10 mx-1 mb-1" />
+
+                            {/* Textarea */}
+                            <textarea
+                                ref={textareaRef}
                                 value={message}
                                 onChange={(e) => setMessage(e.target.value)}
                                 onKeyDown={handleKeyDown}
                                 onFocus={() => setIsFocused(true)}
                                 onBlur={() => setIsFocused(false)}
                                 placeholder="What do you want to know?"
-                                className="flex-1 bg-transparent border-none focus:outline-none text-base text-white placeholder-gray-500 font-normal"
+                                rows={1}
+                                className="flex-1 max-h-[120px] py-2 px-2 bg-transparent border-none resize-none focus:outline-none text-[15px] text-white placeholder-gray-500 leading-relaxed"
                             />
-                            {/* Auto badge - always visible */}
-                            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10">
-                                <Sparkles size={12} className="text-gray-400" />
-                                <span className="text-xs text-gray-400 font-medium">Auto</span>
+
+                            {/* Send button */}
+                            <div className="pb-1">
+                                <button
+                                    type="submit"
+                                    disabled={!message.trim()}
+                                    className={cn(
+                                        "flex items-center justify-center w-9 h-9 rounded-lg transition-all duration-200",
+                                        message.trim()
+                                            ? "bg-white text-black hover:bg-gray-200"
+                                            : "bg-white/5 text-gray-600 cursor-not-allowed"
+                                    )}
+                                >
+                                    <SendHorizontal size={18} />
+                                </button>
                             </div>
-                            {/* Voice button */}
-                            <button
-                                type="button"
-                                className="w-9 h-9 rounded-full bg-white flex items-center justify-center hover:bg-gray-100 transition-all flex-shrink-0"
-                                aria-label="Voice input"
-                            >
-                                <div className="w-2 h-2 rounded-full bg-black" />
-                            </button>
                         </div>
                     </div>
                 </motion.form>
 
-                {/* Action Buttons */}
+                {/* Minimal hint */}
                 <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.5, delay: 0.2 }}
-                    className="flex flex-wrap items-center justify-center gap-3"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.4 }}
+                    className="text-center"
                 >
-                    {actionButtons.map((btn, index) => (
-                        <motion.button
-                            key={btn.label}
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 0.3 + index * 0.05 }}
-                            whileHover={{ scale: 1.05 }}
-                            whileTap={{ scale: 0.95 }}
-                            className={cn(
-                                "group flex items-center gap-2 px-4 py-2.5 rounded-full transition-all duration-200 border border-white/10",
-                                `bg-gradient-to-r ${btn.color} ${btn.hoverColor}`
-                            )}
-                        >
-                            <btn.icon size={16} className={cn("transition-colors", btn.textColor)} />
-                            <span className="text-sm text-gray-300 group-hover:text-white font-medium transition-colors">
-                                {btn.label}
-                            </span>
-                        </motion.button>
-                    ))}
+                    <span className="text-[10px] text-gray-600">
+                        Type <kbd className="px-1 py-0.5 rounded bg-white/5 text-gray-500 font-mono text-[9px]">/</kbd> for commands
+                    </span>
                 </motion.div>
 
                 {/* Footer Text */}
                 <motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
-                    transition={{ delay: 0.8 }}
+                    transition={{ delay: 0.6 }}
                     className="mt-12 text-xs text-gray-600 text-center"
                 >
                     By messaging Mira, you agree to our{" "}
