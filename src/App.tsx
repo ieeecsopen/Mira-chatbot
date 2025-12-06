@@ -438,19 +438,22 @@ function App() {
             });
           },
           onThinkingDone: () => {
-            setMessages(prev => {
-              const lastIndex = prev.length - 1;
-              if (lastIndex >= 0 && prev[lastIndex].role === 'assistant') {
-                return [
-                  ...prev.slice(0, lastIndex),
-                  {
-                    ...prev[lastIndex],
-                    isThinking: false
-                  }
-                ];
-              }
-              return prev;
-            });
+            // Keep thinking indicator visible for a moment before transitioning
+            setTimeout(() => {
+              setMessages(prev => {
+                const lastIndex = prev.length - 1;
+                if (lastIndex >= 0 && prev[lastIndex].role === 'assistant') {
+                  return [
+                    ...prev.slice(0, lastIndex),
+                    {
+                      ...prev[lastIndex],
+                      isThinking: false
+                    }
+                  ];
+                }
+                return prev;
+              });
+            }, 500); // Keep indicator visible for half a second after thinking completes
           }
         }
       );

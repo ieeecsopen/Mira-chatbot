@@ -608,26 +608,33 @@ export async function streamMessage(
                                             // Look for closing thinking tag
                                             const thinkingEnd = processText.indexOf('</thinking>');
                                             if (thinkingEnd !== -1) {
-                                                thinkingBuffer += processText.slice(0, thinkingEnd);
+                                                const finalThinkingChunk = processText.slice(0, thinkingEnd);
+                                                thinkingBuffer += finalThinkingChunk;
                                                 if (options?.onThinkingChunk) {
-                                                    // Stream thinking more deliberately
-                                                    await new Promise(resolve => setTimeout(resolve, 20));
-                                                    options.onThinkingChunk(processText.slice(0, thinkingEnd));
+                                                    // Stream thinking character by character for dramatic effect
+                                                    for (let i = 0; i < finalThinkingChunk.length; i++) {
+                                                        options.onThinkingChunk(finalThinkingChunk[i]);
+                                                        // Longer delay for reading comprehension
+                                                        await new Promise(resolve => setTimeout(resolve, 35));
+                                                    }
                                                 }
                                                 inThinkingTag = false;
                                                 if (options?.onThinkingDone) {
-                                                    // Small pause before transitioning to answer
-                                                    await new Promise(resolve => setTimeout(resolve, 150));
+                                                    // Longer pause before transitioning to answer (keep thinking visible)
+                                                    await new Promise(resolve => setTimeout(resolve, 2000));
                                                     options.onThinkingDone();
                                                 }
                                                 processText = processText.slice(thinkingEnd + 11);
                                             } else {
-                                                // Still in thinking tag - add deliberate pacing
+                                                // Still in thinking tag - stream slowly character by character
                                                 thinkingBuffer += processText;
                                                 if (options?.onThinkingChunk) {
-                                                    // Add slight delay to show thoughtful processing
-                                                    await new Promise(resolve => setTimeout(resolve, 15));
-                                                    options.onThinkingChunk(processText);
+                                                    // Character by character with meaningful delays
+                                                    for (let i = 0; i < processText.length; i++) {
+                                                        options.onThinkingChunk(processText[i]);
+                                                        // Slow, thoughtful character streaming
+                                                        await new Promise(resolve => setTimeout(resolve, 30));
+                                                    }
                                                 }
                                                 break;
                                             }
@@ -637,16 +644,23 @@ export async function streamMessage(
                                             if (answerEnd !== -1) {
                                                 const answerPart = processText.slice(0, answerEnd);
                                                 answerBuffer += answerPart;
-                                                // Deliver answer at measured pace
-                                                await new Promise(resolve => setTimeout(resolve, 25));
-                                                onChunk(answerPart);
+                                                // Deliver answer word by word at measured pace
+                                                const words = answerPart.split(/\s+/);
+                                                for (let i = 0; i < words.length; i++) {
+                                                    onChunk(words[i] + (i < words.length - 1 ? ' ' : ''));
+                                                    // Thoughtful word-by-word delivery
+                                                    await new Promise(resolve => setTimeout(resolve, 80));
+                                                }
                                                 inAnswerTag = false;
                                                 processText = processText.slice(answerEnd + 9);
                                             } else {
-                                                // Still in answer tag - thoughtful delivery
+                                                // Still in answer tag - word by word delivery
                                                 answerBuffer += processText;
-                                                await new Promise(resolve => setTimeout(resolve, 20));
-                                                onChunk(processText);
+                                                const words = processText.split(/\s+/);
+                                                for (let i = 0; i < words.length; i++) {
+                                                    onChunk(words[i] + (i < words.length - 1 ? ' ' : ''));
+                                                    await new Promise(resolve => setTimeout(resolve, 75));
+                                                }
                                                 break;
                                             }
                                         }

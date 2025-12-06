@@ -30,10 +30,10 @@ export function ThinkingIndicator({ isThinking, startTime }: ThinkingIndicatorPr
             setElapsedTime(Math.floor((Date.now() - startTime) / 1000));
         }, 1000);
 
-        // Cycle through thinking stages every 3 seconds
+        // Cycle through thinking stages every 5 seconds for deliberate pacing
         const stageInterval = setInterval(() => {
             setCurrentStage((prev) => (prev + 1) % thinkingStages.length);
-        }, 3000);
+        }, 5000);
 
         return () => {
             clearInterval(interval);
@@ -131,7 +131,7 @@ export function ThinkingIndicator({ isThinking, startTime }: ThinkingIndicatorPr
                         width: ['0%', '100%'],
                     }}
                     transition={{
-                        duration: 3,
+                        duration: 5,
                         repeat: Infinity,
                         ease: "linear",
                     }}
@@ -149,6 +149,8 @@ interface ThinkingContentProps {
 
 export function ThinkingContent({ content, defaultExpanded = false }: ThinkingContentProps) {
     const [isExpanded, setIsExpanded] = useState(defaultExpanded);
+    const [previousLength, setPreviousLength] = useState(0);
+    const [isStreaming, setIsStreaming] = useState(true);
 
     // Auto-expand when defaultExpanded changes to true
     useEffect(() => {
@@ -156,6 +158,18 @@ export function ThinkingContent({ content, defaultExpanded = false }: ThinkingCo
             setIsExpanded(true);
         }
     }, [defaultExpanded]);
+
+    // Detect when content stops streaming
+    useEffect(() => {
+        setPreviousLength(content.length);
+        setIsStreaming(true);
+        
+        const timer = setTimeout(() => {
+            setIsStreaming(false);
+        }, 500); // If no new content for 500ms, stop streaming indicator
+
+        return () => clearTimeout(timer);
+    }, [content]);
 
     if (!content) return null;
 
@@ -175,9 +189,13 @@ export function ThinkingContent({ content, defaultExpanded = false }: ThinkingCo
 
     return (
         <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            transition={{ duration: 0.3 }}
+            initial={{ opacity: 0, height: 0, y: -20 }}
+            animate={{ opacity: 1, height: 'auto', y: 0 }}
+            transition={{ 
+                duration: 0.8, 
+                ease: "easeOut",
+                opacity: { duration: 0.6 }
+            }}
             className="mb-4 rounded-xl overflow-hidden border border-purple-500/30 bg-gradient-to-br from-purple-500/10 via-blue-500/5 to-indigo-500/10 shadow-lg backdrop-blur-sm"
         >
             {/* Header - always visible */}
@@ -222,14 +240,19 @@ export function ThinkingContent({ content, defaultExpanded = false }: ThinkingCo
                 </motion.div>
             </button>
 
-            {/* Content - collapsible */}
+            {/* Content - collapsible with slower animation */}
             <motion.div
                 initial={false}
                 animate={{
                     height: isExpanded ? 'auto' : 0,
                     opacity: isExpanded ? 1 : 0,
                 }}
-                transition={{ duration: 0.3, ease: "easeInOut" }}
+                transition={{ 
+                    duration: 0.6, 
+                    ease: "easeInOut",
+                    height: { duration: 0.5 },
+                    opacity: { duration: 0.4, delay: 0.1 }
+                }}
                 className="overflow-hidden"
             >
                 <div className="px-4 pb-4 pt-1">
