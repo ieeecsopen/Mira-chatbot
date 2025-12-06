@@ -452,49 +452,139 @@ export async function streamMessage(
         try {
             console.log(`🤖 Trying streaming with: ${model.name}${conversationHistory && conversationHistory.length > 0 ? ` (with ${conversationHistory.length} history messages)` : ''}${options?.deepThink ? ' [DEEP THINK MODE]' : ''}`);
 
-            // Use our backend proxy instead of calling Gemini directly
-            // This hides the API key and Gemini endpoints from the browser Network tab
-            const streamUrl = '/api/chat';
+            // Detect if running on Vercel (production) or locally
+            const isProduction = import.meta.env.PROD && !window.location.hostname.includes('localhost');
 
-            // Get memory context to pass to backend
+            // Get memory context
             const memoryContext = getMemoryContext();
 
-            // Build request body for our backend proxy
-            // The backend handles the Gemini API format conversion
-            const requestBody = {
-                message: enhancedMessage,
-                model: model.name,
-                history: conversationHistory || [],
-                options: {
-                    enableWebSearch: useGeminiSearch,
-                    responseStyle: options?.responseStyle,
-                    deepThink: options?.deepThink,
-                    memoryContext: memoryContext || undefined,
-                    documentContext: documentContext || undefined,
-                }
-            };
+            let response: Response;
+            let attempts = 1;
+            let totalTimeMs = 0;
+            const fetchStart = Date.now();
 
-            const { success, data: response, error: fetchError, attempts, totalTimeMs } = await withRetry(
-                () => fetch(streamUrl, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
+            if (isProduction) {
+                // Use our backend proxy on Vercel - hides API key
+                const streamUrl = '/api/chat';
+                const requestBody = {
+                    message: enhancedMessage,
+                    model: model.name,
+                    history: conversationHistory || [],
+                    options: {
+                        enableWebSearch: useGeminiSearch,
+                        responseStyle: options?.responseStyle,
+                        deepThink: options?.deepThink,
+                        memoryContext: memoryContext || undefined,
+                        documentContext: documentContext || undefined,
+                    }
+                };
+
+                const result = await withRetry(
+                    () => fetch(streamUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(requestBody),
+                    }),
+                    { maxAttempts: 3, initialDelayMs: 500 }
+                );
+
+                if (!result.success || !result.data) {
+                    throw result.error || new Error('Request failed');
+                }
+                response = result.data;
+                attempts = result.attempts;
+                totalTimeMs = result.totalTimeMs;
+            } else {
+                // Direct Gemini call for local development
+                console.log('📡 Direct Gemini API call (local development)');
+
+                // Build conversation history for Gemini format
+                const historyContents = (conversationHistory || []).map((msg) => ({
+                    role: msg.role === 'assistant' ? 'model' : 'user',
+                    parts: [{ text: msg.content }]
+                }));
+
+                // Build system instruction with all options
+                let fullSystemInstruction = SYSTEM_INSTRUCTION;
+
+                if (options?.responseStyle === 'concise') {
+                    fullSystemInstruction += '\n\nRespond concisely in 2-3 sentences focusing on the key answer.';
+                } else if (options?.responseStyle === 'detailed') {
+                    fullSystemInstruction += '\n\nProvide a detailed, step-by-step explanation.';
+                }
+
+                if (options?.deepThink) {
+                    fullSystemInstruction += `\n\n## DEEP THINKING MODE ACTIVATED:
+You must think carefully and thoroughly before answering.
+
+Format your response as:
+<thinking>
+[Write your detailed reasoning process here]
+</thinking>
+
+<answer>
+[Provide your final answer here]
+</answer>`;
+                }
+
+                if (memoryContext) {
+                    fullSystemInstruction += `\n\n${memoryContext}`;
+                }
+
+                if (documentContext) {
+                    fullSystemInstruction += `\n\n[DOCUMENT CONTEXT]\n${documentContext}\n[END DOCUMENT CONTEXT]`;
+                }
+
+                const requestBody: Record<string, unknown> = {
+                    system_instruction: {
+                        parts: [{ text: fullSystemInstruction }]
                     },
-                    body: JSON.stringify(requestBody),
-                }),
-                {
-                    maxAttempts: 3,
-                    initialDelayMs: 500,
-                }
-            );
+                    contents: [
+                        ...historyContents,
+                        {
+                            role: 'user',
+                            parts: [{ text: enhancedMessage }]
+                        }
+                    ],
+                };
 
-            if (!success || !response) {
-                throw fetchError || new Error('Request failed');
+                // Add Google Search tool if enabled
+                if (useGeminiSearch) {
+                    requestBody.tools = [{ googleSearch: {} }];
+                }
+
+                const streamUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model.name}:streamGenerateContent?alt=sse&key=${GEMINI_API_KEY}`;
+
+                const result = await withRetry(
+                    () => fetch(streamUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(requestBody),
+                    }),
+                    { maxAttempts: 3, initialDelayMs: 500 }
+                );
+
+                if (!result.success || !result.data) {
+                    throw result.error || new Error('Request failed');
+                }
+                response = result.data;
+                attempts = result.attempts;
+                totalTimeMs = result.totalTimeMs;
             }
 
+            totalTimeMs = Date.now() - fetchStart;
+
             if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.error?.message || `HTTP error: ${response.status}`);
+                const errorText = await response.text();
+                let errorMessage = `HTTP error: ${response.status}`;
+                try {
+                    const error = JSON.parse(errorText);
+                    errorMessage = error.error?.message || errorMessage;
+                } catch {
+                    // Response wasn't JSON
+                    if (errorText) errorMessage = errorText;
+                }
+                throw new Error(errorMessage);
             }
 
             // Success! Record usage and process stream
