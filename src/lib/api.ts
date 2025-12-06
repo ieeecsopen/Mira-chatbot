@@ -95,7 +95,8 @@ import { correctGrammar, enhanceSinhalaText } from './grammar';
 import { buildRAGContext, getDirectAnswer } from './rag';
 import { responseCache } from './cache';
 import type { SearchResult } from './webSearch';
-import { getDocumentStore } from './documentStore';
+import { buildMultiHopDocumentContext } from './ragOrchestrator';
+import { recordRetrievalFeedback } from './ragFeedback';
 import { getMemoryContext } from './userMemory';
 import { withRetry } from './retry';
 
@@ -238,9 +239,19 @@ export async function sendMessage(_userId: string, message: string): Promise<Cha
     // Preprocess the message
     const { processed, ragContext, directAnswer } = preprocessMessage(message);
 
+    const documentPlan = buildMultiHopDocumentContext(message, 2000);
+    const documentContext = documentPlan?.context || '';
+
     // If we have a direct answer from knowledge base, return it
     if (directAnswer) {
         console.log('📚 Direct answer from knowledge base');
+        recordRetrievalFeedback({
+            query: message,
+            answer: directAnswer,
+            ragUsed: true,
+            sources: ['Sinhala Knowledge Base'],
+            model: 'knowledge-base',
+        });
         return {
             answer: postprocessResponse(directAnswer),
             sources: ['Sinhala Knowledge Base'],
@@ -251,9 +262,12 @@ export async function sendMessage(_userId: string, message: string): Promise<Cha
 
     // Build enhanced prompt with RAG context
     const enhancedMessage = buildEnhancedPrompt(processed, ragContext);
+    const finalPrompt = documentContext
+        ? `[DOCUMENT CONTEXT]\n${documentContext}\n[END DOCUMENT CONTEXT]\n\n${enhancedMessage}`
+        : enhancedMessage;
 
     // Determine if we need quality model (longer/complex queries)
-    const preferQuality = message.length > 200 || ragContext.length > 500;
+    const preferQuality = message.length > 200 || ragContext.length > 500 || documentContext.length > 500;
 
     // Try with automatic fallback across models
     const result = await tryWithFallback(async (model) => {
@@ -273,7 +287,7 @@ export async function sendMessage(_userId: string, message: string): Promise<Cha
                         {
                             parts: [
                                 {
-                                    text: enhancedMessage,
+                                    text: finalPrompt,
                                 },
                             ],
                         },
@@ -309,14 +323,27 @@ export async function sendMessage(_userId: string, message: string): Promise<Cha
         // Post-process the response
         answer = postprocessResponse(answer);
 
+        const sources: string[] = [];
+        if (ragContext) sources.push('Sinhala Knowledge Base');
+        if (documentContext) sources.push('User Documents');
+
         return {
             answer,
-            sources: ragContext ? ['Sinhala Knowledge Base'] : [],
-            confidence: ragContext ? 'high' : 'medium',
-            rag_used: !!ragContext,
+            sources,
+            confidence: sources.length > 0 ? 'high' : 'medium',
+            rag_used: sources.length > 0,
             model: model.name, // Include which model was used
         };
     }, preferQuality);
+
+    recordRetrievalFeedback({
+        query: message,
+        answer: result.answer,
+        ragUsed: result.rag_used,
+        sources: result.sources,
+        model: result.model,
+        hops: documentPlan?.hops,
+    });
 
     return result;
 }
@@ -351,15 +378,14 @@ export async function streamMessage(
         console.log('🔄 Singlish converted:', message, '→', processed);
     }
 
-    // Get document context if documents are loaded
+    // Get document context via multi-hop retrieval if enabled
     let documentContext = '';
+    let documentPlan: ReturnType<typeof buildMultiHopDocumentContext> = null;
     if (options?.enableDocumentContext !== false) {
-        const docStore = getDocumentStore();
-        if (docStore.getAll().length > 0) {
-            documentContext = docStore.getContextForQuery(message, 2000);
-            if (documentContext) {
-                console.log('📄 Document context added to prompt');
-            }
+        documentPlan = buildMultiHopDocumentContext(message, 2000);
+        if (documentPlan) {
+            documentContext = documentPlan.context;
+            console.log('📄 Document context added (multi-hop)', documentPlan.hops.map(h => h.type));
         }
     }
 
@@ -380,6 +406,17 @@ export async function streamMessage(
             const cachedResponse = responseCache.get(cacheKey);
             if (cachedResponse) {
                 console.log('📦 Returning cached response');
+                recordRetrievalFeedback({
+                    query: message,
+                    answer: cachedResponse,
+                    ragUsed: !!ragContext || !!documentContext,
+                    sources: [
+                        ...(ragContext ? ['Sinhala Knowledge Base'] : []),
+                        ...(documentContext ? ['User Documents'] : []),
+                    ],
+                    model: 'cache',
+                    hops: documentPlan?.hops,
+                });
                 // Stream cached response word by word
                 const words = cachedResponse.split(' ');
                 for (const word of words) {
@@ -396,6 +433,14 @@ export async function streamMessage(
     if (directAnswer && !options?.enableWebSearch && !documentContext) {
         console.log('📚 Direct answer from knowledge base');
         const answer = postprocessResponse(directAnswer);
+
+        recordRetrievalFeedback({
+            query: message,
+            answer,
+            ragUsed: true,
+            sources: ['Sinhala Knowledge Base'],
+            model: 'knowledge-base',
+        });
 
         // Cache the direct answer
         responseCache.set(cacheKey, answer);
@@ -424,7 +469,7 @@ export async function streamMessage(
     }
 
     // Determine if we need quality model
-    const preferQuality = message.length > 200 || ragContext.length > 500;
+    const preferQuality = message.length > 200 || ragContext.length > 500 || documentContext.length > 500;
 
     // If a specific model is selected, use only that model
     // Otherwise, try streaming with fallback across models
@@ -681,6 +726,18 @@ Format your response as:
             if (fullResponse && (!conversationHistory || conversationHistory.length === 0)) {
                 responseCache.set(cacheKey, fullResponse);
             }
+
+            recordRetrievalFeedback({
+                query: message,
+                answer: fullResponse,
+                ragUsed: !!ragContext || !!documentContext,
+                sources: [
+                    ...(ragContext ? ['Sinhala Knowledge Base'] : []),
+                    ...(documentContext ? ['User Documents'] : []),
+                ],
+                model: model.name,
+                hops: documentPlan?.hops,
+            });
 
             // Successfully completed streaming
             onDone();

@@ -5,6 +5,7 @@
 
 import type { ParsedDocument, DocumentChunk } from './documentParser';
 import { getEmbeddingStore } from './embeddings';
+import { getTierBoost, registerDocumentAccess } from './memoryTiers';
 
 export interface DocumentMatch {
     document: ParsedDocument;
@@ -22,6 +23,14 @@ export interface DocumentStore {
     search: (query: string, topK?: number) => DocumentMatch[];
     clear: () => void;
     getContextForQuery: (query: string, maxTokens?: number) => string;
+}
+
+interface IntermediateMatch {
+    document: ParsedDocument;
+    chunk: DocumentChunk;
+    lexicalScore: number;
+    semanticScore: number;
+    highlights: string[];
 }
 
 /**
@@ -95,6 +104,29 @@ function extractHighlights(query: string, text: string, _maxLength = 150): strin
     return highlights.slice(0, 3);
 }
 
+function resolveChunkFromKey(key: string, docs: Map<string, ParsedDocument>): { document: ParsedDocument; chunk: DocumentChunk } | null {
+    const marker = '_chunk_';
+    const markerIndex = key.indexOf(marker);
+    if (markerIndex === -1) {
+        return null;
+    }
+
+    const docId = key.slice(0, markerIndex);
+    const chunkId = key.slice(markerIndex + 1);
+
+    const document = docs.get(docId);
+    if (!document) {
+        return null;
+    }
+
+    const chunk = document.chunks.find(c => c.id === chunkId);
+    if (!chunk) {
+        return null;
+    }
+
+    return { document, chunk };
+}
+
 /**
  * Create a document store instance
  */
@@ -149,27 +181,88 @@ export function createDocumentStore(): DocumentStore {
         },
 
         search(query: string, topK = 5): DocumentMatch[] {
-            const matches: DocumentMatch[] = [];
+            const intermediate = new Map<string, IntermediateMatch>();
+            let maxLexicalScore = 0;
 
             for (const doc of documents.values()) {
                 for (const chunk of doc.chunks) {
-                    const score = calculateSimilarity(query, chunk.content);
+                    const lexicalScore = calculateSimilarity(query, chunk.content);
+                    if (lexicalScore <= 0) continue;
 
-                    if (score > 0) {
-                        matches.push({
-                            document: doc,
-                            chunk,
-                            score,
-                            highlights: extractHighlights(query, chunk.content),
-                        });
+                    const chunkKey = `${doc.id}_${chunk.id}`;
+                    const highlights = extractHighlights(query, chunk.content);
+
+                    const match: IntermediateMatch = intermediate.get(chunkKey) || {
+                        document: doc,
+                        chunk,
+                        lexicalScore: 0,
+                        semanticScore: 0,
+                        highlights,
+                    };
+
+                    match.lexicalScore = Math.max(match.lexicalScore, lexicalScore);
+                    match.highlights = match.highlights.length > 0 ? match.highlights : highlights;
+                    intermediate.set(chunkKey, match);
+
+                    if (match.lexicalScore > maxLexicalScore) {
+                        maxLexicalScore = match.lexicalScore;
                     }
                 }
             }
 
-            // Sort by score descending
-            matches.sort((a, b) => b.score - a.score);
+            try {
+                const embeddingStore = getEmbeddingStore();
+                const semanticResults = embeddingStore.search(query, topK * 3, 0.05);
 
-            return matches.slice(0, topK);
+                for (const result of semanticResults) {
+                    const resolved = resolveChunkFromKey(result.id, documents);
+                    if (!resolved) continue;
+                    const chunkKey = result.id;
+                    const highlights = extractHighlights(query, resolved.chunk.content);
+
+                    const match: IntermediateMatch = intermediate.get(chunkKey) || {
+                        document: resolved.document,
+                        chunk: resolved.chunk,
+                        lexicalScore: 0,
+                        semanticScore: 0,
+                        highlights,
+                    };
+
+                    match.semanticScore = Math.max(match.semanticScore, result.score);
+                    match.highlights = match.highlights.length > 0 ? match.highlights : highlights;
+                    intermediate.set(chunkKey, match);
+                }
+            } catch (error) {
+                console.warn('Semantic search failed, falling back to lexical only:', error);
+            }
+
+            const lexicalWeight = 0.6;
+            const semanticWeight = 0.4;
+
+            const ranked: DocumentMatch[] = Array.from(intermediate.values()).map(match => {
+                const normalizedLexical = maxLexicalScore > 0 ? match.lexicalScore / maxLexicalScore : 0;
+                const combinedScore = (normalizedLexical * lexicalWeight + match.semanticScore * semanticWeight)
+                    * getTierBoost(match.document.id);
+
+                return {
+                    document: match.document,
+                    chunk: match.chunk,
+                    score: combinedScore,
+                    highlights: match.highlights,
+                };
+            });
+
+            ranked.sort((a, b) => b.score - a.score);
+
+            const topResults = ranked.slice(0, topK);
+            const touched = new Set<string>();
+            for (const match of topResults) {
+                if (touched.has(match.document.id)) continue;
+                registerDocumentAccess(match.document.id);
+                touched.add(match.document.id);
+            }
+
+            return topResults;
         },
 
         clear() {
