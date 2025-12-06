@@ -185,6 +185,47 @@ class ChatStorageManager {
   }
 
   /**
+   * Truncate messages from a specific message ID (inclusive)
+   * Used for editing previous messages
+   */
+  truncateFromMessage(sessionId: string, messageId: string): void {
+    const session = this.sessions.get(sessionId);
+    if (!session) return;
+
+    const index = session.messages.findIndex(m => m.id === messageId);
+    if (index !== -1) {
+      session.messages = session.messages.slice(0, index);
+      session.updatedAt = Date.now();
+      this.saveToStorage();
+    }
+  }
+
+  /**
+   * Edit a user message and drop all subsequent messages so the chat can be replayed.
+   * Returns true if the edit was applied.
+   */
+  editMessageAndTruncate(messageId: string, newContent: string): boolean {
+    const session = this.getCurrentSession();
+    if (!session) return false;
+
+    const index = session.messages.findIndex(m => m.id === messageId);
+    if (index === -1) return false;
+
+    if (session.messages[index].role !== 'user') return false;
+
+    session.messages[index] = {
+      ...session.messages[index],
+      content: newContent,
+      timestamp: Date.now(),
+    };
+
+    session.messages = session.messages.slice(0, index + 1);
+    session.updatedAt = Date.now();
+    this.saveToStorage();
+    return true;
+  }
+
+  /**
    * Save current session state (call after streaming completes)
    */
   saveCurrentSession(): void {

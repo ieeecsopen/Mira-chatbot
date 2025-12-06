@@ -2,7 +2,7 @@ import { cn } from '../lib/utils';
 import { motion } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Copy, Check, RefreshCw, Maximize2, Quote, Pencil, X, Send, Link as LinkIcon, ThumbsUp, ThumbsDown } from 'lucide-react';
+import { Copy, Check, RefreshCw, Maximize2, Quote, Pencil, X, Send, Link as LinkIcon, ThumbsUp, ThumbsDown, PanelsTopLeft } from 'lucide-react';
 import { useState, useCallback, memo, useMemo, useRef, useEffect } from 'react';
 import { CodeBlock, InlineCode } from './ui/CodeBlock';
 import { UrlPreview } from './ui/UrlPreview';
@@ -18,6 +18,7 @@ interface MessageBubbleProps {
     onRegenerate?: () => void;
     onOpenInCanvas?: (content: string, language?: string) => void;
     onEdit?: (messageId: string, newContent: string) => void;
+    onCompare?: (messageId: string) => void;
     searchResults?: SearchResult[];
     onRate?: (messageId: string, rating: 'up' | 'down' | null) => void;
     rating?: 'up' | 'down';
@@ -211,6 +212,7 @@ function MessageBubbleComponent({
     onRegenerate,
     onOpenInCanvas,
     onEdit,
+    onCompare,
     searchResults,
     onRate,
     rating,
@@ -480,6 +482,16 @@ function MessageBubbleComponent({
                             >
                                 <Maximize2 size={14} />
                                 <span>Open in Canvas</span>
+                            </button>
+                        )}
+                        {onCompare && messageId && (
+                            <button
+                                onClick={() => onCompare(messageId)}
+                                className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-white transition-colors px-2 py-1 rounded hover:bg-white/5"
+                                title="Compare across models"
+                            >
+                                <PanelsTopLeft size={14} />
+                                <span>Compare</span>
                             </button>
                         )}
                         {onRegenerate && (

@@ -32,6 +32,8 @@ import { notificationManager } from './lib/notifications';
 import { TemplatePanel } from './components/ui/TemplatePanel';
 import { useMetrics } from './contexts/MetricsContext';
 import { EvaluationPanel } from './components/ui/EvaluationPanel';
+import { ModelComparisonPanel, type ComparisonRunState } from './components/ui/ModelComparisonPanel';
+import { showInfo } from './lib/toast';
 
 interface Message {
   id: string;
@@ -45,6 +47,13 @@ interface Message {
   feedback?: string;
   thinkingContent?: string;
   isThinking?: boolean;
+}
+
+interface ComparisonContext {
+  prompt: string;
+  userMessageId: string;
+  history: Array<{ role: 'user' | 'assistant'; content: string }>;
+  suggestedModels: string[];
 }
 
 // Maximum number of messages to include for context
@@ -86,6 +95,9 @@ function App() {
   const [sharedChatId, setSharedChatId] = useState<string | null>(() => getShareIdFromUrl());
   const [attachedFiles, setAttachedFiles] = useState<UploadedFile[]>([]);
   const [responseStyle, setResponseStyle] = useState<'concise' | 'detailed'>('concise');
+  const [comparisonContext, setComparisonContext] = useState<ComparisonContext | null>(null);
+  const [comparisonRun, setComparisonRun] = useState<ComparisonRunState | null>(null);
+  const userId = 'local-user';
 
   // Web search state
   const [webSearchEnabled, setWebSearchEnabled] = useState(false);
@@ -823,58 +835,65 @@ function App() {
 
   // Handle editing a message and regenerating from that point
   const handleEditMessage = useCallback(async (messageId: string, newContent: string) => {
-    // Find the message index
     const messageIndex = messages.findIndex(m => m.id === messageId);
     if (messageIndex === -1) return;
-
-    // Only allow editing user messages
     if (messages[messageIndex].role !== 'user') return;
 
-    // Truncate messages from this point onwards
-    const truncatedMessages = messages.slice(0, messageIndex);
+    if (comparisonContext) {
+      setComparisonContext(null);
+      setComparisonRun(null);
+    }
 
-    // Add the edited message
-    const editedMessage: Message = {
-      ...messages[messageIndex],
-      content: newContent
-    };
-
-    setMessages([...truncatedMessages, editedMessage]);
-
-    // Get history up to the edited message
-    const currentHistory = truncatedMessages
+    const precedingMessages = messages.slice(0, messageIndex);
+    const historyForReplay = precedingMessages
       .filter(m => m.content.length > 0)
       .slice(-MAX_CONTEXT_MESSAGES)
       .map(m => ({ role: m.role, content: m.content }));
 
+    const editApplied = chatStorage.editMessageAndTruncate(messageId, newContent);
+    if (!editApplied) {
+      console.warn('Failed to edit stored message, continuing with in-memory state only.');
+    }
+    setChatSessions(chatStorage.getRecentSessions(20));
+
+    setMessages(prev => {
+      const trimmed = prev.slice(0, messageIndex + 1);
+      trimmed[messageIndex] = {
+        ...trimmed[messageIndex],
+        content: newContent
+      };
+      return trimmed;
+    });
+
     setIsWaiting(true);
     setIsStreaming(true);
 
+    chatStorage.addMessage('assistant', '');
+    const sessionAfterAssistant = chatStorage.getCurrentSession();
+    const storedAssistant = sessionAfterAssistant?.messages[sessionAfterAssistant.messages.length - 1];
+    const assistantMessage: Message = {
+      id: storedAssistant?.id || `msg_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      role: 'assistant',
+      content: '',
+      isThinking: deepThinkEnabled
+    };
+
+    setMessages(prev => [...prev, assistantMessage]);
+
+    streamBufferRef.current = '';
+    lastUpdateRef.current = Date.now();
+
     try {
-      const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: ''
-      };
-
-      setMessages(prev => [...prev, assistantMessage]);
-
-      streamBufferRef.current = '';
-      lastUpdateRef.current = Date.now();
-
       await new Promise(resolve => setTimeout(resolve, 100));
       setIsWaiting(false);
 
       await streamMessage(
-        'user',
+        userId,
         newContent,
         handleStreamChunk,
         () => {
           flushStreamBuffer();
           setIsStreaming(false);
-          chatStorage.addMessage('assistant', streamBufferRef.current || '');
-          chatStorage.saveCurrentSession();
-          setChatSessions(chatStorage.getRecentSessions(20));
         },
         (error: string) => {
           console.error('Stream error:', error);
@@ -882,9 +901,44 @@ function App() {
           setIsStreaming(false);
         },
         selectedModel,
-        currentHistory,
+        historyForReplay,
         {
           responseStyle,
+          enableWebSearch: webSearchEnabled,
+          deepThink: deepThinkEnabled,
+          onThinkingChunk: (thinking) => {
+            setMessages(prev => {
+              const lastIndex = prev.length - 1;
+              if (lastIndex >= 0 && prev[lastIndex].role === 'assistant') {
+                return [
+                  ...prev.slice(0, lastIndex),
+                  {
+                    ...prev[lastIndex],
+                    isThinking: true,
+                    thinkingContent: (prev[lastIndex].thinkingContent || '') + thinking
+                  }
+                ];
+              }
+              return prev;
+            });
+          },
+          onThinkingDone: () => {
+            setTimeout(() => {
+              setMessages(prev => {
+                const lastIndex = prev.length - 1;
+                if (lastIndex >= 0 && prev[lastIndex].role === 'assistant') {
+                  return [
+                    ...prev.slice(0, lastIndex),
+                    {
+                      ...prev[lastIndex],
+                      isThinking: false
+                    }
+                  ];
+                }
+                return prev;
+              });
+            }, 500);
+          }
         }
       );
     } catch (error) {
@@ -892,7 +946,149 @@ function App() {
       setIsWaiting(false);
       setIsStreaming(false);
     }
-  }, [messages, selectedModel, handleStreamChunk, flushStreamBuffer, responseStyle]);
+  }, [messages, selectedModel, handleStreamChunk, flushStreamBuffer, responseStyle, deepThinkEnabled, userId, webSearchEnabled, comparisonContext]);
+
+  const handleOpenComparisonPanel = useCallback((assistantMessageId: string) => {
+    const assistantIndex = messages.findIndex(m => m.id === assistantMessageId);
+    if (assistantIndex === -1) return;
+
+    let userIndex = -1;
+    for (let i = assistantIndex - 1; i >= 0; i--) {
+      if (messages[i].role === 'user') {
+        userIndex = i;
+        break;
+      }
+    }
+
+    if (userIndex === -1) {
+      showInfo('Cannot compare this response', 'I need the user prompt that created it.');
+      return;
+    }
+
+    const prompt = messages[userIndex].content;
+    if (!prompt.trim()) {
+      showInfo('Cannot compare empty prompts');
+      return;
+    }
+
+    const history = messages
+      .slice(0, userIndex)
+      .filter(m => m.content.length > 0)
+      .slice(-MAX_CONTEXT_MESSAGES)
+      .map(m => ({ role: m.role, content: m.content }));
+
+    const primaryModel = selectedModel;
+    const fallbackModel = MIRA_MODELS.find(model => model.id !== primaryModel)?.id;
+    const suggested = fallbackModel ? [primaryModel, fallbackModel] : [primaryModel];
+
+    setComparisonContext({
+      prompt,
+      userMessageId: messages[userIndex].id,
+      history,
+      suggestedModels: suggested,
+    });
+    setComparisonRun(null);
+  }, [messages, selectedModel]);
+
+  const handleCloseComparisonPanel = useCallback(() => {
+    setComparisonContext(null);
+    setComparisonRun(null);
+  }, []);
+
+  const handleStartComparison = useCallback((modelIds: string[]) => {
+    if (!comparisonContext || modelIds.length < 2) {
+      showInfo('Pick two models to compare');
+      return;
+    }
+
+    const uniqueModels = Array.from(new Set(modelIds));
+    if (uniqueModels.length < 2) {
+      showInfo('Select two different models');
+      return;
+    }
+
+    const runId = `cmp_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+    const labelLookup = Object.fromEntries(MIRA_MODELS.map(model => [model.id, model.displayName]));
+
+    const results = uniqueModels.reduce<ComparisonRunState['results']>((acc, modelId) => {
+      acc[modelId] = {
+        modelId,
+        label: labelLookup[modelId] || modelId,
+        status: 'loading',
+        content: ''
+      };
+      return acc;
+    }, {});
+
+    setComparisonRun({
+      id: runId,
+      prompt: comparisonContext.prompt,
+      results,
+    });
+
+    const updateResult = (modelId: string, updater: (prev: ComparisonRunState['results'][string]) => ComparisonRunState['results'][string]) => {
+      setComparisonRun(prev => {
+        if (!prev || prev.id !== runId || !prev.results[modelId]) return prev;
+        return {
+          ...prev,
+          results: {
+            ...prev.results,
+            [modelId]: updater(prev.results[modelId])
+          }
+        };
+      });
+    };
+
+    uniqueModels.forEach(modelId => {
+      const runStream = async () => {
+        let aggregate = '';
+
+        await streamMessage(
+          userId,
+          comparisonContext.prompt,
+          (chunk: string) => {
+            aggregate += chunk;
+            updateResult(modelId, prev => ({
+              ...prev,
+              status: 'loading',
+              content: aggregate
+            }));
+          },
+          () => {
+            updateResult(modelId, prev => ({
+              ...prev,
+              status: 'success',
+              content: aggregate
+            }));
+          },
+          (error: string) => {
+            updateResult(modelId, prev => ({
+              ...prev,
+              status: 'error',
+              error,
+              content: aggregate
+            }));
+          },
+          modelId,
+          comparisonContext.history,
+          {
+            responseStyle,
+            enableWebSearch: webSearchEnabled,
+            deepThink: deepThinkEnabled,
+          }
+        );
+      };
+
+      runStream().catch((error: unknown) => {
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        updateResult(modelId, prev => ({
+          ...prev,
+          status: 'error',
+          error: message
+        }));
+      });
+    });
+  }, [comparisonContext, deepThinkEnabled, responseStyle, userId, webSearchEnabled]);
 
   // Get current session title
   const currentSessionTitle = currentSessionId
@@ -1061,6 +1257,11 @@ function App() {
                               ? handleRegenerate
                               : undefined
                           }
+                          onCompare={
+                            !isStreaming && msg.role === 'assistant'
+                              ? handleOpenComparisonPanel
+                              : undefined
+                          }
                           onOpenInCanvas={
                             !isStreaming && msg.role === 'assistant'
                               ? (code, language) => {
@@ -1176,6 +1377,16 @@ function App() {
             </motion.div>
           </div>
         </motion.div>
+
+        <ModelComparisonPanel
+          isOpen={!!comparisonContext}
+          prompt={comparisonContext?.prompt || ''}
+          suggestedModels={comparisonContext?.suggestedModels || [selectedModel]}
+          availableModels={MIRA_MODELS}
+          onClose={handleCloseComparisonPanel}
+          onCompare={handleStartComparison}
+          comparisonRun={comparisonRun}
+        />
 
         {/* Command Palette */}
         <CommandPalette
