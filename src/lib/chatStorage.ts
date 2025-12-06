@@ -1,6 +1,6 @@
 /**
  * Chat Storage Module for MIRA
- * Provides localStorage persistence for chat sessions
+ * Provides hybrid localStorage + MongoDB persistence for chat sessions
  */
 
 export interface StoredMessage {
@@ -23,16 +23,41 @@ const CHATS_STORAGE_KEY = 'mira-chat-sessions';
 const CURRENT_CHAT_KEY = 'mira-current-chat-id';
 const MAX_SESSIONS = 50;
 
+// API endpoints
+const API_BASE = '/api/db';
+
 /**
  * Chat Storage Manager
- * Handles persistence of chat sessions to localStorage
+ * Handles persistence of chat sessions with hybrid localStorage + MongoDB approach
  */
 class ChatStorageManager {
   private sessions: Map<string, ChatSession> = new Map();
   private currentSessionId: string | null = null;
+  private isOnline: boolean = navigator.onLine;
+  private syncInProgress: boolean = false;
+  private pendingSync: Set<string> = new Set(); // Sessions that need syncing
 
   constructor() {
     this.loadFromStorage();
+    this.setupNetworkListeners();
+    // Sync with MongoDB on startup
+    this.syncWithMongoDB();
+  }
+
+  /**
+   * Setup network status listeners
+   */
+  private setupNetworkListeners(): void {
+    window.addEventListener('online', () => {
+      console.log('🌐 Back online - syncing with MongoDB...');
+      this.isOnline = true;
+      this.syncPendingChanges();
+    });
+
+    window.addEventListener('offline', () => {
+      console.log('📴 Going offline - using localStorage');
+      this.isOnline = false;
+    });
   }
 
   /**
@@ -55,6 +80,150 @@ class ChatStorageManager {
   }
 
   /**
+   * API call helper with error handling
+   */
+  private async apiCall<T>(endpoint: string, options: RequestInit = {}): Promise<T | null> {
+    if (!this.isOnline) return null;
+
+    try {
+      const response = await fetch(`${API_BASE}${endpoint}`, {
+        ...options,
+        headers: {
+          'Content-Type': 'application/json',
+          ...options.headers,
+        },
+      });
+
+      if (!response.ok) {
+        console.warn(`API error: ${response.status}`);
+        return null;
+      }
+
+      return response.json();
+    } catch (error) {
+      console.warn('API call failed:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Sync with MongoDB on startup
+   */
+  private async syncWithMongoDB(): Promise<void> {
+    if (!this.isOnline || this.syncInProgress) return;
+
+    this.syncInProgress = true;
+    console.log('🔄 Syncing with MongoDB...');
+
+    try {
+      // Fetch sessions from MongoDB
+      const result = await this.apiCall<{ sessions: any[] }>('/sessions?limit=50');
+
+      if (result?.sessions) {
+        // Merge with local sessions
+        for (const dbSession of result.sessions) {
+          const localSession = this.sessions.get(dbSession.sessionId);
+
+          // If local session is newer, keep it and mark for sync
+          if (localSession && localSession.updatedAt > new Date(dbSession.updatedAt).getTime()) {
+            this.pendingSync.add(dbSession.sessionId);
+            continue;
+          }
+
+          // Fetch messages for this session
+          const messagesResult = await this.apiCall<{ messages: any[] }>(
+            `/messages?sessionId=${dbSession.sessionId}&limit=100`
+          );
+
+          const messages: StoredMessage[] = (messagesResult?.messages || []).map((m: any) => ({
+            id: m.messageId,
+            role: m.role,
+            content: m.content,
+            timestamp: new Date(m.timestamp).getTime(),
+          }));
+
+          const session: ChatSession = {
+            id: dbSession.sessionId,
+            title: dbSession.title,
+            model: dbSession.model,
+            messages,
+            createdAt: new Date(dbSession.createdAt).getTime(),
+            updatedAt: new Date(dbSession.updatedAt).getTime(),
+          };
+
+          this.sessions.set(session.id, session);
+        }
+
+        // Find local sessions not in MongoDB (need to be uploaded)
+        for (const [id] of this.sessions) {
+          const inMongo = result.sessions.some(s => s.sessionId === id);
+          if (!inMongo) {
+            this.pendingSync.add(id);
+          }
+        }
+
+        this.saveToStorage();
+        console.log(`✅ Synced ${result.sessions.length} sessions from MongoDB`);
+
+        // Upload pending local sessions
+        await this.syncPendingChanges();
+      }
+    } catch (error) {
+      console.warn('MongoDB sync failed:', error);
+    } finally {
+      this.syncInProgress = false;
+    }
+  }
+
+  /**
+   * Sync pending local changes to MongoDB
+   */
+  private async syncPendingChanges(): Promise<void> {
+    if (!this.isOnline || this.pendingSync.size === 0) return;
+
+    console.log(`📤 Uploading ${this.pendingSync.size} pending sessions...`);
+
+    for (const sessionId of this.pendingSync) {
+      const session = this.sessions.get(sessionId);
+      if (!session) continue;
+
+      try {
+        // Create or update session
+        await this.apiCall('/sessions', {
+          method: 'POST',
+          body: JSON.stringify({
+            sessionId: session.id,
+            title: session.title,
+            model: session.model,
+          }),
+        });
+
+        // Upload messages
+        if (session.messages.length > 0) {
+          await this.apiCall('/messages', {
+            method: 'POST',
+            body: JSON.stringify({
+              sessionId: session.id,
+              messages: session.messages.map(m => ({
+                messageId: m.id,
+                sessionId: session.id,
+                role: m.role,
+                content: m.content,
+                timestamp: m.timestamp,
+              })),
+            }),
+          });
+        }
+
+        this.pendingSync.delete(sessionId);
+        console.log(`✅ Synced session: ${sessionId}`);
+      } catch (error) {
+        console.warn(`Failed to sync session ${sessionId}:`, error);
+      }
+    }
+  }
+
+  /**
    * Create a new chat session
    */
   createSession(model: string = 'gemini-2.0-flash'): string {
@@ -72,6 +241,16 @@ class ChatStorageManager {
     this.currentSessionId = id;
     this.enforceLimit();
     this.saveToStorage();
+
+    // Create in MongoDB
+    this.apiCall('/sessions', {
+      method: 'POST',
+      body: JSON.stringify({
+        sessionId: id,
+        title: session.title,
+        model: session.model,
+      }),
+    });
 
     console.log(`📝 Created new chat session: ${id}`);
     return id;
@@ -144,9 +323,29 @@ class ChatStorageManager {
     // Auto-generate title from first user message
     if (session.messages.filter(m => m.role === 'user').length === 1 && role === 'user') {
       session.title = this.generateTitle(content);
+
+      // Update title in MongoDB
+      this.apiCall('/sessions', {
+        method: 'PUT',
+        body: JSON.stringify({
+          sessionId,
+          title: session.title,
+        }),
+      });
     }
 
     this.saveToStorage();
+
+    // Add message to MongoDB
+    this.apiCall('/messages', {
+      method: 'POST',
+      body: JSON.stringify({
+        sessionId,
+        messageId: message.id,
+        role: message.role,
+        content: message.content,
+      }),
+    });
   }
 
   /**
@@ -162,6 +361,28 @@ class ChatStorageManager {
       session.updatedAt = Date.now();
       // Don't save during streaming to avoid performance issues
       // Will be saved when streaming completes
+    }
+  }
+
+  /**
+   * Finalize the last assistant message after streaming
+   */
+  finalizeLastAssistantMessage(): void {
+    const session = this.getCurrentSession();
+    if (!session) return;
+
+    const lastMessage = session.messages[session.messages.length - 1];
+    if (lastMessage && lastMessage.role === 'assistant') {
+      this.saveToStorage();
+
+      // Update in MongoDB
+      this.apiCall('/messages', {
+        method: 'PUT',
+        body: JSON.stringify({
+          messageId: lastMessage.id,
+          content: lastMessage.content,
+        }),
+      });
     }
   }
 
@@ -197,6 +418,11 @@ class ChatStorageManager {
       session.messages = session.messages.slice(0, index);
       session.updatedAt = Date.now();
       this.saveToStorage();
+
+      // Delete in MongoDB
+      this.apiCall(`/messages?sessionId=${sessionId}&fromMessageId=${messageId}`, {
+        method: 'DELETE',
+      });
     }
   }
 
@@ -222,6 +448,16 @@ class ChatStorageManager {
     session.messages = session.messages.slice(0, index + 1);
     session.updatedAt = Date.now();
     this.saveToStorage();
+
+    // Update in MongoDB (update message, then delete subsequent)
+    this.apiCall('/messages', {
+      method: 'PUT',
+      body: JSON.stringify({
+        messageId,
+        content: newContent,
+      }),
+    });
+
     return true;
   }
 
@@ -230,6 +466,7 @@ class ChatStorageManager {
    */
   saveCurrentSession(): void {
     this.saveToStorage();
+    this.finalizeLastAssistantMessage();
   }
 
   /**
@@ -257,6 +494,12 @@ class ChatStorageManager {
         this.currentSessionId = null;
       }
       this.saveToStorage();
+
+      // Delete from MongoDB
+      this.apiCall(`/sessions?id=${id}`, {
+        method: 'DELETE',
+      });
+
       console.log(`🗑️ Deleted chat session: ${id}`);
     }
     return deleted;
@@ -281,6 +524,8 @@ class ChatStorageManager {
       const toRemove = all.slice(MAX_SESSIONS);
       for (const session of toRemove) {
         this.sessions.delete(session.id);
+        // Also delete from MongoDB
+        this.apiCall(`/sessions?id=${session.id}`, { method: 'DELETE' });
       }
     }
   }
@@ -311,11 +556,22 @@ class ChatStorageManager {
         const data = JSON.parse(stored);
         this.sessions = new Map(data.sessions || []);
         this.currentSessionId = data.currentSessionId || null;
-        console.log(`📥 Loaded ${this.sessions.size} chat sessions from storage`);
+        console.log(`📥 Loaded ${this.sessions.size} chat sessions from localStorage`);
       }
     } catch (e) {
       console.warn('Failed to load chat sessions:', e);
     }
+  }
+
+  /**
+   * Force sync with MongoDB
+   */
+  async forceSync(): Promise<void> {
+    if (!this.isOnline) {
+      console.warn('Cannot sync while offline');
+      return;
+    }
+    await this.syncWithMongoDB();
   }
 
   /**
@@ -329,13 +585,30 @@ class ChatStorageManager {
    * Clear all sessions
    */
   clearAll(): void {
+    // Delete all from MongoDB first
+    for (const [id] of this.sessions) {
+      this.apiCall(`/sessions?id=${id}`, { method: 'DELETE' });
+    }
+
     this.sessions.clear();
     this.currentSessionId = null;
     localStorage.removeItem(CHATS_STORAGE_KEY);
     localStorage.removeItem(CURRENT_CHAT_KEY);
     console.log('🗑️ Cleared all chat sessions');
   }
+
+  /**
+   * Get sync status
+   */
+  getSyncStatus(): { isOnline: boolean; pendingCount: number; syncing: boolean } {
+    return {
+      isOnline: this.isOnline,
+      pendingCount: this.pendingSync.size,
+      syncing: this.syncInProgress,
+    };
+  }
 }
 
 // Singleton instance
 export const chatStorage = new ChatStorageManager();
+
