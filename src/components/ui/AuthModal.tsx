@@ -24,7 +24,7 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
     useEffect(() => {
         const urlParams = new URLSearchParams(window.location.search);
         const code = urlParams.get('code');
-        
+
         if (code) {
             handleGitHubCallback(code)
                 .then(() => {
@@ -129,10 +129,10 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.95, y: 20 }}
                         transition={{ duration: 0.2 }}
-                        className="fixed inset-0 z-50 flex items-center justify-center p-4"
+                        className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-20 overflow-y-auto"
                         onClick={(e) => e.stopPropagation()}
                     >
-                        <div className="w-full max-w-md bg-gradient-to-b from-[#1a1a1a] to-[#0f0f0f] rounded-2xl border border-white/10 shadow-2xl overflow-hidden">
+                        <div className="w-full max-w-md bg-gradient-to-b from-[#1a1a1a] to-[#0f0f0f] rounded-2xl border border-white/10 shadow-2xl overflow-hidden mb-8">
                             {/* Header */}
                             <div className="relative p-6 border-b border-white/10">
                                 <div className="flex items-center justify-between">
@@ -162,16 +162,18 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
                             <form onSubmit={handleSubmit} className="p-6 space-y-4">
                                 {/* OAuth Buttons */}
                                 <div className="space-y-3">
-                                    <div className="flex justify-center">
-                                        <GoogleLogin
-                                            onSuccess={handleGoogleSuccess}
-                                            onError={() => setError('Google sign in failed')}
-                                            theme="filled_black"
-                                            size="large"
-                                            text={mode === 'signin' ? 'signin_with' : 'signup_with'}
-                                            width="350"
-                                        />
-                                    </div>
+                                    {import.meta.env.VITE_GOOGLE_CLIENT_ID && (
+                                        <div className="flex justify-center">
+                                            <GoogleLogin
+                                                onSuccess={handleGoogleSuccess}
+                                                onError={() => setError('Google sign in failed')}
+                                                theme="filled_black"
+                                                size="large"
+                                                text={mode === 'signin' ? 'signin_with' : 'signup_with'}
+                                                width="350"
+                                            />
+                                        </div>
+                                    )}
 
                                     <button
                                         type="button"
