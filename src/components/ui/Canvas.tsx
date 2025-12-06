@@ -1,15 +1,15 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  X, 
-  Copy, 
-  Check, 
-  Download, 
-  Maximize2, 
-  Minimize2, 
-  Code, 
-  FileText, 
-  Table, 
+import {
+  X,
+  Copy,
+  Check,
+  Download,
+  Maximize2,
+  Minimize2,
+  Code,
+  FileText,
+  Table,
   Image as ImageIcon,
   Edit3,
   Save,
@@ -18,15 +18,34 @@ import {
   ChevronLeft,
   ChevronRight,
   Play,
-  RotateCcw
+  RotateCcw,
+  Clock,
+  Share2,
+  SplitSquareHorizontal,
+  Eye,
+  Terminal
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { Button } from './button';
-import { 
-  type CanvasItem, 
+import {
+  type CanvasItem,
   type CanvasType,
-  getFileExtension 
+  getFileExtension
 } from '../../lib/canvas';
+import { SplitPane } from './SplitPane';
+import { CodeEditor } from './CodeEditor';
+import { PreviewPanel } from './PreviewPanel';
+import { ConsolePanel, createConsoleEntry, type ConsoleEntry } from './ConsolePanel';
+import { VersionHistory } from './VersionHistory';
+import {
+  createVersion,
+  shouldAutoSave
+} from '../../lib/canvasVersioning';
+import {
+  exportCanvasItem,
+  importCanvasItem,
+  copyShareLink,
+} from '../../lib/canvasCollaboration';
 
 interface CanvasProps {
   isOpen: boolean;
@@ -36,7 +55,10 @@ interface CanvasProps {
   onSelectItem: (id: string) => void;
   onUpdateItem: (id: string, content: string) => void;
   onDeleteItem: (id: string) => void;
+  onAddItem?: (item: CanvasItem) => void;
 }
+
+type ViewMode = 'code' | 'preview' | 'split';
 
 // Icon mapping for canvas types
 const typeIcons: Record<CanvasType, React.ReactNode> = {
@@ -48,54 +70,28 @@ const typeIcons: Record<CanvasType, React.ReactNode> = {
   html: <ExternalLink size={16} />,
 };
 
-// Syntax highlighting colors (simple version)
-function highlightCode(code: string, language: string): string {
-  // Simple keyword highlighting for display
-  const keywords: Record<string, string[]> = {
-    javascript: ['const', 'let', 'var', 'function', 'return', 'if', 'else', 'for', 'while', 'class', 'import', 'export', 'from', 'async', 'await', 'try', 'catch', 'throw', 'new', 'this', 'true', 'false', 'null', 'undefined'],
-    typescript: ['const', 'let', 'var', 'function', 'return', 'if', 'else', 'for', 'while', 'class', 'import', 'export', 'from', 'async', 'await', 'try', 'catch', 'throw', 'new', 'this', 'true', 'false', 'null', 'undefined', 'interface', 'type', 'enum', 'implements', 'extends'],
-    python: ['def', 'class', 'if', 'elif', 'else', 'for', 'while', 'return', 'import', 'from', 'try', 'except', 'raise', 'with', 'as', 'True', 'False', 'None', 'and', 'or', 'not', 'in', 'is', 'lambda', 'async', 'await'],
-  };
-
-  const langKeywords = keywords[language] || keywords.javascript || [];
-  
-  let highlighted = code
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
-
-  // Highlight strings
-  highlighted = highlighted.replace(/(["'`])(?:(?!\1)[^\\]|\\.)*\1/g, '<span class="text-green-400">$&</span>');
-  
-  // Highlight comments
-  highlighted = highlighted.replace(/(\/\/.*$|\/\*[\s\S]*?\*\/|#.*$)/gm, '<span class="text-gray-500">$&</span>');
-  
-  // Highlight keywords
-  const keywordPattern = new RegExp(`\\b(${langKeywords.join('|')})\\b`, 'g');
-  highlighted = highlighted.replace(keywordPattern, '<span class="text-orange-400">$1</span>');
-  
-  // Highlight numbers
-  highlighted = highlighted.replace(/\b(\d+\.?\d*)\b/g, '<span class="text-orange-400">$1</span>');
-
-  return highlighted;
-}
-
-export function Canvas({ 
-  isOpen, 
-  onClose, 
-  items, 
-  activeItemId, 
-  onSelectItem, 
+export function Canvas({
+  isOpen,
+  onClose,
+  items,
+  activeItemId,
+  onSelectItem,
   onUpdateItem,
-  onDeleteItem 
+  onDeleteItem,
+  onAddItem,
 }: CanvasProps) {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState('');
   const [copied, setCopied] = useState(false);
-  const [showPreview, setShowPreview] = useState(false);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-  
+  const [viewMode, setViewMode] = useState<ViewMode>('code');
+  const [showVersionHistory, setShowVersionHistory] = useState(false);
+  const [splitRatio, setSplitRatio] = useState(50);
+  const [consoleLogs, setConsoleLogs] = useState<ConsoleEntry[]>([]);
+  const [showConsole, setShowConsole] = useState(false);
+  const [lastSavedContent, setLastSavedContent] = useState('');
+  const autoSaveTimeoutRef = useRef<NodeJS.Timeout>();
+
   const activeItem = items.find(item => item.id === activeItemId);
   const activeIndex = items.findIndex(item => item.id === activeItemId);
 
@@ -103,9 +99,44 @@ export function Canvas({
   useEffect(() => {
     if (activeItem) {
       setEditContent(activeItem.content);
+      setLastSavedContent(activeItem.content);
       setIsEditing(false);
+      setConsoleLogs([]);
     }
   }, [activeItem?.id]);
+
+  // Auto-save version when content changes significantly
+  useEffect(() => {
+    if (!activeItem || !isEditing) return;
+
+    if (autoSaveTimeoutRef.current) {
+      clearTimeout(autoSaveTimeoutRef.current);
+    }
+
+    autoSaveTimeoutRef.current = setTimeout(() => {
+      if (shouldAutoSave(editContent, lastSavedContent)) {
+        createVersion(activeItem, undefined, true);
+        setLastSavedContent(editContent);
+      }
+    }, 5000); // Auto-save after 5 seconds of no changes
+
+    return () => {
+      if (autoSaveTimeoutRef.current) {
+        clearTimeout(autoSaveTimeoutRef.current);
+      }
+    };
+  }, [editContent, activeItem, isEditing, lastSavedContent]);
+
+  // Handle console logs from preview
+  const handleConsoleLog = useCallback((message: string, type: 'log' | 'error' | 'warn' | 'info') => {
+    setConsoleLogs(prev => [...prev, createConsoleEntry(message, type)]);
+    setShowConsole(true);
+  }, []);
+
+  // Clear console
+  const handleClearConsole = useCallback(() => {
+    setConsoleLogs([]);
+  }, []);
 
   // Handle copy
   const handleCopy = useCallback(async () => {
@@ -122,10 +153,10 @@ export function Canvas({
   // Handle download
   const handleDownload = useCallback(() => {
     if (!activeItem) return;
-    
+
     const extension = getFileExtension(activeItem.language || 'txt');
     const filename = `${activeItem.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.${extension}`;
-    
+
     const blob = new Blob([activeItem.content], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -140,7 +171,12 @@ export function Canvas({
   // Handle save edit
   const handleSave = useCallback(() => {
     if (!activeItem) return;
+
+    // Create version before saving
+    createVersion(activeItem, 'Manual save');
+
     onUpdateItem(activeItem.id, editContent);
+    setLastSavedContent(editContent);
     setIsEditing(false);
   }, [activeItem, editContent, onUpdateItem]);
 
@@ -165,10 +201,40 @@ export function Canvas({
     }
   }, [activeIndex, items, onSelectItem]);
 
-  // Run HTML preview
-  const handleRunPreview = useCallback(() => {
-    setShowPreview(true);
+  // Handle share
+  const handleShare = useCallback(async () => {
+    if (!activeItem) return;
+    const success = await copyShareLink(activeItem);
+    if (success) {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  }, [activeItem]);
+
+  // Handle version restore
+  const handleRestoreVersion = useCallback((content: string) => {
+    setEditContent(content);
+    setIsEditing(true);
+    setShowVersionHistory(false);
   }, []);
+
+  // Handle import
+  const handleImport = useCallback(async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      const item = importCanvasItem(text);
+      if (item && onAddItem) {
+        onAddItem(item);
+      }
+    } catch (err) {
+      console.error('Failed to import:', err);
+    }
+  }, [onAddItem]);
+
+  // Determine if preview is available
+  const canPreview = activeItem && ['html', 'css', 'javascript', 'js', 'markdown', 'md'].includes(
+    (activeItem.language || activeItem.type).toLowerCase()
+  );
 
   if (!isOpen) return null;
 
@@ -181,7 +247,7 @@ export function Canvas({
         transition={{ type: 'spring', damping: 25, stiffness: 200 }}
         className={cn(
           "fixed right-0 top-0 h-full bg-[#0a0a0a] border-l border-white/10 z-50 flex flex-col",
-          isFullscreen ? "w-full" : "w-[600px] max-w-[90vw]"
+          isFullscreen ? "w-full" : "w-[800px] max-w-[95vw]"
         )}
       >
         {/* Header */}
@@ -201,7 +267,7 @@ export function Canvas({
               </>
             )}
           </div>
-          
+
           <div className="flex items-center gap-1">
             {/* Navigation */}
             {items.length > 1 && (
@@ -230,19 +296,76 @@ export function Canvas({
               </div>
             )}
 
-            {/* Actions */}
-            {activeItem?.type === 'html' && (
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleRunPreview}
-                className="w-8 h-8 text-gray-400 hover:text-green-400"
-                title="Run preview"
-              >
-                <Play size={16} />
-              </Button>
+            {/* View Mode Toggle */}
+            {canPreview && (
+              <div className="flex items-center gap-0.5 mr-2 pr-2 border-r border-white/10">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setViewMode('code')}
+                  className={cn(
+                    "w-7 h-7",
+                    viewMode === 'code' ? 'text-blue-400 bg-blue-500/20' : 'text-gray-400 hover:text-white'
+                  )}
+                  title="Code view"
+                >
+                  <Code size={14} />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setViewMode('split')}
+                  className={cn(
+                    "w-7 h-7",
+                    viewMode === 'split' ? 'text-blue-400 bg-blue-500/20' : 'text-gray-400 hover:text-white'
+                  )}
+                  title="Split view"
+                >
+                  <SplitSquareHorizontal size={14} />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setViewMode('preview')}
+                  className={cn(
+                    "w-7 h-7",
+                    viewMode === 'preview' ? 'text-blue-400 bg-blue-500/20' : 'text-gray-400 hover:text-white'
+                  )}
+                  title="Preview only"
+                >
+                  <Eye size={14} />
+                </Button>
+              </div>
             )}
-            
+
+            {/* Actions */}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setShowVersionHistory(!showVersionHistory)}
+              className={cn(
+                "w-8 h-8",
+                showVersionHistory ? 'text-blue-400' : 'text-gray-400 hover:text-white'
+              )}
+              title="Version history"
+            >
+              <Clock size={16} />
+            </Button>
+
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setShowConsole(!showConsole)}
+              className={cn(
+                "w-8 h-8",
+                showConsole ? 'text-blue-400' : 'text-gray-400 hover:text-white',
+                consoleLogs.length > 0 && !showConsole && 'animate-pulse'
+              )}
+              title="Toggle console"
+            >
+              <Terminal size={16} />
+            </Button>
+
             {isEditing ? (
               <>
                 <Button
@@ -275,7 +398,7 @@ export function Canvas({
                 <Edit3 size={16} />
               </Button>
             )}
-            
+
             <Button
               variant="ghost"
               size="icon"
@@ -285,7 +408,17 @@ export function Canvas({
             >
               {copied ? <Check size={16} className="text-green-400" /> : <Copy size={16} />}
             </Button>
-            
+
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleShare}
+              className="w-8 h-8 text-gray-400 hover:text-white"
+              title="Share"
+            >
+              <Share2 size={16} />
+            </Button>
+
             <Button
               variant="ghost"
               size="icon"
@@ -295,7 +428,7 @@ export function Canvas({
             >
               <Download size={16} />
             </Button>
-            
+
             {activeItem && (
               <Button
                 variant="ghost"
@@ -307,7 +440,7 @@ export function Canvas({
                 <Trash2 size={16} />
               </Button>
             )}
-            
+
             <Button
               variant="ghost"
               size="icon"
@@ -317,7 +450,7 @@ export function Canvas({
             >
               {isFullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
             </Button>
-            
+
             <Button
               variant="ghost"
               size="icon"
@@ -331,10 +464,10 @@ export function Canvas({
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-hidden flex">
+        <div className="flex-1 overflow-hidden flex relative">
           {/* Item list sidebar (when multiple items) */}
           {items.length > 1 && !isFullscreen && (
-            <div className="w-48 border-r border-white/10 overflow-y-auto bg-black/30">
+            <div className="w-48 border-r border-white/10 overflow-y-auto bg-black/30 flex-shrink-0">
               <div className="p-2 space-y-1">
                 {items.map((item) => (
                   <button
@@ -356,63 +489,55 @@ export function Canvas({
           )}
 
           {/* Main content area */}
-          <div className="flex-1 overflow-auto">
+          <div className="flex-1 overflow-hidden flex flex-col">
             {activeItem ? (
-              showPreview && activeItem.type === 'html' ? (
-                // HTML Preview
-                <div className="h-full flex flex-col">
-                  <div className="flex items-center justify-between px-4 py-2 border-b border-white/10 bg-black/30">
-                    <span className="text-sm text-gray-400">Preview</span>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setShowPreview(false)}
-                      className="text-gray-400 hover:text-white"
+              <>
+                {/* Editor/Preview area */}
+                <div className="flex-1 overflow-hidden">
+                  {viewMode === 'split' && canPreview ? (
+                    <SplitPane
+                      ratio={splitRatio}
+                      onRatioChange={setSplitRatio}
+                      direction="horizontal"
                     >
-                      Back to Code
-                    </Button>
-                  </div>
-                  <iframe
-                    srcDoc={activeItem.content}
-                    className="flex-1 w-full bg-white"
-                    sandbox="allow-scripts"
-                    title="HTML Preview"
-                  />
-                </div>
-              ) : isEditing ? (
-                // Edit mode
-                <textarea
-                  ref={textareaRef}
-                  value={editContent}
-                  onChange={(e) => setEditContent(e.target.value)}
-                  className="w-full h-full p-4 bg-transparent text-gray-100 font-mono text-sm resize-none focus:outline-none leading-relaxed"
-                  spellCheck={false}
-                />
-              ) : (
-                // View mode
-                <div className="p-4">
-                  {activeItem.type === 'code' || activeItem.type === 'html' ? (
-                    <pre className="font-mono text-sm leading-relaxed overflow-x-auto">
-                      <code
-                        dangerouslySetInnerHTML={{
-                          __html: highlightCode(activeItem.content, activeItem.language || 'plaintext')
-                        }}
+                      <CodeEditor
+                        content={isEditing ? editContent : activeItem.content}
+                        language={activeItem.language || 'plaintext'}
+                        onChange={setEditContent}
+                        onSave={handleSave}
+                        readOnly={!isEditing}
                       />
-                    </pre>
-                  ) : activeItem.type === 'table' ? (
-                    <div className="overflow-x-auto">
-                      <div 
-                        className="prose prose-invert prose-sm max-w-none"
-                        dangerouslySetInnerHTML={{ __html: renderMarkdownTable(activeItem.content) }}
+                      <PreviewPanel
+                        content={isEditing ? editContent : activeItem.content}
+                        language={activeItem.language || 'html'}
+                        onConsoleLog={handleConsoleLog}
                       />
-                    </div>
+                    </SplitPane>
+                  ) : viewMode === 'preview' && canPreview ? (
+                    <PreviewPanel
+                      content={isEditing ? editContent : activeItem.content}
+                      language={activeItem.language || 'html'}
+                      onConsoleLog={handleConsoleLog}
+                    />
                   ) : (
-                    <div className="prose prose-invert prose-sm max-w-none whitespace-pre-wrap">
-                      {activeItem.content}
-                    </div>
+                    <CodeEditor
+                      content={isEditing ? editContent : activeItem.content}
+                      language={activeItem.language || 'plaintext'}
+                      onChange={setEditContent}
+                      onSave={handleSave}
+                      readOnly={!isEditing}
+                    />
                   )}
                 </div>
-              )
+
+                {/* Console Panel */}
+                {showConsole && (
+                  <ConsolePanel
+                    logs={consoleLogs}
+                    onClear={handleClearConsole}
+                  />
+                )}
+              </>
             ) : (
               // Empty state
               <div className="flex items-center justify-center h-full text-gray-500">
@@ -423,6 +548,18 @@ export function Canvas({
               </div>
             )}
           </div>
+
+          {/* Version History Sidebar */}
+          <AnimatePresence>
+            {showVersionHistory && activeItem && (
+              <VersionHistory
+                itemId={activeItem.id}
+                currentContent={isEditing ? editContent : activeItem.content}
+                onRestore={handleRestoreVersion}
+                onClose={() => setShowVersionHistory(false)}
+              />
+            )}
+          </AnimatePresence>
         </div>
 
         {/* Footer with metadata */}
@@ -430,6 +567,9 @@ export function Canvas({
           <div className="px-4 py-2 border-t border-white/10 bg-black/30 flex items-center justify-between text-xs text-gray-500">
             <span>
               {activeItem.content.split('\n').length} lines • {activeItem.content.length} characters
+              {isEditing && editContent !== activeItem.content && (
+                <span className="ml-2 text-yellow-500">• Unsaved changes</span>
+              )}
             </span>
             <span>
               Updated {new Date(activeItem.updatedAt).toLocaleString()}
@@ -439,34 +579,6 @@ export function Canvas({
       </motion.div>
     </AnimatePresence>
   );
-}
-
-// Helper to render markdown tables as HTML
-function renderMarkdownTable(markdown: string): string {
-  const lines = markdown.trim().split('\n');
-  if (lines.length < 2) return `<pre>${markdown}</pre>`;
-  
-  let html = '<table class="w-full border-collapse">';
-  
-  lines.forEach((line, index) => {
-    // Skip separator line
-    if (/^\|[-:| ]+\|$/.test(line)) return;
-    
-    const cells = line.split('|').filter(cell => cell.trim());
-    const tag = index === 0 ? 'th' : 'td';
-    const cellClass = index === 0 
-      ? 'border border-white/20 px-3 py-2 bg-white/5 font-medium' 
-      : 'border border-white/20 px-3 py-2';
-    
-    html += '<tr>';
-    cells.forEach(cell => {
-      html += `<${tag} class="${cellClass}">${cell.trim()}</${tag}>`;
-    });
-    html += '</tr>';
-  });
-  
-  html += '</table>';
-  return html;
 }
 
 export default Canvas;
