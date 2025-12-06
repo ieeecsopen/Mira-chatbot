@@ -484,7 +484,7 @@ export async function streamMessage(
 
             // Add deep thinking instruction if enabled
             const thinkingInstruction = options?.deepThink
-                ? `\n\n## DEEP THINKING MODE:\nBefore answering, think deeply about the question. Show your reasoning process by:\n1. Breaking down the problem\n2. Considering multiple perspectives\n3. Analyzing key factors\n4. Reaching a well-reasoned conclusion\n\nFormat your response as:\n<thinking>\n[Your detailed reasoning process here]\n</thinking>\n\n<answer>\n[Your final answer here]\n</answer>`
+                ? `\n\n## DEEP THINKING MODE ACTIVATED:\nYou must think carefully and thoroughly before answering. Take your time to reason through the problem step by step.\n\nShow your complete reasoning process by:\n\n1. **Initial Understanding**: Restate the question in your own words and identify what is being asked\n2. **Problem Decomposition**: Break down the question into smaller, manageable parts\n3. **Knowledge Gathering**: Identify what information and concepts are relevant\n4. **Multiple Perspectives**: Consider different angles and approaches to the problem\n5. **Critical Analysis**: Evaluate evidence, identify assumptions, and consider counterarguments\n6. **Synthesis**: Connect the pieces together to form a coherent understanding\n7. **Verification**: Double-check your reasoning for logical consistency\n8. **Conclusion**: Arrive at a well-reasoned final answer\n\nIMPORTANT: Be thorough and explicit in your reasoning. Don't skip steps. Show your work.\n\nFormat your response as:\n<thinking>\n[Write your detailed, step-by-step reasoning process here. Be verbose and thorough. Show all your mental steps.]\n</thinking>\n\n<answer>\n[Provide your final, well-considered answer here]\n</answer>`
                 : '';
 
             const fullSystemInstruction = memoryContext
@@ -610,17 +610,23 @@ export async function streamMessage(
                                             if (thinkingEnd !== -1) {
                                                 thinkingBuffer += processText.slice(0, thinkingEnd);
                                                 if (options?.onThinkingChunk) {
+                                                    // Stream thinking more deliberately
+                                                    await new Promise(resolve => setTimeout(resolve, 20));
                                                     options.onThinkingChunk(processText.slice(0, thinkingEnd));
                                                 }
                                                 inThinkingTag = false;
                                                 if (options?.onThinkingDone) {
+                                                    // Small pause before transitioning to answer
+                                                    await new Promise(resolve => setTimeout(resolve, 150));
                                                     options.onThinkingDone();
                                                 }
                                                 processText = processText.slice(thinkingEnd + 11);
                                             } else {
-                                                // Still in thinking tag
+                                                // Still in thinking tag - add deliberate pacing
                                                 thinkingBuffer += processText;
                                                 if (options?.onThinkingChunk) {
+                                                    // Add slight delay to show thoughtful processing
+                                                    await new Promise(resolve => setTimeout(resolve, 15));
                                                     options.onThinkingChunk(processText);
                                                 }
                                                 break;
@@ -631,12 +637,15 @@ export async function streamMessage(
                                             if (answerEnd !== -1) {
                                                 const answerPart = processText.slice(0, answerEnd);
                                                 answerBuffer += answerPart;
+                                                // Deliver answer at measured pace
+                                                await new Promise(resolve => setTimeout(resolve, 25));
                                                 onChunk(answerPart);
                                                 inAnswerTag = false;
                                                 processText = processText.slice(answerEnd + 9);
                                             } else {
-                                                // Still in answer tag
+                                                // Still in answer tag - thoughtful delivery
                                                 answerBuffer += processText;
+                                                await new Promise(resolve => setTimeout(resolve, 20));
                                                 onChunk(processText);
                                                 break;
                                             }

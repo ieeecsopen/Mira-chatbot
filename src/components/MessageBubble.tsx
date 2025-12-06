@@ -333,8 +333,6 @@ function MessageBubbleComponent({
                         <SkeletonLoader />
                     ) : showTyping ? (
                         <TypingIndicator />
-                    ) : isThinking && role === 'assistant' ? (
-                        <ThinkingIndicator isThinking={true} startTime={Date.now()} />
                     ) : isEditing && role === 'user' ? (
                         // Edit Mode UI
                         <div className="flex flex-col gap-2">
@@ -366,17 +364,46 @@ function MessageBubbleComponent({
                         </div>
                     ) : (
                         <>
-                            {role === 'assistant' && thinkingContent && (
-                                <ThinkingContent content={thinkingContent} defaultExpanded={false} />
+                            {/* Show thinking indicator while actively thinking */}
+                            {role === 'assistant' && isThinking && !thinkingContent && (
+                                <ThinkingIndicator isThinking={true} startTime={Date.now()} />
                             )}
-                            <ReactMarkdown
-                                remarkPlugins={[remarkGfm]}
-                                components={markdownComponents}
-                            >
-                                {content}
-                            </ReactMarkdown>
-                            {isStreaming && (
-                                <span className="inline-block w-2 h-5 ml-1 align-middle bg-white animate-pulse rounded-sm" />
+                            
+                            {/* Show thinking content first (expanded by default after thinking completes) */}
+                            {role === 'assistant' && thinkingContent && (
+                                <>
+                                    <ThinkingContent 
+                                        content={thinkingContent} 
+                                        defaultExpanded={true}
+                                    />
+                                    
+                                    {/* Separator and Answer header */}
+                                    {content && (
+                                        <div className="mb-3 flex items-center gap-3">
+                                            <div className="h-px flex-1 bg-gradient-to-r from-transparent via-green-500/30 to-transparent"></div>
+                                            <div className="flex items-center gap-2 px-3 py-1 rounded-lg bg-gradient-to-r from-green-500/10 to-emerald-500/10 border border-green-500/20">
+                                                <Check size={14} className="text-green-400" />
+                                                <span className="text-xs font-semibold text-green-300">Final Answer</span>
+                                            </div>
+                                            <div className="h-px flex-1 bg-gradient-to-r from-transparent via-green-500/30 to-transparent"></div>
+                                        </div>
+                                    )}
+                                </>
+                            )}
+                            
+                            {/* Show answer below thinking content */}
+                            {content && (
+                                <>
+                                    <ReactMarkdown
+                                        remarkPlugins={[remarkGfm]}
+                                        components={markdownComponents}
+                                    >
+                                        {content}
+                                    </ReactMarkdown>
+                                    {isStreaming && (
+                                        <span className="inline-block w-2 h-5 ml-1 align-middle bg-white animate-pulse rounded-sm" />
+                                    )}
+                                </>
                             )}
                         </>
                     )}

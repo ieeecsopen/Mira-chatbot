@@ -223,13 +223,38 @@ export function ChatInput({
                                     setShowPlusMenu(false);
                                 }}
                                 className={cn(
-                                    "w-full flex items-center gap-3 px-3 py-2.5 text-sm rounded-lg transition-colors text-left",
-                                    deepThinkEnabled ? "text-purple-400 bg-purple-500/10" : "text-gray-300 hover:text-white hover:bg-white/5"
+                                    "w-full flex items-col gap-2 px-3 py-2.5 text-sm rounded-lg transition-all text-left",
+                                    deepThinkEnabled 
+                                        ? "text-purple-300 bg-gradient-to-r from-purple-500/20 to-blue-500/10 border border-purple-500/30 shadow-lg shadow-purple-500/10" 
+                                        : "text-gray-300 hover:text-white hover:bg-white/5"
                                 )}
                             >
-                                <Lightbulb size={18} className={deepThinkEnabled ? "text-purple-400" : "text-gray-400"} />
-                                <span>Thinking</span>
-                                {deepThinkEnabled && <span className="ml-auto text-[10px] font-medium opacity-60">ON</span>}
+                                <div className="flex items-center gap-3">
+                                    <div className={cn(
+                                        "relative",
+                                        deepThinkEnabled && "animate-pulse"
+                                    )}>
+                                        {deepThinkEnabled && (
+                                            <span className="absolute inset-0 rounded-full bg-purple-500/30 blur-sm"></span>
+                                        )}
+                                        <Lightbulb size={18} className={deepThinkEnabled ? "text-purple-400 relative z-10" : "text-gray-400"} />
+                                    </div>
+                                    <div className="flex-1">
+                                        <div className="flex items-center gap-2">
+                                            <span className="font-medium">Deep Thinking</span>
+                                            {deepThinkEnabled && (
+                                                <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-purple-500/30 text-purple-300 border border-purple-500/40">
+                                                    ACTIVE
+                                                </span>
+                                            )}
+                                        </div>
+                                        {deepThinkEnabled && (
+                                            <p className="text-[10px] text-purple-300/70 mt-0.5">
+                                                Responses will be more thoughtful and detailed
+                                            </p>
+                                        )}
+                                    </div>
+                                </div>
                             </button>
 
                             <div className="h-px bg-white/5 my-1" />
@@ -348,6 +373,29 @@ export function ChatInput({
 
             {/* Active Mode Indicators (below input) */}
             <div className="flex items-center gap-3 px-4 mt-2">
+                {deepThinkEnabled && (
+                    <motion.div 
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-gradient-to-r from-purple-500/20 to-blue-500/10 border border-purple-500/30"
+                    >
+                        <motion.div
+                            animate={{
+                                scale: [1, 1.2, 1],
+                                opacity: [0.7, 1, 0.7],
+                            }}
+                            transition={{
+                                duration: 2,
+                                repeat: Infinity,
+                                ease: "easeInOut",
+                            }}
+                        >
+                            <Lightbulb size={12} className="text-purple-400" />
+                        </motion.div>
+                        <span className="text-[10px] text-purple-300 font-semibold">Deep Thinking Mode</span>
+                        <span className="text-[9px] text-purple-400/60">• Slower, more thorough responses</span>
+                    </motion.div>
+                )}
                 {webSearchEnabled && (
                     <div className="flex items-center gap-1.5 text-[10px] text-orange-400 font-medium">
                         <Telescope size={12} />
