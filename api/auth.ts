@@ -263,7 +263,7 @@ async function handleGitHubAuth(req: VercelRequest, res: VercelResponse) {
         return res.status(500).json({ error: 'GitHub OAuth is not configured' });
     }
 
-    const redirectUri = `${req.headers.origin || 'http://localhost:5173'}/api/auth?action=github-callback`;
+    const redirectUri = `${req.headers.origin || 'http://localhost:5173'}/auth?action=github-callback`;
     const githubAuthUrl = `https://github.com/login/oauth/authorize?client_id=${GITHUB_CLIENT_ID}&redirect_uri=${encodeURIComponent(
         redirectUri
     )}&scope=user:email`;

@@ -120,7 +120,10 @@ VITE_SERPER_API_KEY=your_serper_api_key_here
 ### Running the Application
 
 ```bash
-# Development mode with hot-reload
+# Start the local API backend (terminal 1)
+npm run dev:api
+
+# Start the Vite frontend (terminal 2)
 npm run dev
 
 # Build for production
@@ -130,7 +133,7 @@ npm run build
 npm run preview
 ```
 
-The application will be available at `http://localhost:5173`
+Keep both processes running. The frontend will be available at `http://localhost:5173` once the API proxy (`http://127.0.0.1:8000`) is up.
 
 ---
 

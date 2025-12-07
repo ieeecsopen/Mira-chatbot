@@ -8,15 +8,21 @@ Mira Chatbot now includes a comprehensive authentication system with support for
 
 ## Testing Authentication Locally
 
-### 1. Start the Development Server
+### 1. Start the API Server
+Run this in a separate terminal to boot the authentication/API backend locally.
+```bash
+npm run dev:api
+```
+
+### 2. Start the Frontend Dev Server
 ```bash
 npm run dev
 ```
 
-### 2. Access the Application
+### 3. Access the Application
 Open `http://localhost:5173` in your browser
 
-### 3. Test Authentication Features
+### 4. Test Authentication Features
 
 #### Email/Password Authentication
 1. Click on the **User icon** in the top-right corner
