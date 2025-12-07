@@ -156,13 +156,6 @@ export const defaultSlashCommands: SlashCommand[] = [
     },
 ];
 
-const categoryLabels: Record<string, string> = {
-    actions: 'Actions',
-    models: 'Models & Modes',
-    tools: 'Tools',
-    help: 'Help & Settings'
-};
-
 const categoryOrder = ['actions', 'tools', 'models', 'help'];
 
 export function SlashCommandMenu({

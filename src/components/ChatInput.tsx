@@ -1,8 +1,8 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
-    SendHorizontal, Paperclip, Mic, ChevronDown, X,
-    Plus, Telescope, ShoppingBag, Image as ImageIcon,
-    Lightbulb, MoreHorizontal, AudioLines, FileUp, Sparkles, Brain
+    SendHorizontal, Paperclip, Mic, X,
+    Plus, Telescope, ShoppingBag,
+    Lightbulb, AudioLines, FileUp, Sparkles, Brain
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../lib/utils';
