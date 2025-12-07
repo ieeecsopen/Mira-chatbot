@@ -5,7 +5,7 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FileText, ChevronDown, ChevronUp, ExternalLink, Book } from 'lucide-react';
+import { ChevronDown, ChevronUp, Book } from 'lucide-react';
 import type { DocumentMatch } from '../../lib/documentStore';
 
 export interface CitationData {

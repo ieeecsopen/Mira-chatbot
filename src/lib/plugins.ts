@@ -228,7 +228,14 @@ class PluginManager {
     updateSettings(pluginId: string, settings: Partial<PluginSettings>): void {
         const state = this.pluginStates.get(pluginId);
         if (state) {
-            state.settings = { ...state.settings, ...settings };
+            // Filter out undefined values to match PluginSettings type
+            const filteredSettings = Object.entries(settings).reduce((acc, [key, value]) => {
+                if (value !== undefined) {
+                    acc[key] = value;
+                }
+                return acc;
+            }, {} as PluginSettings);
+            state.settings = { ...state.settings, ...filteredSettings };
             this.saveStates();
         }
     }
