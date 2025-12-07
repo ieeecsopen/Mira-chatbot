@@ -23,29 +23,50 @@ export interface MongoConnection {
 export async function connectToDatabase(): Promise<MongoConnection> {
     // Return cached connection if exists
     if (cachedClient && cachedDb) {
-        return { client: cachedClient, db: cachedDb };
+        try {
+            // Ping to verify connection is still alive
+            await cachedDb.admin().ping();
+            return { client: cachedClient, db: cachedDb };
+        } catch (error) {
+            console.warn('⚠️ Cached MongoDB connection is stale, reconnecting...');
+            // Clear stale cache
+            cachedClient = null;
+            cachedDb = null;
+        }
     }
 
     if (!MONGODB_URI) {
         throw new Error('MONGODB_URI environment variable is not configured');
     }
 
-    // Create new connection
-    const client = new MongoClient(MONGODB_URI, {
-        maxPoolSize: 10,
-        serverSelectionTimeoutMS: 5000,
-        socketTimeoutMS: 45000,
-    });
+    try {
+        // Create new connection with proper timeout settings
+        const client = new MongoClient(MONGODB_URI, {
+            maxPoolSize: 10,
+            minPoolSize: 1,
+            serverSelectionTimeoutMS: 10000, // Increased from 5000
+            socketTimeoutMS: 45000,
+            connectTimeoutMS: 10000,
+            retryWrites: true,
+            retryReads: true,
+        });
 
-    await client.connect();
-    const db = client.db(MONGODB_DB);
+        await client.connect();
+        const db = client.db(MONGODB_DB);
 
-    // Cache the connection
-    cachedClient = client;
-    cachedDb = db;
+        // Cache the connection
+        cachedClient = client;
+        cachedDb = db;
 
-    console.log('📦 Connected to MongoDB Atlas');
-    return { client, db };
+        console.log('📦 Connected to MongoDB Atlas');
+        return { client, db };
+    } catch (error) {
+        console.error('❌ MongoDB connection failed:', error);
+        // Clear any partial cache
+        cachedClient = null;
+        cachedDb = null;
+        throw error;
+    }
 }
 
 /**

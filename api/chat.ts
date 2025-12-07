@@ -223,35 +223,41 @@ Format your response as:
                 // Forward the SSE data directly
                 res.write(chunk);
             }
+        } catch (streamError) {
+            console.error('[API] Stream reading error:', streamError);
+            throw streamError; // Re-throw to be caught by outer catch
         } finally {
             reader.releaseLock();
+        }
 
-            // 2. Save ASSISTANT message to DB after stream completes
-            if (sessionId && db && accumulatedResponse) {
-                try {
-                    const messagesCollection = db.collection('messages');
-                    await messagesCollection.insertOne({
-                        messageId: `msg_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
-                        sessionId,
-                        role: 'assistant',
-                        content: accumulatedResponse,
-                        timestamp: new Date(),
-                        model
-                    });
+        // 2. Save ASSISTANT message to DB after stream completes
+        // CRITICAL: This MUST complete before res.end() is called
+        if (sessionId && db && accumulatedResponse) {
+            try {
+                const messagesCollection = db.collection('messages');
+                await messagesCollection.insertOne({
+                    messageId: `msg_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+                    sessionId,
+                    role: 'assistant',
+                    content: accumulatedResponse,
+                    timestamp: new Date(),
+                    model
+                });
 
-                    // Update session timestamp again
-                    await db.collection('sessions').updateOne(
-                        { sessionId },
-                        { $set: { updatedAt: new Date() } }
-                    );
+                // Update session timestamp again
+                await db.collection('sessions').updateOne(
+                    { sessionId },
+                    { $set: { updatedAt: new Date() } }
+                );
 
-                    console.log('✅ Assistant message saved to DB');
-                } catch (error) {
-                    console.warn('⚠️ Failed to save assistant message to DB:', error);
-                }
+                console.log('✅ Assistant message saved to DB');
+            } catch (dbError) {
+                console.error('⚠️ Failed to save assistant message to DB:', dbError);
+                // Don't throw - we already streamed the response successfully
             }
         }
 
+        // End response AFTER all async operations complete
         res.end();
 
     } catch (error) {
