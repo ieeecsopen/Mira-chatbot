@@ -160,10 +160,10 @@ export function Navbar({
     { icon: Search, label: 'Search', shortcut: '⌘K', onClick: onSearchClick },
     ...(chatTitle ? [{ icon: Share2, label: 'Share Chat', onClick: onShareClick }] : []),
     { icon: Settings, label: 'Settings', onClick: onSettingsClick },
-    { icon: Puzzle, label: 'Plugins', onClick: onPluginsClick, color: 'text-purple-400' },
-    { icon: BarChart3, label: 'Analytics', onClick: onAnalyticsClick, color: 'text-emerald-400' },
-    { icon: Brain, label: 'Memory', onClick: onMemoryClick, color: 'text-purple-400' },
-    { icon: Building2, label: 'Workspaces', onClick: onWorkspaceClick, color: 'text-blue-400' },
+    { icon: Puzzle, label: 'Plugins', onClick: onPluginsClick, color: 'text-orange-400' },
+    { icon: BarChart3, label: 'Analytics', onClick: onAnalyticsClick, color: 'text-orange-400' },
+    { icon: Brain, label: 'Memory', onClick: onMemoryClick, color: 'text-orange-400' },
+    { icon: Building2, label: 'Workspaces', onClick: onWorkspaceClick, color: 'text-orange-400' },
   ];
 
   return (
