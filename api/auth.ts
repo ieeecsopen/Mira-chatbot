@@ -216,6 +216,7 @@ async function handleGoogleAuth(req: VercelRequest, res: VercelResponse) {
 
     try {
         // Verify Google token
+        console.log('Verifying Google token with Client ID:', process.env.GOOGLE_CLIENT_ID);
         const ticket = await googleClient.verifyIdToken({
             idToken,
             audience: process.env.GOOGLE_CLIENT_ID,
@@ -223,10 +224,12 @@ async function handleGoogleAuth(req: VercelRequest, res: VercelResponse) {
 
         const payload = ticket.getPayload();
         if (!payload) {
+            console.error('Google token payload is empty');
             return res.status(401).json({ error: 'Invalid Google token' });
         }
 
         const { email, name, sub: googleId, picture } = payload;
+        console.log('Google Auth Success for:', email);
 
         if (!email || !name) {
             return res.status(400).json({ error: 'Email and name are required from Google' });
