@@ -1,38 +1,113 @@
 /**
  * Response Caching Module for MIRA
  * Provides caching for RAG responses and API calls
+ * Enhanced with semantic similarity, frequency tracking, and cache warming
  */
 
 export interface CacheEntry<T> {
   data: T;
   timestamp: number;
   hits: number;
+  originalQuery: string; // Store original query for similarity matching
 }
 
 export interface CacheConfig {
   maxSize: number;
   ttl: number; // Time to live in milliseconds
   persistToStorage: boolean;
+  similarityThreshold: number; // Minimum similarity for fuzzy matching (0-1)
+}
+
+export interface CacheStats {
+  size: number;
+  maxSize: number;
+  hitRate: number;
+  totalHits: number;
+  totalMisses: number;
+  similarityHits: number;
+  topQueries: Array<{ query: string; hits: number }>;
 }
 
 const DEFAULT_CONFIG: CacheConfig = {
   maxSize: 100,
   ttl: 1000 * 60 * 60, // 1 hour
   persistToStorage: true,
+  similarityThreshold: 0.85, // 85% similarity for fuzzy matching
 };
 
 const STORAGE_KEY = 'mira-response-cache';
+const FREQUENCY_STORAGE_KEY = 'mira-query-frequency';
+
+// Common queries to warm cache with
+const COMMON_QUERIES = [
+  'ආයුබෝවන්',
+  'ඔබ කවුද',
+  'ඔබේ නම මොකක්ද',
+  'help',
+  'උදව් කරන්න',
+  'hello',
+  'hi',
+  'thank you',
+  'ස්තූතියි',
+];
 
 /**
- * LRU Cache implementation with TTL support
+ * Calculate similarity between two strings (Levenshtein-based)
+ */
+function calculateSimilarity(str1: string, str2: string): number {
+  const s1 = str1.toLowerCase().trim();
+  const s2 = str2.toLowerCase().trim();
+
+  if (s1 === s2) return 1;
+  if (s1.length === 0 || s2.length === 0) return 0;
+
+  // Quick check: if length difference is too large, skip expensive calculation
+  const lengthRatio = Math.min(s1.length, s2.length) / Math.max(s1.length, s2.length);
+  if (lengthRatio < 0.5) return lengthRatio;
+
+  // Levenshtein distance calculation
+  const matrix: number[][] = [];
+
+  for (let i = 0; i <= s1.length; i++) {
+    matrix[i] = [i];
+  }
+
+  for (let j = 0; j <= s2.length; j++) {
+    matrix[0][j] = j;
+  }
+
+  for (let i = 1; i <= s1.length; i++) {
+    for (let j = 1; j <= s2.length; j++) {
+      const cost = s1[i - 1] === s2[j - 1] ? 0 : 1;
+      matrix[i][j] = Math.min(
+        matrix[i - 1][j] + 1, // deletion
+        matrix[i][j - 1] + 1, // insertion
+        matrix[i - 1][j - 1] + cost // substitution
+      );
+    }
+  }
+
+  const distance = matrix[s1.length][s2.length];
+  const maxLength = Math.max(s1.length, s2.length);
+
+  return 1 - distance / maxLength;
+}
+
+/**
+ * LRU Cache implementation with TTL, semantic similarity, and frequency tracking
  */
 export class ResponseCache<T> {
   private cache: Map<string, CacheEntry<T>> = new Map();
+  private queryFrequency: Map<string, number> = new Map();
   private config: CacheConfig;
+  private totalHits = 0;
+  private totalMisses = 0;
+  private similarityHits = 0;
 
   constructor(config: Partial<CacheConfig> = {}) {
     this.config = { ...DEFAULT_CONFIG, ...config };
     this.loadFromStorage();
+    this.loadFrequencyData();
   }
 
   /**
@@ -54,19 +129,32 @@ export class ResponseCache<T> {
   }
 
   /**
-   * Get item from cache
+   * Track query frequency
+   */
+  private trackQuery(query: string): void {
+    const key = this.normalizeKey(query);
+    const current = this.queryFrequency.get(key) || 0;
+    this.queryFrequency.set(key, current + 1);
+    this.saveFrequencyData();
+  }
+
+  /**
+   * Get item from cache (exact match)
    */
   get(query: string): T | null {
+    this.trackQuery(query);
     const key = this.normalizeKey(query);
     const entry = this.cache.get(key);
 
     if (!entry) {
+      this.totalMisses++;
       return null;
     }
 
     if (this.isExpired(entry)) {
       this.cache.delete(key);
       this.saveToStorage();
+      this.totalMisses++;
       return null;
     }
 
@@ -74,9 +162,70 @@ export class ResponseCache<T> {
     entry.hits++;
     this.cache.delete(key);
     this.cache.set(key, entry);
+    this.totalHits++;
 
     console.log(`📦 Cache hit for: "${query.substring(0, 50)}..." (hits: ${entry.hits})`);
     return entry.data;
+  }
+
+  /**
+   * Get similar item from cache using fuzzy matching
+   */
+  getSimilar(query: string): { data: T; similarity: number; matchedQuery: string } | null {
+    this.trackQuery(query);
+    const normalizedQuery = this.normalizeKey(query);
+
+    let bestMatch: { key: string; entry: CacheEntry<T>; similarity: number } | null = null;
+
+    for (const [key, entry] of this.cache.entries()) {
+      if (this.isExpired(entry)) continue;
+
+      const similarity = calculateSimilarity(normalizedQuery, key);
+
+      if (similarity >= this.config.similarityThreshold) {
+        if (!bestMatch || similarity > bestMatch.similarity) {
+          bestMatch = { key, entry, similarity };
+        }
+      }
+    }
+
+    if (bestMatch) {
+      // Update hit count
+      bestMatch.entry.hits++;
+      this.cache.delete(bestMatch.key);
+      this.cache.set(bestMatch.key, bestMatch.entry);
+      this.totalHits++;
+      this.similarityHits++;
+
+      console.log(
+        `🔍 Similar cache hit (${(bestMatch.similarity * 100).toFixed(1)}%): ` +
+        `"${query.substring(0, 30)}..." ≈ "${bestMatch.entry.originalQuery.substring(0, 30)}..."`
+      );
+
+      return {
+        data: bestMatch.entry.data,
+        similarity: bestMatch.similarity,
+        matchedQuery: bestMatch.entry.originalQuery,
+      };
+    }
+
+    this.totalMisses++;
+    return null;
+  }
+
+  /**
+   * Get with fallback to similar match
+   */
+  getOrSimilar(query: string): T | null {
+    // Try exact match first
+    const exact = this.get(query);
+    if (exact !== null) return exact;
+
+    // Try similar match
+    const similar = this.getSimilar(query);
+    if (similar) return similar.data;
+
+    return null;
   }
 
   /**
@@ -97,6 +246,7 @@ export class ResponseCache<T> {
       data,
       timestamp: Date.now(),
       hits: 1,
+      originalQuery: query,
     });
 
     console.log(`💾 Cached response for: "${query.substring(0, 50)}..."`);
@@ -104,13 +254,23 @@ export class ResponseCache<T> {
   }
 
   /**
-   * Check if query has cached response
+   * Check if query has cached response (exact or similar)
    */
   has(query: string): boolean {
     const key = this.normalizeKey(query);
     const entry = this.cache.get(key);
 
-    if (!entry) return false;
+    if (!entry) {
+      // Check for similar
+      for (const [cachedKey, cachedEntry] of this.cache.entries()) {
+        if (this.isExpired(cachedEntry)) continue;
+        if (calculateSimilarity(key, cachedKey) >= this.config.similarityThreshold) {
+          return true;
+        }
+      }
+      return false;
+    }
+
     if (this.isExpired(entry)) {
       this.cache.delete(key);
       return false;
@@ -124,6 +284,9 @@ export class ResponseCache<T> {
    */
   clear(): void {
     this.cache.clear();
+    this.totalHits = 0;
+    this.totalMisses = 0;
+    this.similarityHits = 0;
     if (this.config.persistToStorage) {
       localStorage.removeItem(STORAGE_KEY);
     }
@@ -149,18 +312,69 @@ export class ResponseCache<T> {
   }
 
   /**
+   * Get most frequently asked queries
+   */
+  getTopQueries(limit: number = 10): Array<{ query: string; count: number }> {
+    const sorted = Array.from(this.queryFrequency.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, limit);
+
+    return sorted.map(([query, count]) => ({ query, count }));
+  }
+
+  /**
+   * Warm cache with common queries (to be called with fetch function)
+   */
+  async warmCache(
+    fetchFunction: (query: string) => Promise<T>,
+    queries: string[] = COMMON_QUERIES
+  ): Promise<number> {
+    let warmed = 0;
+
+    console.log('🔥 Warming cache with common queries...');
+
+    for (const query of queries) {
+      if (this.has(query)) {
+        continue; // Already cached
+      }
+
+      try {
+        const response = await fetchFunction(query);
+        this.set(query, response);
+        warmed++;
+      } catch (error) {
+        console.warn(`⚠️ Failed to warm cache for: "${query}"`, error);
+      }
+    }
+
+    console.log(`🔥 Cache warmed with ${warmed} new entries`);
+    return warmed;
+  }
+
+  /**
    * Get cache statistics
    */
-  getStats(): { size: number; maxSize: number; hitRate: number } {
-    let totalHits = 0;
+  getStats(): CacheStats {
+    let totalEntryHits = 0;
     for (const entry of this.cache.values()) {
-      totalHits += entry.hits;
+      totalEntryHits += entry.hits;
     }
+
+    const topQueries = this.getTopQueries(5).map(q => ({
+      query: q.query,
+      hits: q.count,
+    }));
 
     return {
       size: this.cache.size,
       maxSize: this.config.maxSize,
-      hitRate: this.cache.size > 0 ? totalHits / this.cache.size : 0,
+      hitRate: this.totalHits + this.totalMisses > 0
+        ? this.totalHits / (this.totalHits + this.totalMisses)
+        : 0,
+      totalHits: this.totalHits,
+      totalMisses: this.totalMisses,
+      similarityHits: this.similarityHits,
+      topQueries,
     };
   }
 
@@ -199,7 +413,40 @@ export class ResponseCache<T> {
       console.warn('Failed to load cache from storage:', e);
     }
   }
+
+  /**
+   * Save frequency data to localStorage
+   */
+  private saveFrequencyData(): void {
+    if (!this.config.persistToStorage) return;
+
+    try {
+      const entries = Array.from(this.queryFrequency.entries());
+      localStorage.setItem(FREQUENCY_STORAGE_KEY, JSON.stringify(entries));
+    } catch (e) {
+      console.warn('Failed to save frequency data:', e);
+    }
+  }
+
+  /**
+   * Load frequency data from localStorage
+   */
+  private loadFrequencyData(): void {
+    if (!this.config.persistToStorage) return;
+
+    try {
+      const stored = localStorage.getItem(FREQUENCY_STORAGE_KEY);
+      if (stored) {
+        const entries: [string, number][] = JSON.parse(stored);
+        this.queryFrequency = new Map(entries);
+        console.log(`📊 Loaded frequency data for ${this.queryFrequency.size} queries`);
+      }
+    } catch (e) {
+      console.warn('Failed to load frequency data:', e);
+    }
+  }
 }
+
 
 /**
  * Conversation History Manager

@@ -9,11 +9,17 @@ import {
   Building2,
   BarChart3,
   MoreHorizontal,
-  X
+  X,
+  Wifi,
+  WifiOff,
+  RefreshCw,
+  Cloud,
+  CloudOff
 } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { UserButton } from '@clerk/clerk-react';
+import { getSyncStatus, type SyncStatus } from '../../lib/offlineSync';
 
 interface NavbarProps {
   onMenuClick?: () => void;
@@ -45,9 +51,45 @@ export function Navbar({
   chatTitle,
 }: NavbarProps) {
   const [isToolsMenuOpen, setIsToolsMenuOpen] = useState(false);
+  const [syncStatus, setSyncStatus] = useState<SyncStatus>({
+    isOnline: navigator.onLine,
+    pendingCount: 0,
+    syncing: false,
+    lastSyncTime: null,
+    failedCount: 0,
+  });
   const toolsMenuRef = useRef<HTMLDivElement>(null);
 
   const { isAuthenticated } = useAuth();
+
+  // Poll sync status
+  useEffect(() => {
+    const updateStatus = async () => {
+      try {
+        const status = await getSyncStatus();
+        setSyncStatus(status);
+      } catch (e) {
+        // IndexedDB might not be ready yet
+        setSyncStatus(prev => ({ ...prev, isOnline: navigator.onLine }));
+      }
+    };
+
+    updateStatus();
+    const interval = setInterval(updateStatus, 5000); // Check every 5 seconds
+
+    // Also update on online/offline events
+    const handleOnline = () => setSyncStatus(prev => ({ ...prev, isOnline: true }));
+    const handleOffline = () => setSyncStatus(prev => ({ ...prev, isOnline: false }));
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   // Close menus when clicking outside
   useEffect(() => {
@@ -73,6 +115,42 @@ export function Navbar({
     action?.();
     setIsToolsMenuOpen(false);
   };
+
+  // Get status indicator props
+  const getStatusIndicator = () => {
+    if (syncStatus.syncing) {
+      return {
+        color: 'bg-amber-500',
+        icon: RefreshCw,
+        label: 'Syncing...',
+        animate: true,
+      };
+    }
+    if (!syncStatus.isOnline) {
+      return {
+        color: 'bg-red-500',
+        icon: CloudOff,
+        label: `Offline${syncStatus.pendingCount > 0 ? ` (${syncStatus.pendingCount} pending)` : ''}`,
+        animate: false,
+      };
+    }
+    if (syncStatus.pendingCount > 0) {
+      return {
+        color: 'bg-amber-500',
+        icon: Cloud,
+        label: `${syncStatus.pendingCount} pending`,
+        animate: true,
+      };
+    }
+    return {
+      color: 'bg-emerald-500',
+      icon: Wifi,
+      label: 'Online',
+      animate: true,
+    };
+  };
+
+  const statusIndicator = getStatusIndicator();
 
   // Tools menu items
   const toolsMenuItems = [
@@ -122,15 +200,41 @@ export function Navbar({
           </motion.div>
         </div>
 
-        {/* Center - Chat title (only when exists) */}
-        {chatTitle && (
-          <div className="absolute left-1/2 -translate-x-1/2 hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 max-w-[300px]">
-            <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse shrink-0" />
-            <span className="text-sm text-gray-300 truncate">
-              {chatTitle}
-            </span>
-          </div>
-        )}
+        {/* Center - Chat title and status */}
+        <div className="absolute left-1/2 -translate-x-1/2 hidden md:flex items-center gap-3">
+          {/* Connection Status Indicator */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-white/5 border border-white/10"
+            title={statusIndicator.label}
+          >
+            <div className={`w-2 h-2 rounded-full ${statusIndicator.color} ${statusIndicator.animate ? 'animate-pulse' : ''}`} />
+            {syncStatus.syncing ? (
+              <RefreshCw size={14} className="text-amber-400 animate-spin" />
+            ) : !syncStatus.isOnline ? (
+              <WifiOff size={14} className="text-red-400" />
+            ) : (
+              <Wifi size={14} className="text-emerald-400" />
+            )}
+            {(syncStatus.pendingCount > 0 || syncStatus.failedCount > 0) && (
+              <span className="text-xs text-gray-400">
+                {syncStatus.pendingCount > 0 && `${syncStatus.pendingCount} pending`}
+                {syncStatus.failedCount > 0 && ` · ${syncStatus.failedCount} failed`}
+              </span>
+            )}
+          </motion.div>
+
+          {/* Chat title */}
+          {chatTitle && (
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 max-w-[300px]">
+              <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse shrink-0" />
+              <span className="text-sm text-gray-300 truncate">
+                {chatTitle}
+              </span>
+            </div>
+          )}
+        </div>
 
         {/* Right section - Actions */}
         <div className="flex items-center gap-2">

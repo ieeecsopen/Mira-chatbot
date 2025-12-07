@@ -139,3 +139,8 @@ img_str
 export function isPythonReady(): boolean {
     return !!pyodideInstance;
 }
+
+export function isPythonLoading(): boolean {
+    return isLoading;
+}
+
