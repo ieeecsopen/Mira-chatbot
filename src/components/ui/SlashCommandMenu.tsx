@@ -280,39 +280,25 @@ export function SlashCommandMenu({
             {isOpen && (
                 <motion.div
                     ref={menuRef}
-                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                    transition={{ duration: 0.15, ease: 'easeOut' }}
-                    className="absolute bottom-full left-0 right-0 mb-2 mx-2 max-h-[320px] overflow-hidden rounded-xl border border-[#30363d] bg-[#161b22]/95 backdrop-blur-xl shadow-2xl z-50"
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 8 }}
+                    transition={{ duration: 0.12, ease: [0.16, 1, 0.3, 1] }}
+                    className="absolute bottom-full left-0 right-0 mb-2 mx-2 max-h-[360px] overflow-hidden rounded-lg border border-[#30363d]/50 bg-[#0d1117] shadow-2xl z-50"
                 >
-                    {/* Header */}
-                    <div className="px-3 py-2 border-b border-[#30363d] bg-[#0d1117]/50">
-                        <div className="flex items-center gap-2 text-xs text-[#8b949e]">
-                            <Command size={12} />
-                            <span>Slash Commands</span>
-                            {searchQuery.length > 1 && (
-                                <span className="ml-auto text-orange-400">
-                                    {flatCommands.length} result{flatCommands.length !== 1 ? 's' : ''}
-                                </span>
-                            )}
-                        </div>
-                    </div>
-
-                    {/* Commands list */}
-                    <div className="overflow-y-auto max-h-[260px] py-1">
+                    {/* Commands list - No header or footer for minimalism */}
+                    <div className="overflow-y-auto max-h-[360px] py-1.5">
                         {flatCommands.length === 0 ? (
-                            <div className="px-4 py-8 text-center text-[#8b949e]">
-                                <HelpCircle size={24} className="mx-auto mb-2 opacity-50" />
-                                <p className="text-sm">No commands found</p>
-                                <p className="text-xs mt-1">Try a different search term</p>
+                            <div className="px-4 py-12 text-center">
+                                <p className="text-sm text-[#8b949e]">No commands found</p>
                             </div>
                         ) : (
-                            Object.entries(groupedCommands).map(([category, commands]) => (
-                                <div key={category}>
-                                    <div className="px-3 py-1.5 text-[10px] font-semibold text-[#8b949e] uppercase tracking-wider">
-                                        {categoryLabels[category]}
-                                    </div>
+                            Object.entries(groupedCommands).map(([category, commands], catIndex) => (
+                                <div key={category} className={catIndex > 0 ? 'mt-1' : ''}>
+                                    {/* Category divider - subtle line only */}
+                                    {catIndex > 0 && (
+                                        <div className="mx-3 my-1.5 border-t border-[#30363d]/30" />
+                                    )}
                                     {commands.map((command) => {
                                         const currentIndex = itemIndex++;
                                         const isSelected = currentIndex === selectedIndex;
@@ -323,35 +309,28 @@ export function SlashCommandMenu({
                                                 ref={el => { itemRefs.current[currentIndex] = el; }}
                                                 onClick={() => onSelect(command)}
                                                 onMouseEnter={() => setSelectedIndex(currentIndex)}
-                                                className={`w-full px-3 py-2 flex items-center gap-3 text-left transition-colors ${isSelected
-                                                        ? 'bg-orange-500/10 text-white'
-                                                        : 'text-[#c9d1d9] hover:bg-[#21262d]'
+                                                className={`w-full px-3 py-2 flex items-center gap-2.5 text-left transition-all duration-100 ${isSelected
+                                                        ? 'bg-orange-500/5 border-l-2 border-orange-500'
+                                                        : 'border-l-2 border-transparent hover:bg-[#161b22]'
                                                     }`}
                                             >
-                                                <span className={`flex-shrink-0 p-1.5 rounded-md ${isSelected
-                                                        ? 'bg-orange-500/20 text-orange-400'
-                                                        : 'bg-[#21262d] text-[#8b949e]'
+                                                <span className={`flex-shrink-0 transition-colors ${isSelected
+                                                        ? 'text-orange-400'
+                                                        : 'text-[#8b949e]'
                                                     }`}>
                                                     {command.icon}
                                                 </span>
                                                 <div className="flex-1 min-w-0">
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="font-medium text-sm">
-                                                            {command.name}
-                                                        </span>
-                                                        {command.shortcut && (
-                                                            <span className="text-[10px] text-[#8b949e] bg-[#21262d] px-1.5 py-0.5 rounded">
-                                                                {command.shortcut}
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                    <p className="text-xs text-[#8b949e] truncate">
+                                                    <span className={`block text-sm font-normal ${isSelected ? 'text-white' : 'text-[#c9d1d9]'}`}>
+                                                        {command.name}
+                                                    </span>
+                                                    <p className="text-[11px] text-[#8b949e] truncate mt-0.5">
                                                         {command.description}
                                                     </p>
                                                 </div>
-                                                {isSelected && (
-                                                    <span className="text-[10px] text-[#8b949e] flex-shrink-0">
-                                                        ↵ to select
+                                                {command.shortcut && (
+                                                    <span className="text-[10px] text-[#6e7681] flex-shrink-0 font-mono">
+                                                        {command.shortcut}
                                                     </span>
                                                 )}
                                             </button>
@@ -360,24 +339,6 @@ export function SlashCommandMenu({
                                 </div>
                             ))
                         )}
-                    </div>
-
-                    {/* Footer hint */}
-                    <div className="px-3 py-2 border-t border-[#30363d] bg-[#0d1117]/50 flex items-center justify-between text-[10px] text-[#8b949e]">
-                        <div className="flex items-center gap-3">
-                            <span className="flex items-center gap-1">
-                                <kbd className="px-1 py-0.5 bg-[#21262d] rounded text-[#c9d1d9]">↑↓</kbd>
-                                navigate
-                            </span>
-                            <span className="flex items-center gap-1">
-                                <kbd className="px-1 py-0.5 bg-[#21262d] rounded text-[#c9d1d9]">↵</kbd>
-                                select
-                            </span>
-                            <span className="flex items-center gap-1">
-                                <kbd className="px-1 py-0.5 bg-[#21262d] rounded text-[#c9d1d9]">esc</kbd>
-                                close
-                            </span>
-                        </div>
                     </div>
                 </motion.div>
             )}

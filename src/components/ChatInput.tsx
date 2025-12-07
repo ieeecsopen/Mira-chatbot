@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
     SendHorizontal, Paperclip, Mic, ChevronDown, X,
     Plus, Telescope, ShoppingBag, Image as ImageIcon,
-    Lightbulb, MoreHorizontal, AudioLines
+    Lightbulb, MoreHorizontal, AudioLines, FileUp, Sparkles, Brain
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../lib/utils';
@@ -166,22 +166,22 @@ export function ChatInput({
                 {showPlusMenu && (
                     <motion.div
                         ref={plusMenuRef}
-                        initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                        transition={{ duration: 0.1 }}
-                        className="absolute bottom-full left-0 mb-3 w-64 bg-[#1e1e1e] border border-white/10 rounded-xl shadow-2xl z-50 overflow-hidden"
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: 8 }}
+                        transition={{ duration: 0.12, ease: [0.16, 1, 0.3, 1] }}
+                        className="absolute bottom-full left-0 mb-3 w-56 bg-[#0d1117] border border-[#30363d]/50 rounded-lg shadow-2xl z-50 overflow-hidden"
                     >
-                        <div className="p-1.5 space-y-0.5">
+                        <div className="py-1.5">
                             <button
                                 onClick={handleFileClick}
-                                className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-gray-300 hover:text-white hover:bg-white/5 rounded-lg transition-colors text-left"
+                                className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-[#c9d1d9] hover:bg-[#161b22] transition-all border-l-2 border-transparent hover:border-l-orange-500"
                             >
-                                <Paperclip size={18} className="text-gray-400" />
+                                <FileUp size={16} className="text-[#8b949e]" />
                                 <span>Add photos & files</span>
                             </button>
 
-                            <div className="h-px bg-white/5 my-1" />
+                            <div className="mx-3 my-1.5 border-t border-[#30363d]/30" />
 
                             <button
                                 onClick={() => {
@@ -189,19 +189,21 @@ export function ChatInput({
                                     setShowPlusMenu(false);
                                 }}
                                 className={cn(
-                                    "w-full flex items-center gap-3 px-3 py-2.5 text-sm rounded-lg transition-colors text-left",
-                                    webSearchEnabled ? "text-orange-400 bg-orange-500/10" : "text-gray-300 hover:text-white hover:bg-white/5"
+                                    "w-full flex items-center gap-2.5 px-3 py-2 text-sm transition-all border-l-2",
+                                    webSearchEnabled 
+                                        ? "text-orange-400 bg-orange-500/5 border-l-orange-500" 
+                                        : "text-[#c9d1d9] hover:bg-[#161b22] border-transparent hover:border-l-orange-500"
                                 )}
                             >
-                                <Telescope size={18} className={webSearchEnabled ? "text-orange-400" : "text-gray-400"} />
+                                <Telescope size={16} className={webSearchEnabled ? "text-orange-400" : "text-[#8b949e]"} />
                                 <span>Deep research</span>
-                                {webSearchEnabled && <span className="ml-auto text-[10px] font-medium opacity-60">ON</span>}
                             </button>
 
                             <button
-                                className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-gray-500 hover:text-gray-400 hover:bg-white/5 rounded-lg transition-colors text-left cursor-not-allowed"
+                                disabled
+                                className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-[#6e7681] opacity-40 cursor-not-allowed border-l-2 border-transparent"
                             >
-                                <ShoppingBag size={18} className="text-gray-600" />
+                                <ShoppingBag size={16} className="text-[#6e7681]" />
                                 <span>Shopping research</span>
                             </button>
 
@@ -211,9 +213,9 @@ export function ChatInput({
                                     textareaRef.current?.focus();
                                     setShowPlusMenu(false);
                                 }}
-                                className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-gray-300 hover:text-white hover:bg-white/5 rounded-lg transition-colors text-left"
+                                className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-[#c9d1d9] hover:bg-[#161b22] transition-all border-l-2 border-transparent hover:border-l-orange-500"
                             >
-                                <ImageIcon size={18} className="text-gray-400" />
+                                <Sparkles size={16} className="text-[#8b949e]" />
                                 <span>Create image</span>
                             </button>
 
@@ -223,48 +225,14 @@ export function ChatInput({
                                     setShowPlusMenu(false);
                                 }}
                                 className={cn(
-                                    "w-full flex items-col gap-2 px-3 py-2.5 text-sm rounded-lg transition-all text-left",
+                                    "w-full flex items-center gap-2.5 px-3 py-2 text-sm transition-all border-l-2",
                                     deepThinkEnabled 
-                                        ? "text-purple-300 bg-gradient-to-r from-purple-500/20 to-blue-500/10 border border-purple-500/30 shadow-lg shadow-purple-500/10" 
-                                        : "text-gray-300 hover:text-white hover:bg-white/5"
+                                        ? "text-purple-300 bg-purple-500/5 border-l-purple-500" 
+                                        : "text-[#c9d1d9] hover:bg-[#161b22] border-transparent hover:border-l-orange-500"
                                 )}
                             >
-                                <div className="flex items-center gap-3">
-                                    <div className={cn(
-                                        "relative",
-                                        deepThinkEnabled && "animate-pulse"
-                                    )}>
-                                        {deepThinkEnabled && (
-                                            <span className="absolute inset-0 rounded-full bg-purple-500/30 blur-sm"></span>
-                                        )}
-                                        <Lightbulb size={18} className={deepThinkEnabled ? "text-purple-400 relative z-10" : "text-gray-400"} />
-                                    </div>
-                                    <div className="flex-1">
-                                        <div className="flex items-center gap-2">
-                                            <span className="font-medium">Deep Thinking</span>
-                                            {deepThinkEnabled && (
-                                                <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-purple-500/30 text-purple-300 border border-purple-500/40">
-                                                    ACTIVE
-                                                </span>
-                                            )}
-                                        </div>
-                                        {deepThinkEnabled && (
-                                            <p className="text-[10px] text-purple-300/70 mt-0.5">
-                                                Responses will be more thoughtful and detailed
-                                            </p>
-                                        )}
-                                    </div>
-                                </div>
-                            </button>
-
-                            <div className="h-px bg-white/5 my-1" />
-
-                            <button
-                                className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-gray-300 hover:text-white hover:bg-white/5 rounded-lg transition-colors text-left"
-                            >
-                                <MoreHorizontal size={18} className="text-gray-400" />
-                                <span>More</span>
-                                <ChevronDown size={14} className="ml-auto text-gray-500 -rotate-90" />
+                                <Brain size={16} className={deepThinkEnabled ? "text-purple-400" : "text-[#8b949e]"} />
+                                <span>Deep Thinking</span>
                             </button>
                         </div>
                     </motion.div>

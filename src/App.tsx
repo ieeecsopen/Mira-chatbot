@@ -35,6 +35,7 @@ import { ModelComparisonPanel, type ComparisonRunState, type ComparisonResultSta
 import { showInfo } from './lib/toast';
 import { AuthModal } from './components/ui/AuthModal';
 import { PluginPanel } from './components/ui/PluginPanel';
+import { SettingsModal } from './components/ui/SettingsModal';
 import { pluginManager, isPluginCommand } from './lib/plugins';
 import { registerBuiltInPlugins } from './lib/builtInPlugins';
 
@@ -70,7 +71,9 @@ function App() {
   const [isStreaming, setIsStreaming] = useState(false);
   const [isWaiting, setIsWaiting] = useState(false);
   const [hasStarted, setHasStarted] = useState(true);
-  const [selectedModel, setSelectedModel] = useState(MIRA_MODELS[0].id);
+  const [selectedModel, setSelectedModel] = useState(() => {
+    return localStorage.getItem('mira-default-model') || 'auto';
+  });
   const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [isEvaluationPanelOpen, setIsEvaluationPanelOpen] = useState(false);
@@ -95,6 +98,7 @@ function App() {
   const [isMemoryPanelOpen, setIsMemoryPanelOpen] = useState(false);
   const [isWorkspacePanelOpen, setIsWorkspacePanelOpen] = useState(false);
   const [isPluginPanelOpen, setIsPluginPanelOpen] = useState(false);
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [isTemplatePanelOpen, setIsTemplatePanelOpen] = useState(false);
   const [sharedChatId, setSharedChatId] = useState<string | null>(() => getShareIdFromUrl());
   const [attachedFiles, setAttachedFiles] = useState<UploadedFile[]>([]);
@@ -106,11 +110,15 @@ function App() {
   const userId = 'local-user';
 
   // Web search state
-  const [webSearchEnabled, setWebSearchEnabled] = useState(false);
+  const [webSearchEnabled, setWebSearchEnabled] = useState(() => {
+    return localStorage.getItem('mira-web-search') === 'true';
+  });
   const [isSearchingWeb, setIsSearchingWeb] = useState(false);
 
   // DeepThink state
-  const [deepThinkEnabled, setDeepThinkEnabled] = useState(false);
+  const [deepThinkEnabled, setDeepThinkEnabled] = useState(() => {
+    return localStorage.getItem('mira-deep-think') === 'true';
+  });
 
   // Document state - track if documents are loaded for context indicator
   const [hasDocuments, setHasDocuments] = useState(() => getDocumentStore().getAll().length > 0);
@@ -1216,6 +1224,7 @@ function App() {
                   onWorkspaceClick={() => setIsWorkspacePanelOpen(true)}
                   onAnalyticsClick={() => setIsEvaluationPanelOpen(true)}
                   onPluginsClick={() => setIsPluginPanelOpen(true)}
+                  onSettingsClick={() => setIsSettingsModalOpen(true)}
                   chatTitle={currentSessionTitle}
                   onSignIn={() => {
                     setAuthMode('signin');
@@ -1460,6 +1469,14 @@ function App() {
             <PluginPanel
               isOpen={isPluginPanelOpen}
               onClose={() => setIsPluginPanelOpen(false)}
+            />
+
+            {/* Settings Modal */}
+            <SettingsModal
+              isOpen={isSettingsModalOpen}
+              onClose={() => setIsSettingsModalOpen(false)}
+              currentModel={selectedModel}
+              onModelChange={setSelectedModel}
             />
 
             {/* Template Panel */}
