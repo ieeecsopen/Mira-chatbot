@@ -1,8 +1,9 @@
 import { useState, useCallback } from 'react';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import { Copy, Check, Maximize2, Play, Loader2, Terminal } from 'lucide-react';
+import { Copy, Check, Maximize2, Play, Loader2, Terminal, Image as ImageIcon } from 'lucide-react';
 import { executeJavaScript, formatOutput, isCodeSafe } from '../../lib/codeSandbox';
+import { executePython } from '../../lib/pythonSandbox';
 import { showError } from '../../lib/toast';
 
 interface CodeBlockProps {
@@ -12,7 +13,7 @@ interface CodeBlockProps {
 }
 
 // Languages that can be executed
-const executableLanguages = ['javascript', 'js', 'jsx'];
+const executableLanguages = ['javascript', 'js', 'jsx', 'python', 'py'];
 
 // Language display names mapping
 const languageNames: Record<string, string> = {
@@ -124,9 +125,11 @@ export function CodeBlock({ children, language = 'plaintext', onOpenInCanvas }: 
     const [copied, setCopied] = useState(false);
     const [isRunning, setIsRunning] = useState(false);
     const [output, setOutput] = useState<string | null>(null);
+    const [outputImage, setOutputImage] = useState<string | null>(null);
     const [executionTime, setExecutionTime] = useState<number | null>(null);
 
     const canExecute = executableLanguages.includes(language.toLowerCase());
+    const isPython = ['python', 'py'].includes(language.toLowerCase());
 
     const handleCopy = useCallback(async () => {
         try {
@@ -143,26 +146,48 @@ export function CodeBlock({ children, language = 'plaintext', onOpenInCanvas }: 
     }, [children, language, onOpenInCanvas]);
 
     const handleRun = useCallback(async () => {
-        // Check if code is safe
-        const safetyCheck = isCodeSafe(children);
-        if (!safetyCheck.safe) {
-            showError(safetyCheck.reason || 'Code contains potentially unsafe operations');
-            return;
-        }
-
         setIsRunning(true);
         setOutput(null);
+        setOutputImage(null);
 
         try {
-            const result = await executeJavaScript(children);
-            setOutput(formatOutput(result));
-            setExecutionTime(result.executionTime);
+            if (isPython) {
+                const result = await executePython(children);
+
+                let formattedOutput = '';
+                if (result.output.length > 0) {
+                    formattedOutput = result.output.join('\n');
+                }
+
+                if (result.error) {
+                    formattedOutput += `\n❌ Error: ${result.error}`;
+                }
+
+                if (!formattedOutput && result.success && !result.image) {
+                    formattedOutput = '✓ Executed successfully (no output)';
+                }
+
+                setOutput(formattedOutput);
+                setOutputImage(result.image || null);
+                setExecutionTime(result.executionTime);
+            } else {
+                // JavaScript execution
+                const safetyCheck = isCodeSafe(children);
+                if (!safetyCheck.safe) {
+                    showError(safetyCheck.reason || 'Code contains potentially unsafe operations');
+                    return;
+                }
+
+                const result = await executeJavaScript(children);
+                setOutput(formatOutput(result));
+                setExecutionTime(result.executionTime);
+            }
         } catch (error) {
             setOutput(`❌ Error: ${(error as Error).message}`);
         } finally {
             setIsRunning(false);
         }
-    }, [children]);
+    }, [children, isPython]);
 
     const displayLanguage = languageNames[language.toLowerCase()] || language.toUpperCase();
 
@@ -174,7 +199,7 @@ export function CodeBlock({ children, language = 'plaintext', onOpenInCanvas }: 
                     {displayLanguage}
                 </span>
                 <div className="flex items-center gap-1">
-                    {/* Run button for JavaScript */}
+                    {/* Run button */}
                     {canExecute && (
                         <button
                             onClick={handleRun}
@@ -224,7 +249,7 @@ export function CodeBlock({ children, language = 'plaintext', onOpenInCanvas }: 
                 </div>
             </div>
 
-            {/* Code content */}
+            {/* Code content (SyntaxHighlighter) */}
             <div className="overflow-x-auto">
                 <SyntaxHighlighter
                     language={language.toLowerCase()}
@@ -247,7 +272,7 @@ export function CodeBlock({ children, language = 'plaintext', onOpenInCanvas }: 
             </div>
 
             {/* Output panel */}
-            {output !== null && (
+            {(output || outputImage) && (
                 <div className="border-t border-[#30363d] bg-[#0a0c10]">
                     <div className="flex items-center justify-between px-4 py-2 bg-[#161b22] border-b border-[#30363d]">
                         <span className="text-xs font-medium text-[#8b949e] flex items-center gap-1.5">
@@ -260,16 +285,31 @@ export function CodeBlock({ children, language = 'plaintext', onOpenInCanvas }: 
                             </span>
                         )}
                     </div>
-                    <pre className="p-4 text-sm font-mono text-[#c9d1d9] whitespace-pre-wrap overflow-x-auto max-h-64 overflow-y-auto">
-                        {output}
-                    </pre>
+
+                    {/* Image Output (for plots) */}
+                    {outputImage && (
+                        <div className="p-4 border-b border-[#30363d] bg-white text-center">
+                            <img src={outputImage} alt="Plot output" className="max-w-full h-auto mx-auto" />
+                            <div className="mt-2 text-xs text-center text-gray-500 flex items-center justify-center gap-1">
+                                <ImageIcon size={12} />
+                                <span>Generated Plot</span>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Text Output */}
+                    {output && (
+                        <pre className="p-4 text-sm font-mono text-[#c9d1d9] whitespace-pre-wrap overflow-x-auto max-h-64 overflow-y-auto">
+                            {output}
+                        </pre>
+                    )}
                 </div>
             )}
         </div>
     );
 }
 
-// Inline code component for short code snippets
+// Inline code component
 export function InlineCode({ children }: { children: React.ReactNode }) {
     return (
         <code className="px-1.5 py-0.5 mx-0.5 rounded-md text-sm font-mono bg-[#1f2937] text-[#f0883e] border border-[#374151]">
