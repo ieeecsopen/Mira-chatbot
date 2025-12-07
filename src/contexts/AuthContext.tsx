@@ -19,6 +19,7 @@ interface AuthContextType {
     signInWithGitHub: () => Promise<void>;
     handleGitHubCallback: (code: string) => Promise<void>;
     signOut: () => void;
+    isPremium: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -73,7 +74,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             signInWithGoogle,
             signInWithGitHub,
             handleGitHubCallback,
-            signOut
+            signOut,
+            isPremium: false // Default to false for now
         }}>
             {children}
         </AuthContext.Provider>

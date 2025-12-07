@@ -1,9 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Routes, Route } from 'react-router-dom';
-import { motion } from 'framer-motion';
 import { MessageBubble } from './components/MessageBubble';
 import { ChatInput, type SlashCommand } from './components/ChatInput';
-import { LandingPage } from './components/LandingPage';
 import { ModelSelector, MIRA_MODELS } from './components/ModelSelector';
 import { PanelRightOpen } from 'lucide-react';
 import { Button } from './components/ui/button';
@@ -68,7 +66,7 @@ function App() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
   const [isWaiting, setIsWaiting] = useState(false);
-  const [hasStarted, setHasStarted] = useState(false);
+  const [hasStarted, setHasStarted] = useState(true);
   const [selectedModel, setSelectedModel] = useState(MIRA_MODELS[0].id);
   const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
@@ -665,7 +663,7 @@ function App() {
   // Handle creating a new chat
   const handleNewChat = useCallback(() => {
     setMessages([]);
-    setHasStarted(false);
+    // setHasStarted(false); // No longer needed
     setCurrentSessionId(null);
     setAttachedFiles([]);
     chatStorage.clearCurrentSession();
@@ -1128,41 +1126,10 @@ function App() {
       <Routes>
         <Route path="*" element={
           <div className="flex flex-col h-screen bg-background text-foreground overflow-hidden font-sans selection:bg-white/20 relative">
-            {/* Landing Page - Animates out when chat starts */}
-            <motion.div
-              initial={{ opacity: 1, scale: 1 }}
-              animate={{
-                opacity: hasStarted ? 0 : 1,
-                scale: hasStarted ? 0.95 : 1,
-                pointerEvents: hasStarted ? 'none' : 'auto',
-              }}
-              transition={{ duration: 0.5, ease: "easeInOut" }}
-              className="absolute inset-0 z-30"
-            >
-              <LandingPage
-                onStartChat={handleSend}
-                selectedModel={selectedModel}
-                onModelChange={setSelectedModel}
-              />
-            </motion.div>
-
-            {/* Main Chat Interface - Animates in when chat starts */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: hasStarted ? 1 : 0 }}
-              transition={{ duration: 0.5, delay: hasStarted ? 0.3 : 0 }}
-              className="flex flex-col h-screen"
-              style={{ pointerEvents: hasStarted ? 'auto' : 'none' }}
-            >
-              {/* Navbar - Slides down */}
-              <motion.div
-                initial={{ y: -100, opacity: 0 }}
-                animate={{
-                  y: hasStarted ? 0 : -100,
-                  opacity: hasStarted ? 1 : 0,
-                }}
-                transition={{ duration: 0.6, delay: hasStarted ? 0.4 : 0, ease: "easeOut" }}
-              >
+            {/* Main Chat Interface */}
+            <div className="flex flex-col h-screen">
+              {/* Navbar */}
+              <div>
                 <Navbar
                   onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)}
                   onNewChat={handleNewChat}
@@ -1181,7 +1148,7 @@ function App() {
                     setIsAuthModalOpen(true);
                   }}
                 />
-              </motion.div>
+              </div>
 
               {/* Search Modal */}
               <SearchMessages
@@ -1192,31 +1159,17 @@ function App() {
               />
 
               <div className="flex flex-1 pt-16 overflow-hidden">
-                {/* Sidebar - Slides in from left */}
-                <motion.div
-                  initial={{ x: -280, opacity: 0 }}
-                  animate={{
-                    x: hasStarted ? 0 : -280,
-                    opacity: hasStarted ? 1 : 0,
-                  }}
-                  transition={{ duration: 0.6, delay: hasStarted ? 0.5 : 0, ease: "easeOut" }}
-                >
-                  <Sidebar
-                    chatSessions={chatSessions}
-                    currentSessionId={currentSessionId}
-                    onNewChat={handleNewChat}
-                    onSelectSession={handleSelectSession}
-                    onDeleteSession={handleDeleteSession}
-                  />
-                </motion.div>
+                {/* Sidebar */}
+                <Sidebar
+                  chatSessions={chatSessions}
+                  currentSessionId={currentSessionId}
+                  onNewChat={handleNewChat}
+                  onSelectSession={handleSelectSession}
+                  onDeleteSession={handleDeleteSession}
+                />
 
-                {/* Main Chat Area - Fades in */}
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: hasStarted ? 1 : 0 }}
-                  transition={{ duration: 0.5, delay: hasStarted ? 0.6 : 0 }}
-                  className="flex-1 flex flex-col h-full relative bg-background"
-                >
+                {/* Main Chat Area */}
+                <div className="flex-1 flex flex-col h-full relative bg-background">
                   {/* Messages */}
                   <div
                     ref={scrollContainerRef}
@@ -1317,16 +1270,8 @@ function App() {
                     </div>
                   )}
 
-                  {/* Input Area - Slides up */}
-                  <motion.div
-                    initial={{ y: 100, opacity: 0 }}
-                    animate={{
-                      y: hasStarted ? 0 : 100,
-                      opacity: hasStarted ? 1 : 0,
-                    }}
-                    transition={{ duration: 0.6, delay: hasStarted ? 0.7 : 0, ease: "easeOut" }}
-                    className="p-4 md:p-6 bg-background relative z-10"
-                  >
+                  {/* Input Area */}
+                  <div className="p-4 md:p-6 bg-background relative z-10">
                     <div className="max-w-5xl mx-auto">
                       {/* Document Upload Bar - shows when documents are loaded */}
                       <div className="mb-3">
@@ -1387,10 +1332,10 @@ function App() {
                         onVoiceTranscript={handleVoiceTranscript}
                       />
                     </div>
-                  </motion.div>
-                </motion.div>
+                  </div>
+                </div>
               </div>
-            </motion.div>
+            </div>
 
             <ModelComparisonPanel
               isOpen={!!comparisonContext}

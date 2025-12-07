@@ -22,7 +22,11 @@ const AVAILABLE_MODELS: ModelConfig[] = [
 
     // Experimental/Other
     { name: 'gemini-2.0-flash-exp', rpm: 10, tpm: 1000000, priority: 5, category: 'balanced' },
+    { name: 'gemini-2.0-flash-thinking-exp', rpm: 10, tpm: 500000, priority: 5, category: 'quality' },
     { name: 'learnlm-2.0-flash-experimental', rpm: 15, tpm: 500000, priority: 6, category: 'balanced' },
+
+    // Local Models
+    // { name: 'sin-llama', rpm: 60, tpm: 1000000, priority: 1, category: 'quality' },
 ];
 
 // Track model usage for load balancing
@@ -477,20 +481,26 @@ export async function streamMessage(
     // Determine if we need quality model
     const preferQuality = message.length > 200 || ragContext.length > 500 || documentContext.length > 500;
 
-    // If a specific model is selected, use only that model
-    // Otherwise, try streaming with fallback across models
+    // If a specific model is selected, prioritize it but keep others as fallback
+    // If 'auto' or undefined, use default priority
     let models: ModelConfig[];
 
-    if (selectedModelId) {
+    if (selectedModelId && selectedModelId !== 'auto') {
         const selectedModel = AVAILABLE_MODELS.find(m => m.name === selectedModelId);
         if (selectedModel) {
-            models = [selectedModel];
+            // Put selected model first, then others sorted by priority as fallback
+            const otherModels = AVAILABLE_MODELS
+                .filter(m => m.name !== selectedModelId)
+                .sort((a, b) => a.priority - b.priority);
+            models = [selectedModel, ...otherModels];
         } else {
+            // Fallback if selected model not found
             models = preferQuality
                 ? AVAILABLE_MODELS.filter(m => m.category !== 'fast').sort((a, b) => a.priority - b.priority)
                 : [...AVAILABLE_MODELS].sort((a, b) => a.priority - b.priority);
         }
     } else {
+        // Auto mode: prioritize based on context
         models = preferQuality
             ? AVAILABLE_MODELS.filter(m => m.category !== 'fast').sort((a, b) => a.priority - b.priority)
             : [...AVAILABLE_MODELS].sort((a, b) => a.priority - b.priority);

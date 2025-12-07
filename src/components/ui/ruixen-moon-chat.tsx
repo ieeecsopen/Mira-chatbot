@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "../../lib/utils";
+import { useAuth } from "../../contexts/AuthContext";
 import {
     Globe,
     Sparkles,
@@ -11,6 +12,7 @@ import {
     ChevronDown,
     SendHorizontal,
     Brain,
+    Lock,
 } from "lucide-react";
 import { MIRA_MODELS } from "../ModelSelector";
 
@@ -28,6 +30,7 @@ export default function RuixenMoonChat({ onStartChat, selectedModel = 'gemini-2.
     const [deepThinkEnabled, setDeepThinkEnabled] = useState(false);
     const modelMenuRef = useRef<HTMLDivElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const { isPremium } = useAuth();
 
     const currentModel = MIRA_MODELS.find(m => m.id === selectedModel) || MIRA_MODELS[0];
 
@@ -151,25 +154,41 @@ export default function RuixenMoonChat({ onStartChat, selectedModel = 'gemini-2.
                                                 className="absolute bottom-full left-0 mb-2 w-56 rounded-lg overflow-hidden
                                                     bg-[#1a1a1a] border border-white/10 shadow-xl z-50"
                                             >
-                                                {MIRA_MODELS.map(model => (
-                                                    <button
-                                                        type="button"
-                                                        key={model.id}
-                                                        onClick={() => {
-                                                            onModelChange?.(model.id);
-                                                            setShowModelMenu(false);
-                                                        }}
-                                                        className={cn(
-                                                            "w-full flex flex-col items-start px-3 py-2.5 text-left transition-all",
-                                                            selectedModel === model.id
-                                                                ? "bg-orange-500/10 text-orange-400"
-                                                                : "text-gray-400 hover:text-white hover:bg-white/5"
-                                                        )}
-                                                    >
-                                                        <span className="text-xs font-medium">{model.displayName}</span>
-                                                        <span className="text-[10px] text-gray-500">{model.description}</span>
-                                                    </button>
-                                                ))}
+                                                {MIRA_MODELS.map(model => {
+                                                    const isLocked = !isPremium && model.id !== 'auto';
+
+                                                    return (
+                                                        <button
+                                                            type="button"
+                                                            key={model.id}
+                                                            disabled={isLocked}
+                                                            onClick={() => {
+                                                                if (!isLocked) {
+                                                                    onModelChange?.(model.id);
+                                                                    setShowModelMenu(false);
+                                                                }
+                                                            }}
+                                                            className={cn(
+                                                                "w-full flex flex-col items-start px-3 py-2.5 text-left transition-all",
+                                                                isLocked
+                                                                    ? "opacity-50 cursor-not-allowed bg-black/20"
+                                                                    : "hover:bg-white/5",
+                                                                selectedModel === model.id
+                                                                    ? "bg-orange-500/10 text-orange-400"
+                                                                    : "text-gray-400 hover:text-white"
+                                                            )}
+                                                        >
+                                                            <div className="flex items-center gap-2 w-full justify-between">
+                                                                <div className="flex items-center gap-1.5">
+                                                                    <span className="text-xs font-medium">{model.displayName}</span>
+                                                                    {isLocked && <Lock size={10} className="text-gray-500" />}
+                                                                </div>
+                                                                {isLocked && <span className="text-[9px] text-orange-400 uppercase tracking-wider font-semibold">Pro</span>}
+                                                            </div>
+                                                            <span className="text-[10px] text-gray-500">{model.description}</span>
+                                                        </button>
+                                                    );
+                                                })}
                                             </motion.div>
                                         )}
                                     </AnimatePresence>
@@ -249,7 +268,7 @@ export default function RuixenMoonChat({ onStartChat, selectedModel = 'gemini-2.
                                         "flex items-center justify-center w-9 h-9 rounded-lg transition-all duration-200",
                                         message.trim()
                                             ? "bg-white text-black hover:bg-gray-200"
-                                            : "bg-white/5 text-gray-600 cursor-not-allowed"
+                                            : "text-gray-500 bg-white/5"
                                     )}
                                 >
                                     <SendHorizontal size={18} />
