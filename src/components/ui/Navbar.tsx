@@ -13,7 +13,6 @@ import {
   X
 } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { UserButton } from '@clerk/clerk-react';
 
@@ -48,7 +47,6 @@ export function Navbar({
 }: NavbarProps) {
   const [isToolsMenuOpen, setIsToolsMenuOpen] = useState(false);
   const toolsMenuRef = useRef<HTMLDivElement>(null);
-  const navigate = useNavigate();
 
   const { isAuthenticated } = useAuth();
 
