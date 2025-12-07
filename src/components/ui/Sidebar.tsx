@@ -1,6 +1,7 @@
-import { Plus, Settings, MessageSquare, Trash2, Sparkles } from 'lucide-react';
+import { Plus, Settings, MessageSquare, Trash2, Sparkles, LogOut } from 'lucide-react';
 import { Button } from './button';
 import type { ChatSession } from '../../lib/chatStorage';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface SidebarProps {
     chatSessions: ChatSession[];
@@ -17,6 +18,8 @@ export function Sidebar({
     onSelectSession,
     onDeleteSession
 }: SidebarProps) {
+    const { user, isAuthenticated, signOut, signIn } = useAuth();
+
     return (
         <div className="hidden md:flex flex-col w-[280px] border-r border-border/50 bg-gradient-to-b from-[#0f0f0f] to-[#0a0a0a] relative overflow-hidden">
             {/* Subtle gradient overlay */}
@@ -117,27 +120,68 @@ export function Sidebar({
 
                 {/* User Account Footer */}
                 <div className="mt-auto pt-4 border-t border-white/10">
-                    <Button
-                        variant="ghost"
-                        className="w-full flex items-center justify-start gap-3 px-2.5 py-2.5 hover:bg-white/5 rounded-lg transition-all h-auto group"
-                    >
-                        <div className="relative">
-                            <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-gray-800 to-gray-900 flex items-center justify-center text-white font-bold text-sm border border-white/10 shadow-lg">
-                                U
-                            </div>
-                            <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-[#0a0a0a] rounded-full" />
+                    {isAuthenticated && user ? (
+                        <div className="flex items-center justify-between gap-2">
+                            <Button
+                                variant="ghost"
+                                className="flex-1 flex items-center justify-start gap-3 px-2.5 py-2.5 hover:bg-white/5 rounded-lg transition-all h-auto group"
+                            >
+                                <div className="relative">
+                                    {user.avatar ? (
+                                        <img 
+                                            src={user.avatar} 
+                                            alt={user.name} 
+                                            className="w-9 h-9 rounded-lg object-cover border border-white/10 shadow-lg"
+                                        />
+                                    ) : (
+                                        <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center text-white font-bold text-sm border border-white/10 shadow-lg">
+                                            {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
+                                        </div>
+                                    )}
+                                    <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-[#0a0a0a] rounded-full" />
+                                </div>
+                                <div className="text-sm font-medium text-left flex-1 min-w-0">
+                                    <div className="text-white group-hover:text-gray-200 transition-colors truncate">
+                                        {user.name || 'User'}
+                                    </div>
+                                    <div className="text-xs text-gray-500 font-normal flex items-center gap-1.5">
+                                        <span className="px-1.5 py-0.5 bg-orange-500/10 text-orange-400 rounded text-[10px] font-semibold">
+                                            FREE
+                                        </span>
+                                    </div>
+                                </div>
+                            </Button>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => signOut()}
+                                className="h-9 w-9 text-gray-500 hover:text-white hover:bg-white/10 rounded-lg"
+                                title="Sign out"
+                            >
+                                <LogOut size={16} />
+                            </Button>
                         </div>
-                        <div className="text-sm font-medium text-left flex-1 min-w-0">
-                            <div className="text-white group-hover:text-gray-200 transition-colors truncate">
-                                User Account
+                    ) : (
+                        <Button
+                            variant="ghost"
+                            onClick={() => signIn('','')}
+                            className="w-full flex items-center justify-start gap-3 px-2.5 py-2.5 hover:bg-white/5 rounded-lg transition-all h-auto group"
+                        >
+                            <div className="relative">
+                                <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-gray-800 to-gray-900 flex items-center justify-center text-white font-bold text-sm border border-white/10 shadow-lg">
+                                    G
+                                </div>
                             </div>
-                            <div className="text-xs text-gray-500 font-normal flex items-center gap-1.5">
-                                <span className="px-1.5 py-0.5 bg-orange-500/10 text-orange-400 rounded text-[10px] font-semibold">
-                                    FREE
-                                </span>
+                            <div className="text-sm font-medium text-left flex-1 min-w-0">
+                                <div className="text-white group-hover:text-gray-200 transition-colors truncate">
+                                    Guest User
+                                </div>
+                                <div className="text-xs text-gray-500 font-normal">
+                                    Sign in to save chats
+                                </div>
                             </div>
-                        </div>
-                    </Button>
+                        </Button>
+                    )}
                 </div>
             </div>
         </div>
