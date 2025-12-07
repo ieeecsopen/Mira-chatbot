@@ -84,6 +84,24 @@ export const SINHALA_KNOWLEDGE_BASE: KnowledgeEntry[] = [
     priority: 10
   },
   {
+    id: 'sl-info-president',
+    category: 'sri-lanka',
+    question: 'ශ්‍රී ලංකාවේ ජනාධිපති කවුද?',
+    questionVariants: ['who is the president of sri lanka', 'lankawe janadipathi kawda', 'ලංකාවේ ජනාධිපති', 'current president'],
+    answer: 'ශ්‍රී ලංකාවේ වත්මන් ජනාධිපති අනුර කුමාර දිසානායක මහතායි. එතුමා 2024 සැප්තැම්බර් මස පැවති ජනාධිපතිවරණයෙන් තේරී පත් විය.',
+    keywords: ['ජනාධිපති', 'president', 'janadipathi', 'anura', 'අනුර'],
+    priority: 10
+  },
+  {
+    id: 'sl-info-capital',
+    category: 'sri-lanka',
+    question: 'ශ්‍රී ලංකාවේ අගනුවර කුමක්ද?',
+    questionVariants: ['capital of sri lanka', 'lankawe aganuwara', 'ලංකාවේ අගනුවර'],
+    answer: 'ශ්‍රී ලංකාවේ පරිපාලන අගනුවර ශ්‍රී ජයවර්ධනපුර කෝට්ටේ වේ. වාණිජ අගනුවර කොළඹ වේ.',
+    keywords: ['අගනුවර', 'capital', 'aganuwara', 'kotte', 'colombo'],
+    priority: 9
+  },
+  {
     id: 'sl-info-2',
     category: 'sri-lanka',
     question: 'සිංහල භාෂාව ගැන කියන්න',

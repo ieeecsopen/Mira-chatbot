@@ -588,6 +588,41 @@ export function shouldSearchWeb(query: string): boolean {
         /how\s+much\s+is/i,
         /where\s+is/i,
         /who\s+is\s+the\s+current/i,
+
+        // Sinhala Triggers
+        /කවුද/i, // Who
+        /මොකක්ද/i, // What
+        /කොහේද/i, // Where
+        /කවදාද/i, // When
+        /කෙසේද/i, // How
+        /ඇයි/i, // Why
+        /කීයද/i, // How much
+        /විස්තර/i, // Details
+        /තොරතුරු/i, // Information
+        /ගැන/i, // About
+        /අලුත්/i, // New/Latest
+        /පුවත්/i, // News
+        /වර්තමාන/i, // Current
+        /මිල/i, // Price
+        /කාලගුණය/i, // Weather
+
+        // Singlish Triggers
+        /kawda/i, // Who
+        /mokakda/i, // What
+        /koheda/i, // Where
+        /kawadada/i, // When
+        /kohomada/i, // How
+        /ai/i, // Why
+        /keeyada/i, // How much
+        /wisthara/i, // Details
+        /thorathuru/i, // Information
+        /gana/i, // About
+        /aluth/i, // New/Latest
+        /news/i, // News
+        /current/i, // Current
+        /price/i, // Price
+        /weather/i, // Weather
+        /lankawe/i, // In Sri Lanka
     ];
 
     return searchTriggers.some(pattern => pattern.test(query));
