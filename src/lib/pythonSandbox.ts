@@ -28,7 +28,7 @@ export async function initPyodide(): Promise<PyodideInterface> {
     initPromise = (async () => {
         try {
             const pyodide = await loadPyodide({
-                indexURL: 'https://cdn.jsdelivr.net/pyodide/v0.25.0/full/',
+                indexURL: 'https://cdn.jsdelivr.net/pyodide/v0.29.0/full/',
             });
 
             // Load default packages
