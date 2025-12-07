@@ -34,6 +34,7 @@ import { EvaluationPanel } from './components/ui/EvaluationPanel';
 import { ModelComparisonPanel, type ComparisonRunState, type ComparisonResultState } from './components/ui/ModelComparisonPanel';
 import { showInfo } from './lib/toast';
 import { AuthModal } from './components/ui/AuthModal';
+import { PluginPanel } from './components/ui/PluginPanel';
 
 interface Message {
   id: string;
@@ -91,6 +92,7 @@ function App() {
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [isMemoryPanelOpen, setIsMemoryPanelOpen] = useState(false);
   const [isWorkspacePanelOpen, setIsWorkspacePanelOpen] = useState(false);
+  const [isPluginPanelOpen, setIsPluginPanelOpen] = useState(false);
   const [isTemplatePanelOpen, setIsTemplatePanelOpen] = useState(false);
   const [sharedChatId, setSharedChatId] = useState<string | null>(() => getShareIdFromUrl());
   const [attachedFiles, setAttachedFiles] = useState<UploadedFile[]>([]);
@@ -1142,6 +1144,7 @@ function App() {
                   onMemoryClick={() => setIsMemoryPanelOpen(true)}
                   onWorkspaceClick={() => setIsWorkspacePanelOpen(true)}
                   onAnalyticsClick={() => setIsEvaluationPanelOpen(true)}
+                  onPluginsClick={() => setIsPluginPanelOpen(true)}
                   chatTitle={currentSessionTitle}
                   onSignIn={() => {
                     setAuthMode('signin');
@@ -1380,6 +1383,12 @@ function App() {
             <EvaluationPanel
               isOpen={isEvaluationPanelOpen}
               onClose={() => setIsEvaluationPanelOpen(false)}
+            />
+
+            {/* Plugin Panel */}
+            <PluginPanel
+              isOpen={isPluginPanelOpen}
+              onClose={() => setIsPluginPanelOpen(false)}
             />
 
             {/* Template Panel */}
