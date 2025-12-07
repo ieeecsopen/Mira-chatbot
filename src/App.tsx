@@ -35,7 +35,7 @@ import { useMetrics } from './contexts/MetricsContext';
 import { EvaluationPanel } from './components/ui/EvaluationPanel';
 import { ModelComparisonPanel, type ComparisonRunState, type ComparisonResultState } from './components/ui/ModelComparisonPanel';
 import { showInfo } from './lib/toast';
-import { AuthPage } from './pages/AuthPage';
+import { AuthModal } from './components/ui/AuthModal';
 
 interface Message {
   id: string;
@@ -98,6 +98,8 @@ function App() {
   const [attachedFiles, setAttachedFiles] = useState<UploadedFile[]>([]);
   const [responseStyle, setResponseStyle] = useState<'concise' | 'detailed'>('concise');
   const [comparisonContext, setComparisonContext] = useState<ComparisonContext | null>(null);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
   const [comparisonRun, setComparisonRun] = useState<ComparisonRunState | null>(null);
   const userId = 'local-user';
 
@@ -1124,7 +1126,6 @@ function App() {
   return (
     <AuthProvider>
       <Routes>
-        <Route path="/auth" element={<AuthPage />} />
         <Route path="*" element={
           <div className="flex flex-col h-screen bg-background text-foreground overflow-hidden font-sans selection:bg-white/20 relative">
             {/* Landing Page - Animates out when chat starts */}
@@ -1171,6 +1172,14 @@ function App() {
                   onWorkspaceClick={() => setIsWorkspacePanelOpen(true)}
                   onAnalyticsClick={() => setIsEvaluationPanelOpen(true)}
                   chatTitle={currentSessionTitle}
+                  onSignIn={() => {
+                    setAuthMode('signin');
+                    setIsAuthModalOpen(true);
+                  }}
+                  onSignUp={() => {
+                    setAuthMode('signup');
+                    setIsAuthModalOpen(true);
+                  }}
                 />
               </motion.div>
 
@@ -1452,6 +1461,13 @@ function App() {
               onDeleteItem={canvas.deleteItem}
               viewMode={canvas.viewMode}
               onViewModeChange={canvas.setViewMode}
+            />
+
+            {/* Auth Modal */}
+            <AuthModal
+              isOpen={isAuthModalOpen}
+              onClose={() => setIsAuthModalOpen(false)}
+              initialMode={authMode}
             />
           </div>
         } />

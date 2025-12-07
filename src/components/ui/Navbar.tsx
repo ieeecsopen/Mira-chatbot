@@ -26,6 +26,8 @@ interface NavbarProps {
   onMemoryClick?: () => void;
   onWorkspaceClick?: () => void;
   onAnalyticsClick?: () => void;
+  onSignIn?: () => void;
+  onSignUp?: () => void;
   showMenu?: boolean;
   chatTitle?: string;
 }
@@ -39,6 +41,8 @@ export function Navbar({
   onMemoryClick,
   onWorkspaceClick,
   onAnalyticsClick,
+  onSignIn,
+  onSignUp,
   showMenu = true,
   chatTitle,
 }: NavbarProps) {
@@ -61,11 +65,11 @@ export function Navbar({
   }, []);
 
   const handleSignIn = () => {
-    navigate('/auth?mode=signin');
+    onSignIn?.();
   };
 
   const handleSignUp = () => {
-    navigate('/auth?mode=signup');
+    onSignUp?.();
   };
 
   const handleToolAction = (action?: () => void) => {
