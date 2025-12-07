@@ -722,24 +722,38 @@ function App() {
 
   // Handle creating a new chat
   const handleNewChat = useCallback(() => {
+    // Save current session before starting a new one
+    if (currentSessionId && messages.length > 0) {
+      chatStorage.saveCurrentSession();
+    }
+    
+    // Clear UI state for new chat
     setMessages([]);
-    // setHasStarted(false); // No longer needed
     setCurrentSessionId(null);
     setAttachedFiles([]);
-    chatStorage.clearCurrentSession();
+    setHasStarted(false);
+    
+    // Refresh sessions list to show the saved session
     setChatSessions(chatStorage.getRecentSessions(20));
-  }, []);
+  }, [currentSessionId, messages.length]);
 
   // Handle clearing current chat (keeps session but clears messages)
-  // Handle clearing current chat (keeps session but clears messages)
   const handleClearChat = useCallback(() => {
-    setMessages([]);
-    if (currentSessionId) {
-      // Clear messages in storage too
-      chatStorage.clearCurrentSession();
-      setHasMoreMessages(false);
+    // Save current session before clearing if it has messages
+    if (currentSessionId && messages.length > 0) {
+      chatStorage.saveCurrentSession();
     }
-  }, [currentSessionId]);
+    
+    // Clear UI state
+    setMessages([]);
+    setCurrentSessionId(null);
+    setAttachedFiles([]);
+    setHasStarted(false);
+    setHasMoreMessages(false);
+    
+    // Refresh sessions list
+    setChatSessions(chatStorage.getRecentSessions(20));
+  }, [currentSessionId, messages.length]);
 
   // Handle slash commands
   const handleSlashCommand = useCallback((command: SlashCommand) => {
