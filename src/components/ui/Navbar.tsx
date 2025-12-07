@@ -4,9 +4,7 @@ import {
   Plus,
   Search,
   Settings,
-  User,
   Sparkles,
-  LogOut,
   Share2,
   Brain,
   Building2,
@@ -17,6 +15,7 @@ import {
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { UserButton } from '@clerk/clerk-react';
 
 interface NavbarProps {
   onMenuClick?: () => void;
@@ -43,20 +42,15 @@ export function Navbar({
   showMenu = true,
   chatTitle,
 }: NavbarProps) {
-  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isToolsMenuOpen, setIsToolsMenuOpen] = useState(false);
-  const userMenuRef = useRef<HTMLDivElement>(null);
   const toolsMenuRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
 
-  const { user, isAuthenticated, signOut } = useAuth();
+  const { isAuthenticated } = useAuth();
 
   // Close menus when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
-        setIsUserMenuOpen(false);
-      }
       if (toolsMenuRef.current && !toolsMenuRef.current.contains(event.target as Node)) {
         setIsToolsMenuOpen(false);
       }
@@ -72,11 +66,6 @@ export function Navbar({
 
   const handleSignUp = () => {
     navigate('/auth?mode=signup');
-  };
-
-  const handleSignOut = () => {
-    signOut();
-    setIsUserMenuOpen(false);
   };
 
   const handleToolAction = (action?: () => void) => {
@@ -211,69 +200,17 @@ export function Navbar({
 
           {/* User Menu */}
           {isAuthenticated ? (
-            <div className="relative" ref={userMenuRef}>
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-                className="relative w-9 h-9 flex items-center justify-center rounded-lg
-                bg-gradient-to-br from-gray-800 to-gray-900
-                hover:from-gray-700 hover:to-gray-800
-                text-white transition-all border border-white/10"
-                aria-label="User menu"
-              >
-                <User size={16} />
-                <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-green-500 border-2 border-[#0a0a0a] rounded-full" />
-              </motion.button>
-
-              {/* User dropdown */}
-              <AnimatePresence>
-                {isUserMenuOpen && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -8, scale: 0.95 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: -8, scale: 0.95 }}
-                    transition={{ duration: 0.15 }}
-                    className="absolute right-0 mt-2 w-56 rounded-xl overflow-hidden
-                    bg-[#1a1a1a] border border-white/10
-                    shadow-xl shadow-black/40 z-50"
-                  >
-                    {/* User info header */}
-                    <div className="p-3 border-b border-white/10 bg-white/5">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-gray-800 to-gray-900
-                        flex items-center justify-center border border-white/10">
-                          <User size={16} className="text-white" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium text-white text-sm truncate">{user?.name || 'User'}</p>
-                          <p className="text-xs text-gray-500 truncate">{user?.email}</p>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Menu items */}
-                    <div className="p-1.5">
-                      <UserMenuItem icon={User} label="Profile" />
-                      <UserMenuItem icon={Settings} label="Settings" onClick={onSettingsClick} />
-                      <UserMenuItem icon={Sparkles} label="Upgrade to Pro" badge="New" variant="premium" />
-                    </div>
-
-                    {/* Sign out */}
-                    <div className="p-1.5 border-t border-white/10">
-                      <button
-                        onClick={handleSignOut}
-                        className="w-full flex items-center gap-3 px-3 py-2 rounded-lg
-                        text-gray-400 hover:text-white hover:bg-white/10
-                        transition-all text-sm font-medium"
-                      >
-                        <LogOut size={16} />
-                        <span>Sign Out</span>
-                      </button>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+            <div className="flex items-center gap-3">
+              <UserButton 
+                afterSignOutUrl="/"
+                appearance={{
+                  elements: {
+                    avatarBox: "w-9 h-9 rounded-lg border border-white/10",
+                    userButtonPopoverCard: "bg-[#1a1a1a] border border-white/10 shadow-xl shadow-black/40",
+                    userButtonPopoverFooter: "hidden"
+                  }
+                }}
+              />
             </div>
           ) : (
             <div className="flex items-center gap-1.5">
@@ -302,36 +239,5 @@ export function Navbar({
         </div>
       </div>
     </motion.header>
-  );
-}
-
-// User menu item
-interface UserMenuItemProps {
-  icon: React.ComponentType<{ size?: number }>;
-  label: string;
-  onClick?: () => void;
-  badge?: string;
-  variant?: 'default' | 'premium';
-}
-
-function UserMenuItem({ icon: Icon, label, onClick, badge, variant = 'default' }: UserMenuItemProps) {
-  return (
-    <button
-      onClick={onClick}
-      className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg
-        transition-all text-sm font-medium
-        ${variant === 'premium'
-          ? 'text-orange-400 hover:text-orange-300 hover:bg-orange-500/10'
-          : 'text-gray-300 hover:text-white hover:bg-white/10'
-        }`}
-    >
-      <Icon size={16} />
-      <span className="flex-1 text-left">{label}</span>
-      {badge && (
-        <span className="px-1.5 py-0.5 bg-orange-500 text-white rounded text-[10px] font-bold uppercase">
-          {badge}
-        </span>
-      )}
-    </button>
   );
 }
