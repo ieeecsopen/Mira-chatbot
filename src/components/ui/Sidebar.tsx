@@ -1,4 +1,4 @@
-import { Plus, Settings, MessageSquare, Trash2, Sparkles, LogOut } from 'lucide-react';
+import { Plus, Settings, MessageSquare, Trash2, LogOut } from 'lucide-react';
 import { Button } from './button';
 import type { ChatSession } from '../../lib/chatStorage';
 import { useAuth } from '../../contexts/AuthContext';
@@ -29,14 +29,12 @@ export function Sidebar({
             <div className="relative z-10 flex flex-col h-full p-4">
                 {/* Header */}
                 <div className="flex items-center justify-between mb-6 px-1">
-                    <div className="flex items-center gap-2.5">
-                        <div className="relative">
-                            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center shadow-lg shadow-orange-500/20">
-                                <Sparkles size={16} className="text-white" />
-                            </div>
-                            <div className="absolute -inset-0.5 bg-gradient-to-r from-orange-500 to-orange-600 rounded-lg blur opacity-20 -z-10" />
-                        </div>
-                        <div className="font-bold text-lg tracking-tight text-white">Mira</div>
+                    <div className="flex items-center">
+                        <img
+                            src="/MIRA.svg"
+                            alt="Mira"
+                            className="h-26"
+                        />
                     </div>
                     <Button
                         variant="ghost"
@@ -77,8 +75,8 @@ export function Sidebar({
                                     key={session.id}
                                     onClick={() => onSelectSession(session)}
                                     className={`group relative w-full flex items-center justify-between px-3 py-2.5 text-left rounded-lg transition-all cursor-pointer overflow-hidden ${currentSessionId === session.id
-                                            ? 'bg-white/10 text-white shadow-lg shadow-white/5 border border-white/10'
-                                            : 'text-gray-400 hover:text-white hover:bg-white/5 border border-transparent'
+                                        ? 'bg-white/10 text-white shadow-lg shadow-white/5 border border-white/10'
+                                        : 'text-gray-400 hover:text-white hover:bg-white/5 border border-transparent'
                                         }`}
                                 >
                                     {/* Active indicator */}
@@ -128,9 +126,9 @@ export function Sidebar({
                             >
                                 <div className="relative">
                                     {user.avatar ? (
-                                        <img 
-                                            src={user.avatar} 
-                                            alt={user.name} 
+                                        <img
+                                            src={user.avatar}
+                                            alt={user.name}
                                             className="w-9 h-9 rounded-lg object-cover border border-white/10 shadow-lg"
                                         />
                                     ) : (
@@ -164,7 +162,7 @@ export function Sidebar({
                     ) : (
                         <Button
                             variant="ghost"
-                            onClick={() => signIn('','')}
+                            onClick={() => signIn('', '')}
                             className="w-full flex items-center justify-start gap-3 px-2.5 py-2.5 hover:bg-white/5 rounded-lg transition-all h-auto group"
                         >
                             <div className="relative">

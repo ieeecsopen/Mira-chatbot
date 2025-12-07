@@ -4,7 +4,6 @@ import {
   Plus,
   Search,
   Settings,
-  Sparkles,
   Share2,
   Brain,
   Building2,
@@ -89,7 +88,7 @@ export function Navbar({
     <motion.header
       initial={{ y: -20, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
-      className="fixed top-0 left-0 right-0 h-14 z-40
+      className="fixed top-0 left-0 right-0 h-16 z-40
         bg-[#0a0a0a]/95 backdrop-blur-xl
         border-b border-white/[0.06]"
     >
@@ -112,15 +111,14 @@ export function Navbar({
 
           {/* Logo */}
           <motion.div
-            className="flex items-center gap-2"
+            className="flex items-center"
             whileHover={{ scale: 1.02 }}
           >
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center shadow-lg shadow-orange-500/20">
-              <Sparkles size={16} className="text-white" />
-            </div>
-            <span className="text-lg font-semibold text-white tracking-tight hidden sm:block">
-              Mira
-            </span>
+            <img
+              src="/MIRA.svg"
+              alt="Mira"
+              className="h-24"
+            />
           </motion.div>
         </div>
 
@@ -203,7 +201,7 @@ export function Navbar({
           {/* User Menu */}
           {isAuthenticated ? (
             <div className="flex items-center gap-3">
-              <UserButton 
+              <UserButton
                 afterSignOutUrl="/"
                 appearance={{
                   elements: {

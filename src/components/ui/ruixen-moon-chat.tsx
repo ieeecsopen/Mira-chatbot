@@ -94,15 +94,13 @@ export default function RuixenMoonChat({ onStartChat, selectedModel = 'gemini-2.
                     initial={{ opacity: 0, scale: 0.9 }}
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{ duration: 0.5 }}
-                    className="flex items-center gap-3 mb-16"
+                    className="flex items-center justify-center mb-16"
                 >
-                    <div className="w-12 h-12 rounded-xl bg-white/5 backdrop-blur-sm flex items-center justify-center border border-white/10">
-                        <Sparkles size={24} className="text-white" />
-                    </div>
-                    <div>
-                        <h1 className="text-4xl font-bold text-white tracking-tight">Mira</h1>
-                        <p className="text-sm text-gray-500">මීරා</p>
-                    </div>
+                    <img
+                        src="/MIRA.svg"
+                        alt="Mira"
+                        className="h-16"
+                    />
                 </motion.div>
 
                 {/* Unified Input - Similar to ChatInput */}
