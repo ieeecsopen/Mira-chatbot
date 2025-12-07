@@ -118,61 +118,70 @@ export function PluginPanel({ isOpen, onClose }: PluginPanelProps) {
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
                     onClick={onClose}
                 >
                     <motion.div
-                        initial={{ scale: 0.96, opacity: 0 }}
+                        initial={{ scale: 0.95, opacity: 0 }}
                         animate={{ scale: 1, opacity: 1 }}
-                        exit={{ scale: 0.96, opacity: 0 }}
+                        exit={{ scale: 0.95, opacity: 0 }}
                         onClick={(e) => e.stopPropagation()}
-                        className="relative w-full max-w-3xl max-h-[80vh] bg-[#0d1117] rounded-xl border border-[#30363d] shadow-xl overflow-hidden flex"
+                        className="relative w-full max-w-5xl max-h-[85vh] bg-[#0d1117] rounded-2xl border border-[#30363d]/50 shadow-2xl overflow-hidden flex"
                     >
                         {/* Main Panel */}
-                        <div className={cn("flex-1 flex flex-col", selectedPlugin && "hidden md:flex")}>
+                        <div className={cn("flex-1 flex flex-col min-w-0", selectedPlugin && "hidden md:flex")}>
                             {/* Header */}
-                            <div className="flex items-center justify-between px-5 py-4 border-b border-[#30363d]">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-9 h-9 rounded-lg bg-orange-500/10 flex items-center justify-center">
-                                        <Puzzle className="text-orange-400" size={18} />
-                                    </div>
+                            <div className="px-6 py-5 border-b border-[#30363d]/50">
+                                <div className="flex items-center justify-between">
                                     <div>
-                                        <h2 className="text-base font-medium text-white">Plugins</h2>
-                                        <p className="text-xs text-[#8b949e]">Extend MIRA capabilities</p>
+                                        <h2 className="text-lg font-semibold text-white">Plugins</h2>
+                                        <p className="text-sm text-[#8b949e] mt-0.5">Manage and configure extensions</p>
                                     </div>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={onClose}
+                                        className="h-9 w-9 text-[#8b949e] hover:text-white hover:bg-[#21262d] rounded-lg"
+                                    >
+                                        <X size={20} />
+                                    </Button>
                                 </div>
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={onClose}
-                                    className="text-[#8b949e] hover:text-white hover:bg-white/5"
-                                >
-                                    <X size={18} />
-                                </Button>
-                            </div>
 
-                            {/* Search */}
-                            <div className="px-5 py-3 border-b border-[#30363d]/50">
-                                <div className="relative">
-                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[#8b949e]" size={14} />
+                                {/* Search */}
+                                <div className="relative mt-4">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[#8b949e]" size={16} />
                                     <Input
                                         type="text"
                                         placeholder="Search plugins..."
                                         value={searchQuery}
                                         onChange={(e) => setSearchQuery(e.target.value)}
-                                        className="pl-9 h-9 bg-[#161b22] border-[#30363d] text-white placeholder:text-[#8b949e] text-sm focus-visible:ring-orange-500/30 focus-visible:border-orange-500/50"
+                                        className="pl-10 h-10 bg-[#161b22] border-[#30363d]/50 text-white placeholder:text-[#8b949e] focus-visible:ring-orange-500/20 focus-visible:border-orange-500/50 rounded-lg"
                                     />
                                 </div>
                             </div>
 
+                            {/* Stats Bar */}
+                            <div className="px-6 py-3 border-b border-[#30363d]/30 bg-[#161b22]/30">
+                                <div className="flex items-center gap-6 text-sm">
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-2 h-2 rounded-full bg-[#8b949e]" />
+                                        <span className="text-[#8b949e]">{plugins.length} Total</span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-2 h-2 rounded-full bg-orange-500" />
+                                        <span className="text-[#8b949e]">{pluginManager.getEnabledPlugins().length} Active</span>
+                                    </div>
+                                </div>
+                            </div>
+
                             {/* Plugin List */}
-                            <div className="flex-1 overflow-y-auto p-5 space-y-5">
+                            <div className="flex-1 overflow-y-auto px-6 py-4">
                                 {Object.entries(groupedPlugins).map(([category, categoryPlugins]) => (
-                                    <div key={category}>
-                                        <h3 className="text-xs font-medium text-[#8b949e] uppercase tracking-wider mb-2">
+                                    <div key={category} className="mb-6 last:mb-0">
+                                        <h3 className="text-xs font-semibold text-white uppercase tracking-wider mb-3 px-1">
                                             {categoryLabels[category] || category}
                                         </h3>
-                                        <div className="space-y-1.5">
+                                        <div className="space-y-2">
                                             {categoryPlugins.map((plugin) => {
                                                 const state = pluginStates.get(plugin.metadata.id);
                                                 const IconComponent = iconMap[plugin.metadata.icon] || Puzzle;
@@ -183,54 +192,64 @@ export function PluginPanel({ isOpen, onClose }: PluginPanelProps) {
                                                         key={plugin.metadata.id}
                                                         onClick={() => setSelectedPlugin(plugin)}
                                                         className={cn(
-                                                            "flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors",
-                                                            "border border-transparent hover:border-[#30363d] hover:bg-[#161b22]"
+                                                            "group relative flex items-center gap-4 p-4 rounded-xl cursor-pointer transition-all duration-200",
+                                                            "border border-[#30363d]/30 hover:border-[#30363d] hover:bg-[#161b22]/50",
+                                                            isEnabled && "bg-orange-500/5 border-orange-500/20"
                                                         )}
                                                     >
                                                         <div className={cn(
-                                                            "w-9 h-9 rounded-lg flex items-center justify-center shrink-0",
-                                                            isEnabled ? "bg-orange-500/10" : "bg-[#21262d]"
+                                                            "w-11 h-11 rounded-xl flex items-center justify-center shrink-0 transition-colors",
+                                                            isEnabled ? "bg-orange-500/10" : "bg-[#21262d]",
+                                                            "group-hover:bg-orange-500/15"
                                                         )}>
                                                             <IconComponent
-                                                                size={18}
-                                                                className={isEnabled ? "text-orange-400" : "text-[#8b949e]"}
+                                                                size={20}
+                                                                className={cn(
+                                                                    "transition-colors",
+                                                                    isEnabled ? "text-orange-400" : "text-[#8b949e]"
+                                                                )}
                                                             />
                                                         </div>
 
                                                         <div className="flex-1 min-w-0">
-                                                            <div className="flex items-center gap-2">
+                                                            <div className="flex items-center gap-2 mb-1">
                                                                 <span className="text-sm font-medium text-white">
                                                                     {plugin.metadata.name}
                                                                 </span>
                                                                 {isEnabled && (
-                                                                    <span className="px-1.5 py-0.5 text-[10px] rounded bg-orange-500/10 text-orange-400">
-                                                                        Active
-                                                                    </span>
+                                                                    <div className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-orange-500/10">
+                                                                        <div className="w-1.5 h-1.5 rounded-full bg-orange-400" />
+                                                                        <span className="text-[10px] font-medium text-orange-400">
+                                                                            Active
+                                                                        </span>
+                                                                    </div>
                                                                 )}
                                                             </div>
-                                                            <p className="text-xs text-[#8b949e] truncate">
+                                                            <p className="text-xs text-[#8b949e] leading-relaxed line-clamp-1">
                                                                 {plugin.metadata.description}
                                                             </p>
                                                         </div>
 
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="icon"
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                handleTogglePlugin(plugin);
-                                                            }}
-                                                            className={cn(
-                                                                "h-8 w-8 shrink-0",
-                                                                isEnabled
-                                                                    ? "text-orange-400 hover:text-orange-300 hover:bg-orange-500/10"
-                                                                    : "text-[#8b949e] hover:text-white hover:bg-white/5"
-                                                            )}
-                                                        >
-                                                            <Power size={14} />
-                                                        </Button>
-
-                                                        <ChevronRight size={14} className="text-[#484f58] shrink-0" />
+                                                        <div className="flex items-center gap-2 shrink-0">
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    handleTogglePlugin(plugin);
+                                                                }}
+                                                                className={cn(
+                                                                    "h-8 px-3 text-xs font-medium rounded-lg transition-all",
+                                                                    isEnabled
+                                                                        ? "text-orange-400 hover:text-orange-300 hover:bg-orange-500/10"
+                                                                        : "text-[#8b949e] hover:text-white hover:bg-[#21262d]"
+                                                                )}
+                                                            >
+                                                                <Power size={14} className="mr-1.5" />
+                                                                {isEnabled ? 'Disable' : 'Enable'}
+                                                            </Button>
+                                                            <ChevronRight size={16} className="text-[#484f58]" />
+                                                        </div>
                                                     </div>
                                                 );
                                             })}
@@ -239,19 +258,14 @@ export function PluginPanel({ isOpen, onClose }: PluginPanelProps) {
                                 ))}
 
                                 {filteredPlugins.length === 0 && (
-                                    <div className="flex flex-col items-center justify-center py-12 text-center">
-                                        <Puzzle size={32} className="text-[#484f58] mb-3" />
-                                        <p className="text-sm text-[#8b949e]">No plugins found</p>
+                                    <div className="flex flex-col items-center justify-center py-16 text-center">
+                                        <div className="w-16 h-16 rounded-2xl bg-[#21262d] flex items-center justify-center mb-4">
+                                            <Puzzle size={32} className="text-[#484f58]" />
+                                        </div>
+                                        <p className="text-sm font-medium text-white mb-1">No plugins found</p>
+                                        <p className="text-xs text-[#8b949e]">Try a different search term</p>
                                     </div>
                                 )}
-                            </div>
-
-                            {/* Footer */}
-                            <div className="px-5 py-3 border-t border-[#30363d] bg-[#161b22]/50">
-                                <div className="flex items-center justify-between text-xs text-[#8b949e]">
-                                    <span>{plugins.length} plugins</span>
-                                    <span>{pluginManager.getEnabledPlugins().length} enabled</span>
-                                </div>
                             </div>
                         </div>
 
@@ -263,7 +277,7 @@ export function PluginPanel({ isOpen, onClose }: PluginPanelProps) {
                                     animate={{ x: 0, opacity: 1 }}
                                     exit={{ x: 100, opacity: 0 }}
                                     transition={{ type: "spring", damping: 25, stiffness: 300 }}
-                                    className="w-full md:w-80 border-l border-[#30363d] flex flex-col bg-[#0d1117] overflow-hidden"
+                                    className="w-full md:w-[520px] border-l border-[#30363d]/50 flex flex-col bg-[#0d1117] overflow-hidden"
                                 >
                                     <PluginDetail
                                         plugin={selectedPlugin}
@@ -306,108 +320,117 @@ function PluginDetail({ plugin, state, onClose, onToggle, onSaveSettings }: Plug
 
     return (
         <div className="flex flex-col h-full overflow-hidden">
-            {/* Header - shrink-0 prevents compression */}
-            <div className="shrink-0 px-4 py-3 border-b border-[#30363d]">
-                <div className="flex items-center justify-between mb-3">
+            {/* Header */}
+            <div className="px-6 py-5 border-b border-[#30363d]/50">
+                <div className="flex items-start justify-between mb-4">
                     <Button
                         variant="ghost"
                         size="sm"
                         onClick={onClose}
-                        className="md:hidden h-7 px-2 text-[#8b949e] hover:text-white"
+                        className="md:hidden h-8 px-2 text-[#8b949e] hover:text-white hover:bg-[#21262d] rounded-lg -ml-2"
                     >
-                        <ChevronRight size={14} className="rotate-180 mr-1" />
+                        <ChevronRight size={16} className="rotate-180 mr-1" />
                         Back
                     </Button>
                     <div className="flex items-center gap-2 ml-auto">
-                        <span className="text-[10px] text-[#8b949e]">v{plugin.metadata.version}</span>
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={onToggle}
-                            className={cn(
-                                "h-7 px-2.5 text-xs",
-                                isEnabled
-                                    ? "text-red-400 hover:text-red-300 hover:bg-red-500/10"
-                                    : "text-orange-400 hover:text-orange-300 hover:bg-orange-500/10"
-                            )}
-                        >
-                            {isEnabled ? 'Disable' : 'Enable'}
-                        </Button>
+                        <span className="text-xs text-[#8b949e] px-2 py-1 bg-[#21262d] rounded-md">
+                            v{plugin.metadata.version}
+                        </span>
                         <Button
                             variant="ghost"
                             size="icon"
                             onClick={onClose}
-                            className="hidden md:flex h-7 w-7 text-[#8b949e] hover:text-white"
+                            className="hidden md:flex h-8 w-8 text-[#8b949e] hover:text-white hover:bg-[#21262d] rounded-lg"
                         >
-                            <X size={14} />
+                            <X size={16} />
                         </Button>
                     </div>
                 </div>
 
-                <div className="flex items-center gap-3">
+                <div className="flex items-start gap-4">
                     <div className={cn(
-                        "w-10 h-10 rounded-lg flex items-center justify-center",
+                        "w-12 h-12 rounded-xl flex items-center justify-center shrink-0",
                         isEnabled ? "bg-orange-500/10" : "bg-[#21262d]"
                     )}>
-                        <IconComponent size={20} className={isEnabled ? "text-orange-400" : "text-[#8b949e]"} />
+                        <IconComponent size={24} className={isEnabled ? "text-orange-400" : "text-[#8b949e]"} />
                     </div>
-                    <div>
-                        <h3 className="text-sm font-medium text-white">{plugin.metadata.name}</h3>
-                        <p className="text-[10px] text-[#8b949e]">by {plugin.metadata.author}</p>
+                    <div className="flex-1 min-w-0">
+                        <h3 className="text-base font-semibold text-white mb-1">{plugin.metadata.name}</h3>
+                        <p className="text-xs text-[#8b949e]">by {plugin.metadata.author}</p>
+                        {isEnabled && (
+                            <div className="flex items-center gap-1.5 mt-2 px-2 py-1 rounded-md bg-orange-500/10 w-fit">
+                                <div className="w-1.5 h-1.5 rounded-full bg-orange-400" />
+                                <span className="text-xs font-medium text-orange-400">Active</span>
+                            </div>
+                        )}
                     </div>
                 </div>
+
+                <Button
+                    onClick={onToggle}
+                    className={cn(
+                        "w-full mt-4 h-9 rounded-lg font-medium text-sm transition-all",
+                        isEnabled
+                            ? "bg-[#21262d] text-[#8b949e] hover:bg-[#30363d] hover:text-white"
+                            : "bg-orange-500 text-white hover:bg-orange-600"
+                    )}
+                >
+                    <Power size={16} className="mr-2" />
+                    {isEnabled ? 'Disable Plugin' : 'Enable Plugin'}
+                </Button>
             </div>
 
             {/* Description */}
-            <div className="px-4 py-3 border-b border-[#30363d]">
-                <p className="text-xs text-[#8b949e] leading-relaxed">{plugin.metadata.description}</p>
-
-                {plugin.commands && plugin.commands.length > 0 && (
-                    <div className="mt-3">
-                        <h4 className="text-[10px] font-medium text-[#8b949e] uppercase tracking-wider mb-1.5">Commands</h4>
-                        <div className="space-y-1">
-                            {plugin.commands.map((cmd) => (
-                                <div key={cmd.command} className="text-xs">
-                                    <code className="text-orange-400">/{cmd.command}</code>
-                                    <span className="text-[#8b949e] ml-1.5">- {cmd.description}</span>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                )}
+            <div className="px-6 py-4 border-b border-[#30363d]/30">
+                <p className="text-sm text-[#8b949e] leading-relaxed">{plugin.metadata.description}</p>
             </div>
+
+            {/* Commands */}
+            {plugin.commands && plugin.commands.length > 0 && (
+                <div className="px-6 py-4 border-b border-[#30363d]/30">
+                    <h4 className="text-xs font-semibold text-white uppercase tracking-wider mb-3">Commands</h4>
+                    <div className="space-y-2">
+                        {plugin.commands.map((cmd) => (
+                            <div key={cmd.command} className="p-3 bg-[#161b22] rounded-lg border border-[#30363d]/30">
+                                <code className="text-xs font-mono text-orange-400">/{cmd.command}</code>
+                                <p className="text-xs text-[#8b949e] mt-1">{cmd.description}</p>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
 
             {/* Settings */}
             {plugin.settings.schema.length > 0 && (
-                <div className="flex-1 overflow-y-auto px-4 py-3">
-                    <div className="flex items-center gap-1.5 mb-3">
-                        <Settings size={12} className="text-[#8b949e]" />
-                        <h4 className="text-xs font-medium text-white">Settings</h4>
+                <div className="flex-1 overflow-y-auto px-6 py-4">
+                    <div className="flex items-center gap-2 mb-4">
+                        <Settings size={14} className="text-[#8b949e]" />
+                        <h4 className="text-xs font-semibold text-white uppercase tracking-wider">Settings</h4>
                     </div>
 
-                    <div className="space-y-3">
+                    <div className="space-y-4">
                         {plugin.settings.schema.map((setting) => (
                             <div key={setting.key}>
-                                <label className="block text-[10px] font-medium text-[#8b949e] uppercase tracking-wider mb-1">
+                                <label className="block text-xs font-medium text-white mb-2">
                                     {setting.label}
-                                    {setting.required && <span className="text-orange-400 ml-0.5">*</span>}
+                                    {setting.required && <span className="text-orange-400 ml-1">*</span>}
                                 </label>
 
                                 {setting.type === 'boolean' ? (
-                                    <label className="flex items-center gap-2 cursor-pointer">
+                                    <label className="flex items-start gap-3 p-3 bg-[#161b22] rounded-lg border border-[#30363d]/30 cursor-pointer hover:border-[#30363d] transition-colors">
                                         <input
                                             type="checkbox"
                                             checked={settings[setting.key] as boolean || false}
                                             onChange={(e) => setSettings({ ...settings, [setting.key]: e.target.checked })}
-                                            className="w-3.5 h-3.5 rounded border-[#30363d] bg-[#21262d] text-orange-500 focus:ring-orange-500/30 focus:ring-offset-0"
+                                            className="mt-0.5 w-4 h-4 rounded border-[#30363d] bg-[#21262d] text-orange-500 focus:ring-orange-500/30 focus:ring-offset-0"
                                         />
-                                        <span className="text-[10px] text-[#8b949e]">{setting.description}</span>
+                                        <span className="text-xs text-[#8b949e] leading-relaxed">{setting.description}</span>
                                     </label>
                                 ) : setting.type === 'select' ? (
                                     <select
                                         value={settings[setting.key] as string || ''}
                                         onChange={(e) => setSettings({ ...settings, [setting.key]: e.target.value })}
-                                        className="w-full h-8 px-2 bg-[#21262d] border border-[#30363d] rounded-md text-white text-xs focus:outline-none focus:border-orange-500/50"
+                                        className="w-full h-10 px-3 bg-[#161b22] border border-[#30363d]/30 rounded-lg text-white text-sm focus:outline-none focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/20"
                                     >
                                         {setting.options?.map((opt) => (
                                             <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -419,12 +442,12 @@ function PluginDetail({ plugin, state, onClose, onToggle, onSaveSettings }: Plug
                                         value={settings[setting.key] as string || ''}
                                         onChange={(e) => setSettings({ ...settings, [setting.key]: e.target.value })}
                                         placeholder={setting.description}
-                                        className="h-8 bg-[#21262d] border-[#30363d] text-white text-xs placeholder:text-[#8b949e] focus-visible:ring-orange-500/30 focus-visible:border-orange-500/50"
+                                        className="h-10 bg-[#161b22] border-[#30363d]/30 text-white text-sm placeholder:text-[#8b949e] focus-visible:ring-orange-500/20 focus-visible:border-orange-500/50 rounded-lg"
                                     />
                                 )}
 
                                 {setting.description && setting.type !== 'boolean' && (
-                                    <p className="text-[10px] text-[#484f58] mt-0.5">{setting.description}</p>
+                                    <p className="text-xs text-[#484f58] mt-1.5 leading-relaxed">{setting.description}</p>
                                 )}
                             </div>
                         ))}
@@ -432,12 +455,18 @@ function PluginDetail({ plugin, state, onClose, onToggle, onSaveSettings }: Plug
 
                     <Button
                         onClick={handleSave}
-                        className="w-full mt-4 h-8 bg-orange-500 hover:bg-orange-600 text-white text-xs font-medium"
+                        className={cn(
+                            "w-full mt-6 h-10 rounded-lg font-medium text-sm transition-all",
+                            showSaved
+                                ? "bg-orange-500/20 text-orange-400 hover:bg-orange-500/20"
+                                : "bg-orange-500 text-white hover:bg-orange-600"
+                        )}
+                        disabled={showSaved}
                     >
                         {showSaved ? (
                             <>
-                                <Check size={14} />
-                                Saved
+                                <Check size={16} className="mr-2" />
+                                Settings Saved
                             </>
                         ) : (
                             'Save Settings'
@@ -447,27 +476,27 @@ function PluginDetail({ plugin, state, onClose, onToggle, onSaveSettings }: Plug
             )}
 
             {/* Capabilities */}
-            <div className="px-4 py-3 border-t border-[#30363d] bg-[#161b22]/50">
-                <h4 className="text-[10px] font-medium text-[#8b949e] uppercase tracking-wider mb-2">Capabilities</h4>
-                <div className="flex flex-wrap gap-1">
+            <div className="px-6 py-4 border-t border-[#30363d]/30 bg-[#161b22]/30">
+                <h4 className="text-xs font-semibold text-white uppercase tracking-wider mb-3">Capabilities</h4>
+                <div className="flex flex-wrap gap-2">
                     {plugin.metadata.capabilities.canProcessMessages && (
-                        <span className="px-1.5 py-0.5 text-[10px] rounded bg-orange-500/10 text-orange-400">
+                        <span className="px-3 py-1.5 text-xs font-medium rounded-lg bg-orange-500/10 text-orange-400 border border-orange-500/20">
                             Process Messages
                         </span>
                     )}
                     {plugin.metadata.capabilities.canModifyResponses && (
-                        <span className="px-1.5 py-0.5 text-[10px] rounded bg-orange-500/10 text-orange-400">
+                        <span className="px-3 py-1.5 text-xs font-medium rounded-lg bg-orange-500/10 text-orange-400 border border-orange-500/20">
                             Modify Responses
                         </span>
                     )}
                     {plugin.metadata.capabilities.canAddSlashCommands && (
-                        <span className="px-1.5 py-0.5 text-[10px] rounded bg-orange-500/10 text-orange-400">
+                        <span className="px-3 py-1.5 text-xs font-medium rounded-lg bg-orange-500/10 text-orange-400 border border-orange-500/20">
                             Slash Commands
                         </span>
                     )}
                     {plugin.metadata.capabilities.requiresApiKey && (
-                        <span className="px-1.5 py-0.5 text-[10px] rounded bg-[#21262d] text-[#8b949e]">
-                            Requires API Key
+                        <span className="px-3 py-1.5 text-xs font-medium rounded-lg bg-[#21262d] text-[#8b949e] border border-[#30363d]/30">
+                            API Key Required
                         </span>
                     )}
                 </div>
