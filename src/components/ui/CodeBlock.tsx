@@ -272,22 +272,31 @@ export function CodeBlock({ children, language = 'plaintext', onOpenInCanvas }: 
             </div>
 
             {/* Output panel */}
-            {(output || outputImage) && (
+            {(output || outputImage || isRunning) && (
                 <div className="border-t border-[#30363d] bg-[#0a0c10]">
                     <div className="flex items-center justify-between px-4 py-2 bg-[#161b22] border-b border-[#30363d]">
                         <span className="text-xs font-medium text-[#8b949e] flex items-center gap-1.5">
                             <Terminal size={12} />
                             Output
                         </span>
-                        {executionTime !== null && (
+                        {executionTime !== null && !isRunning && (
                             <span className="text-xs text-[#6e7681]">
                                 {executionTime.toFixed(1)}ms
                             </span>
                         )}
                     </div>
 
+                    {/* Loading State */}
+                    {isRunning && (
+                        <div className="p-8 flex flex-col items-center justify-center text-[#8b949e] gap-3">
+                            <Loader2 size={24} className="animate-spin text-orange-400" />
+                            <div className="text-sm font-medium">Running Python Code...</div>
+                            <div className="text-xs opacity-75">Configuring environment & packages</div>
+                        </div>
+                    )}
+
                     {/* Image Output (for plots) */}
-                    {outputImage && (
+                    {!isRunning && outputImage && (
                         <div className="p-4 border-b border-[#30363d] bg-white text-center">
                             <img src={outputImage} alt="Plot output" className="max-w-full h-auto mx-auto" />
                             <div className="mt-2 text-xs text-center text-gray-500 flex items-center justify-center gap-1">
@@ -298,7 +307,7 @@ export function CodeBlock({ children, language = 'plaintext', onOpenInCanvas }: 
                     )}
 
                     {/* Text Output */}
-                    {output && (
+                    {!isRunning && output && (
                         <pre className="p-4 text-sm font-mono text-[#c9d1d9] whitespace-pre-wrap overflow-x-auto max-h-64 overflow-y-auto">
                             {output}
                         </pre>
