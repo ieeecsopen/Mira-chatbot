@@ -1,4 +1,6 @@
 import type { IncomingMessage, ServerResponse } from 'http';
+import { connectToDatabase } from './db/connect';
+import { ObjectId } from 'mongodb';
 
 // Vercel serverless function types
 interface VercelRequest extends IncomingMessage {
@@ -10,16 +12,21 @@ interface VercelRequest extends IncomingMessage {
 interface VercelResponse extends ServerResponse {
     status: (statusCode: number) => VercelResponse;
     json: (body: any) => void;
-    setHeader: (name: string, value: string) => VercelResponse;
-    write: (chunk: any, callback?: (error: Error | null | undefined) => void) => boolean;
-    end: (chunk?: any) => VercelResponse;
+    setHeader: (name: string, value: string) => this;
+    end: (chunk?: any) => this;
 }
 
 // Get API key from server environment (not exposed to client)
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+    // Only allow POST
+    if (req.method !== 'POST') {
+        return res.status(405).json({ error: 'Method not allowed' });
+    }
 
-// System instruction (same as frontend)
-const SYSTEM_INSTRUCTION = `ඔබ "මීරා" (MIRA) නම් සිංහල භාෂා සහායකයෙකි.
+    const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+
+    // System instruction (same as frontend)
+    const SYSTEM_INSTRUCTION = `ඔබ "මීරා" (MIRA) නම් සිංහල භාෂා සහායකයෙකි.
 
 ## ඔබේ අනන්‍යතාවය:
 - ඔබේ නම "මීරා" (MIRA - Multilingual Intelligent Response Assistant)
@@ -43,12 +50,6 @@ const SYSTEM_INSTRUCTION = `ඔබ "මීරා" (MIRA) නම් සිංහ�
 - ශ්‍රී ලංකාවට අදාළ කරුණු (නීති, සංඛ්‍යාලේඛන) ගැන කතා කරන විට ඉතා සැලකිලිමත් වන්න.
 - පරිශීලකයාගේ ප්‍රශ්නයට කෙලින්ම පිළිතුරු දෙන්න. අනවශ්‍ය තොරතුරු එකතු නොකරන්න.`;
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-    // Only allow POST
-    if (req.method !== 'POST') {
-        return res.status(405).json({ error: 'Method not allowed' });
-    }
-
     // Check API key
     if (!GEMINI_API_KEY) {
         console.error('GEMINI_API_KEY not configured');
@@ -60,6 +61,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             message,
             model = 'gemini-2.0-flash',
             history = [],
+            sessionId,
             options = {}
         } = req.body;
 
@@ -67,7 +69,45 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             return res.status(400).json({ error: 'Message is required' });
         }
 
-        console.log(`[API] Request: model=${model}, messageLength=${message.length}, historyLength=${history.length}`);
+        console.log(`[API] Request: model=${model}, sessionId=${sessionId}, messageLength=${message.length}`);
+
+        // Connect to MongoDB
+        let db = null;
+        try {
+            const connection = await connectToDatabase();
+            db = connection.db;
+
+            // 1. Save USER message if sessionId is present
+            if (sessionId && db) {
+                const messagesCollection = db.collection('messages');
+                await messagesCollection.insertOne({
+                    messageId: `msg_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+                    sessionId,
+                    role: 'user',
+                    content: message,
+                    timestamp: new Date(),
+                    model // Track which model was requested
+                });
+
+                // Update session timestamp
+                await db.collection('sessions').updateOne(
+                    { sessionId },
+                    {
+                        $set: { updatedAt: new Date() },
+                        $setOnInsert: {
+                            title: message.substring(0, 50) + (message.length > 50 ? '...' : ''),
+                            createdAt: new Date(),
+                            model
+                        }
+                    },
+                    { upsert: true }
+                );
+                console.log('✅ Pending User message saved to DB');
+            }
+        } catch (error) {
+            console.warn('⚠️ Failed to save user message to DB:', error);
+            // Continue execution - don't fail chat if DB is down
+        }
 
         // Build conversation history
         const historyContents = history.map((msg: { role: string; content: string }) => ({
@@ -155,6 +195,7 @@ Format your response as:
         }
 
         const decoder = new TextDecoder();
+        let accumulatedResponse = '';
 
         try {
             while (true) {
@@ -162,11 +203,53 @@ Format your response as:
                 if (done) break;
 
                 const chunk = decoder.decode(value, { stream: true });
+
+                // Save accumulation logic
+                const lines = chunk.split('\n');
+                for (const line of lines) {
+                    if (line.startsWith('data:')) {
+                        const jsonStr = line.slice(5).trim();
+                        if (!jsonStr) continue;
+                        try {
+                            const data = JSON.parse(jsonStr);
+                            const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+                            if (text) accumulatedResponse += text;
+                        } catch (e) {
+                            // ignore parse errors for partial chunks
+                        }
+                    }
+                }
+
                 // Forward the SSE data directly
                 res.write(chunk);
             }
         } finally {
             reader.releaseLock();
+
+            // 2. Save ASSISTANT message to DB after stream completes
+            if (sessionId && db && accumulatedResponse) {
+                try {
+                    const messagesCollection = db.collection('messages');
+                    await messagesCollection.insertOne({
+                        messageId: `msg_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+                        sessionId,
+                        role: 'assistant',
+                        content: accumulatedResponse,
+                        timestamp: new Date(),
+                        model
+                    });
+
+                    // Update session timestamp again
+                    await db.collection('sessions').updateOne(
+                        { sessionId },
+                        { $set: { updatedAt: new Date() } }
+                    );
+
+                    console.log('✅ Assistant message saved to DB');
+                } catch (error) {
+                    console.warn('⚠️ Failed to save assistant message to DB:', error);
+                }
+            }
         }
 
         res.end();

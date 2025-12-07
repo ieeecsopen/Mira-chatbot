@@ -1,11 +1,11 @@
 import { useState, useCallback, useRef, memo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-    FileText, 
-    Upload, 
-    X, 
-    Trash2, 
-    ChevronDown, 
+import {
+    FileText,
+    Upload,
+    X,
+    Trash2,
+    ChevronDown,
     ChevronUp,
     File,
     FileType,
@@ -157,6 +157,7 @@ function DocumentPanelComponent({ isOpen, onClose, onDocumentsChange }: Document
                 },
                 undefined, // use default model
                 chatMessages.slice(-10).map(m => ({ role: m.role, content: m.content })), // pass recent history
+                undefined, // session ID
                 { enableDocumentContext: true } // enable document context
             );
         } catch (error) {
@@ -167,7 +168,7 @@ function DocumentPanelComponent({ isOpen, onClose, onDocumentsChange }: Document
 
     const handleFileSelect = useCallback(async (files: FileList | File[]) => {
         const fileArray = Array.from(files);
-        
+
         // Filter supported files
         const supportedFiles = fileArray.filter(file => {
             const ext = '.' + file.name.split('.').pop()?.toLowerCase();
@@ -190,18 +191,18 @@ function DocumentPanelComponent({ isOpen, onClose, onDocumentsChange }: Document
         // Parse each file
         for (let i = 0; i < supportedFiles.length; i++) {
             const file = supportedFiles[i];
-            
+
             try {
                 // Update to parsing status
-                setUploadingFiles(prev => 
+                setUploadingFiles(prev =>
                     prev.map(u => u.file === file ? { ...u, status: 'parsing' as const, progress: 50 } : u)
                 );
 
                 const doc = await parseDocument(file);
-                store.add(doc);
-                
+                await store.addAsync(doc);
+
                 // Update to done
-                setUploadingFiles(prev => 
+                setUploadingFiles(prev =>
                     prev.map(u => u.file === file ? { ...u, status: 'done' as const, progress: 100 } : u)
                 );
 
@@ -216,11 +217,11 @@ function DocumentPanelComponent({ isOpen, onClose, onDocumentsChange }: Document
 
             } catch (error) {
                 console.error(`Failed to parse ${file.name}:`, error);
-                setUploadingFiles(prev => 
-                    prev.map(u => u.file === file ? { 
-                        ...u, 
-                        status: 'error' as const, 
-                        error: (error as Error).message 
+                setUploadingFiles(prev =>
+                    prev.map(u => u.file === file ? {
+                        ...u,
+                        status: 'error' as const,
+                        error: (error as Error).message
                     } : u)
                 );
             }
@@ -230,7 +231,7 @@ function DocumentPanelComponent({ isOpen, onClose, onDocumentsChange }: Document
     const handleDrop = useCallback((e: React.DragEvent) => {
         e.preventDefault();
         setIsDragging(false);
-        
+
         if (e.dataTransfer.files.length > 0) {
             handleFileSelect(e.dataTransfer.files);
         }
@@ -261,7 +262,7 @@ function DocumentPanelComponent({ isOpen, onClose, onDocumentsChange }: Document
     }, [store, notifyChange]);
 
     // Filter documents by search
-    const filteredDocs = documents.filter(doc => 
+    const filteredDocs = documents.filter(doc =>
         doc.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         doc.content.toLowerCase().includes(searchQuery.toLowerCase())
     );
@@ -310,11 +311,10 @@ function DocumentPanelComponent({ isOpen, onClose, onDocumentsChange }: Document
                         <div className="flex border-b border-[#30363d]">
                             <button
                                 onClick={() => setActiveTab('documents')}
-                                className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors ${
-                                    activeTab === 'documents'
-                                        ? 'text-orange-400 border-b-2 border-orange-400 bg-orange-500/5'
-                                        : 'text-[#8b949e] hover:text-[#c9d1d9]'
-                                }`}
+                                className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors ${activeTab === 'documents'
+                                    ? 'text-orange-400 border-b-2 border-orange-400 bg-orange-500/5'
+                                    : 'text-[#8b949e] hover:text-[#c9d1d9]'
+                                    }`}
                             >
                                 <FileText size={16} />
                                 Documents
@@ -322,13 +322,12 @@ function DocumentPanelComponent({ isOpen, onClose, onDocumentsChange }: Document
                             <button
                                 onClick={() => setActiveTab('chat')}
                                 disabled={documents.length === 0}
-                                className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors ${
-                                    activeTab === 'chat'
-                                        ? 'text-orange-400 border-b-2 border-orange-400 bg-orange-500/5'
-                                        : documents.length === 0
-                                            ? 'text-[#484f58] cursor-not-allowed'
-                                            : 'text-[#8b949e] hover:text-[#c9d1d9]'
-                                }`}
+                                className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors ${activeTab === 'chat'
+                                    ? 'text-orange-400 border-b-2 border-orange-400 bg-orange-500/5'
+                                    : documents.length === 0
+                                        ? 'text-[#484f58] cursor-not-allowed'
+                                        : 'text-[#8b949e] hover:text-[#c9d1d9]'
+                                    }`}
                             >
                                 <MessageSquare size={16} />
                                 Chat
@@ -348,11 +347,10 @@ function DocumentPanelComponent({ isOpen, onClose, onDocumentsChange }: Document
                                     onDrop={handleDrop}
                                     onDragOver={handleDragOver}
                                     onDragLeave={handleDragLeave}
-                                    className={`m-4 p-6 border-2 border-dashed rounded-xl transition-all ${
-                                        isDragging 
-                                            ? 'border-orange-400 bg-orange-500/10' 
-                                            : 'border-[#30363d] hover:border-[#484f58]'
-                                    }`}
+                                    className={`m-4 p-6 border-2 border-dashed rounded-xl transition-all ${isDragging
+                                        ? 'border-orange-400 bg-orange-500/10'
+                                        : 'border-[#30363d] hover:border-[#484f58]'
+                                        }`}
                                 >
                                     <div className="text-center">
                                         <Upload size={32} className={`mx-auto mb-3 ${isDragging ? 'text-orange-400' : 'text-[#484f58]'}`} />
@@ -375,151 +373,151 @@ function DocumentPanelComponent({ isOpen, onClose, onDocumentsChange }: Document
                                             accept=".pdf,.docx,.txt,.md"
                                             onChange={(e) => e.target.files && handleFileSelect(e.target.files)}
                                             className="hidden"
-                                />
-                            </div>
-                        </div>
-
-                        {/* Uploading Files */}
-                        {uploadingFiles.length > 0 && (
-                            <div className="px-4 space-y-2">
-                                {uploadingFiles.map((item, index) => (
-                                    <div
-                                        key={index}
-                                        className="flex items-center gap-3 p-3 bg-[#161b22] rounded-lg"
-                                    >
-                                        {item.status === 'uploading' || item.status === 'parsing' ? (
-                                            <Loader2 size={16} className="text-orange-400 animate-spin" />
-                                        ) : item.status === 'done' ? (
-                                            <CheckCircle size={16} className="text-green-400" />
-                                        ) : (
-                                            <AlertCircle size={16} className="text-red-400" />
-                                        )}
-                                        <div className="flex-1 min-w-0">
-                                            <p className="text-sm text-[#c9d1d9] truncate">{item.file.name}</p>
-                                            <p className="text-xs text-[#8b949e]">
-                                                {item.status === 'parsing' ? 'Parsing document...' : 
-                                                 item.status === 'done' ? 'Added successfully' :
-                                                 item.status === 'error' ? item.error : 'Uploading...'}
-                                            </p>
-                                        </div>
+                                        />
                                     </div>
-                                ))}
-                            </div>
-                        )}
-
-                        {/* Search */}
-                        {documents.length > 0 && (
-                            <div className="px-4 py-2">
-                                <div className="relative">
-                                    <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#484f58]" />
-                                    <input
-                                        type="text"
-                                        value={searchQuery}
-                                        onChange={(e) => setSearchQuery(e.target.value)}
-                                        placeholder="Search documents..."
-                                        className="w-full pl-9 pr-4 py-2 bg-[#161b22] border border-[#30363d] rounded-lg text-sm text-[#c9d1d9] placeholder-[#484f58] focus:outline-none focus:border-orange-400"
-                                    />
                                 </div>
-                            </div>
-                        )}
 
-                        {/* Documents List */}
-                        <div className="flex-1 overflow-y-auto px-4 py-2">
-                            {filteredDocs.length === 0 ? (
-                                <div className="text-center py-12">
-                                    <FileText size={48} className="mx-auto mb-4 text-[#30363d]" />
-                                    <p className="text-[#8b949e]">
-                                        {documents.length === 0 
-                                            ? 'No documents uploaded yet' 
-                                            : 'No documents match your search'}
-                                    </p>
-                                </div>
-                            ) : (
-                                <div className="space-y-2">
-                                    {filteredDocs.map((doc) => (
-                                        <div
-                                            key={doc.id}
-                                            className="bg-[#161b22] rounded-lg border border-[#30363d] overflow-hidden"
-                                        >
-                                            {/* Document Header */}
+                                {/* Uploading Files */}
+                                {uploadingFiles.length > 0 && (
+                                    <div className="px-4 space-y-2">
+                                        {uploadingFiles.map((item, index) => (
                                             <div
-                                                onClick={() => setExpandedDoc(expandedDoc === doc.id ? null : doc.id)}
-                                                className="flex items-center gap-3 p-3 cursor-pointer hover:bg-[#21262d] transition-colors"
+                                                key={index}
+                                                className="flex items-center gap-3 p-3 bg-[#161b22] rounded-lg"
                                             >
-                                                {getFileIcon(doc.type)}
+                                                {item.status === 'uploading' || item.status === 'parsing' ? (
+                                                    <Loader2 size={16} className="text-orange-400 animate-spin" />
+                                                ) : item.status === 'done' ? (
+                                                    <CheckCircle size={16} className="text-green-400" />
+                                                ) : (
+                                                    <AlertCircle size={16} className="text-red-400" />
+                                                )}
                                                 <div className="flex-1 min-w-0">
-                                                    <p className="text-sm text-[#c9d1d9] truncate font-medium">
-                                                        {doc.name}
-                                                    </p>
+                                                    <p className="text-sm text-[#c9d1d9] truncate">{item.file.name}</p>
                                                     <p className="text-xs text-[#8b949e]">
-                                                        {formatSize(doc.metadata.size)} • {doc.metadata.wordCount.toLocaleString()} words
-                                                        {doc.pages && ` • ${doc.pages} pages`}
+                                                        {item.status === 'parsing' ? 'Parsing document...' :
+                                                            item.status === 'done' ? 'Added successfully' :
+                                                                item.status === 'error' ? item.error : 'Uploading...'}
                                                     </p>
                                                 </div>
-                                                <button
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        handleRemoveDocument(doc.id);
-                                                    }}
-                                                    className="p-1.5 hover:bg-[#30363d] rounded transition-colors"
-                                                >
-                                                    <Trash2 size={14} className="text-[#8b949e] hover:text-red-400" />
-                                                </button>
-                                                {expandedDoc === doc.id ? (
-                                                    <ChevronUp size={16} className="text-[#8b949e]" />
-                                                ) : (
-                                                    <ChevronDown size={16} className="text-[#8b949e]" />
-                                                )}
                                             </div>
+                                        ))}
+                                    </div>
+                                )}
 
-                                            {/* Expanded Content Preview */}
-                                            <AnimatePresence>
-                                                {expandedDoc === doc.id && (
-                                                    <motion.div
-                                                        initial={{ height: 0, opacity: 0 }}
-                                                        animate={{ height: 'auto', opacity: 1 }}
-                                                        exit={{ height: 0, opacity: 0 }}
-                                                        className="border-t border-[#30363d]"
+                                {/* Search */}
+                                {documents.length > 0 && (
+                                    <div className="px-4 py-2">
+                                        <div className="relative">
+                                            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#484f58]" />
+                                            <input
+                                                type="text"
+                                                value={searchQuery}
+                                                onChange={(e) => setSearchQuery(e.target.value)}
+                                                placeholder="Search documents..."
+                                                className="w-full pl-9 pr-4 py-2 bg-[#161b22] border border-[#30363d] rounded-lg text-sm text-[#c9d1d9] placeholder-[#484f58] focus:outline-none focus:border-orange-400"
+                                            />
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Documents List */}
+                                <div className="flex-1 overflow-y-auto px-4 py-2">
+                                    {filteredDocs.length === 0 ? (
+                                        <div className="text-center py-12">
+                                            <FileText size={48} className="mx-auto mb-4 text-[#30363d]" />
+                                            <p className="text-[#8b949e]">
+                                                {documents.length === 0
+                                                    ? 'No documents uploaded yet'
+                                                    : 'No documents match your search'}
+                                            </p>
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-2">
+                                            {filteredDocs.map((doc) => (
+                                                <div
+                                                    key={doc.id}
+                                                    className="bg-[#161b22] rounded-lg border border-[#30363d] overflow-hidden"
+                                                >
+                                                    {/* Document Header */}
+                                                    <div
+                                                        onClick={() => setExpandedDoc(expandedDoc === doc.id ? null : doc.id)}
+                                                        className="flex items-center gap-3 p-3 cursor-pointer hover:bg-[#21262d] transition-colors"
                                                     >
-                                                        <div className="p-3 max-h-48 overflow-y-auto">
-                                                            <p className="text-xs text-[#8b949e] whitespace-pre-wrap line-clamp-[12]">
-                                                                {doc.content.slice(0, 1000)}
-                                                                {doc.content.length > 1000 && '...'}
+                                                        {getFileIcon(doc.type)}
+                                                        <div className="flex-1 min-w-0">
+                                                            <p className="text-sm text-[#c9d1d9] truncate font-medium">
+                                                                {doc.name}
+                                                            </p>
+                                                            <p className="text-xs text-[#8b949e]">
+                                                                {formatSize(doc.metadata.size)} • {doc.metadata.wordCount.toLocaleString()} words
+                                                                {doc.pages && ` • ${doc.pages} pages`}
                                                             </p>
                                                         </div>
-                                                    </motion.div>
-                                                )}
-                                            </AnimatePresence>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleRemoveDocument(doc.id);
+                                                            }}
+                                                            className="p-1.5 hover:bg-[#30363d] rounded transition-colors"
+                                                        >
+                                                            <Trash2 size={14} className="text-[#8b949e] hover:text-red-400" />
+                                                        </button>
+                                                        {expandedDoc === doc.id ? (
+                                                            <ChevronUp size={16} className="text-[#8b949e]" />
+                                                        ) : (
+                                                            <ChevronDown size={16} className="text-[#8b949e]" />
+                                                        )}
+                                                    </div>
 
-                        {/* Footer for Documents Tab */}
-                        {documents.length > 0 && (
-                            <div className="px-4 py-3 border-t border-[#30363d] flex items-center justify-between">
-                                <div className="flex items-center gap-3">
-                                    <p className="text-xs text-[#8b949e]">
-                                        {documents.length} doc{documents.length !== 1 ? 's' : ''} • {' '}
-                                        {documents.reduce((acc, doc) => acc + doc.metadata.wordCount, 0).toLocaleString()} words
-                                    </p>
-                                    <button
-                                        onClick={handleClearAll}
-                                        className="text-xs text-red-400 hover:text-red-300 transition-colors"
-                                    >
-                                        Clear
-                                    </button>
+                                                    {/* Expanded Content Preview */}
+                                                    <AnimatePresence>
+                                                        {expandedDoc === doc.id && (
+                                                            <motion.div
+                                                                initial={{ height: 0, opacity: 0 }}
+                                                                animate={{ height: 'auto', opacity: 1 }}
+                                                                exit={{ height: 0, opacity: 0 }}
+                                                                className="border-t border-[#30363d]"
+                                                            >
+                                                                <div className="p-3 max-h-48 overflow-y-auto">
+                                                                    <p className="text-xs text-[#8b949e] whitespace-pre-wrap line-clamp-[12]">
+                                                                        {doc.content.slice(0, 1000)}
+                                                                        {doc.content.length > 1000 && '...'}
+                                                                    </p>
+                                                                </div>
+                                                            </motion.div>
+                                                        )}
+                                                    </AnimatePresence>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
                                 </div>
-                                <button
-                                    onClick={() => setActiveTab('chat')}
-                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-500 hover:bg-orange-500/80 text-white text-xs font-medium rounded-lg transition-colors"
-                                >
-                                    <MessageSquare size={12} />
-                                    Start Chat
-                                </button>
-                            </div>
-                        )}
+
+                                {/* Footer for Documents Tab */}
+                                {documents.length > 0 && (
+                                    <div className="px-4 py-3 border-t border-[#30363d] flex items-center justify-between">
+                                        <div className="flex items-center gap-3">
+                                            <p className="text-xs text-[#8b949e]">
+                                                {documents.length} doc{documents.length !== 1 ? 's' : ''} • {' '}
+                                                {documents.reduce((acc, doc) => acc + doc.metadata.wordCount, 0).toLocaleString()} words
+                                            </p>
+                                            <button
+                                                onClick={handleClearAll}
+                                                className="text-xs text-red-400 hover:text-red-300 transition-colors"
+                                            >
+                                                Clear
+                                            </button>
+                                        </div>
+                                        <button
+                                            onClick={() => setActiveTab('chat')}
+                                            className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-500 hover:bg-orange-500/80 text-white text-xs font-medium rounded-lg transition-colors"
+                                        >
+                                            <MessageSquare size={12} />
+                                            Start Chat
+                                        </button>
+                                    </div>
+                                )}
                             </>
                         ) : (
                             /* Chat Tab */
@@ -535,7 +533,7 @@ function DocumentPanelComponent({ isOpen, onClose, onDocumentsChange }: Document
                                                 Chat with your documents
                                             </h3>
                                             <p className="text-sm text-[#8b949e] max-w-xs">
-                                                Ask questions about your {documents.length} uploaded document{documents.length !== 1 ? 's' : ''}. 
+                                                Ask questions about your {documents.length} uploaded document{documents.length !== 1 ? 's' : ''}.
                                                 The AI will use the content to answer.
                                             </p>
                                             <div className="mt-4 flex flex-wrap gap-2 justify-center">
@@ -557,11 +555,10 @@ function DocumentPanelComponent({ isOpen, onClose, onDocumentsChange }: Document
                                                 className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
                                             >
                                                 <div
-                                                    className={`max-w-[85%] px-4 py-2.5 rounded-2xl ${
-                                                        msg.role === 'user'
-                                                            ? 'bg-orange-500 text-white rounded-br-md'
-                                                            : 'bg-[#21262d] text-[#c9d1d9] rounded-bl-md'
-                                                    }`}
+                                                    className={`max-w-[85%] px-4 py-2.5 rounded-2xl ${msg.role === 'user'
+                                                        ? 'bg-orange-500 text-white rounded-br-md'
+                                                        : 'bg-[#21262d] text-[#c9d1d9] rounded-bl-md'
+                                                        }`}
                                                 >
                                                     <p className="text-sm whitespace-pre-wrap">{msg.content || (isStreaming ? '...' : '')}</p>
                                                 </div>

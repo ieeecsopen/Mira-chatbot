@@ -37,7 +37,7 @@ function buildContextBlock(match: DocumentMatch): string {
     return `**${match.document.name}${section}**\n${match.chunk.content}\n`;
 }
 
-export function buildMultiHopDocumentContext(query: string, maxTokens = DEFAULT_MAX_TOKENS): MultiHopContext | null {
+export async function buildMultiHopDocumentContext(query: string, maxTokens = DEFAULT_MAX_TOKENS): Promise<MultiHopContext | null> {
     const store = getDocumentStore();
     if (store.getAll().length === 0) {
         return null;
@@ -67,7 +67,7 @@ export function buildMultiHopDocumentContext(query: string, maxTokens = DEFAULT_
     let tokenBudget = 0;
 
     for (const candidate of dedupedCandidates) {
-        const matches = store.search(candidate.query, 4);
+        const matches = await store.searchAsync(candidate.query, 4);
         if (matches.length === 0) continue;
 
         hops.push({ query: candidate.query, type: candidate.type, matches });

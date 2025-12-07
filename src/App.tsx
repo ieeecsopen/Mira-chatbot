@@ -490,6 +490,7 @@ function App() {
         },
         selectedModel,
         currentHistory,
+        currentSessionId || undefined,
         {
           enableWebSearch: useWebSearch,
           responseStyle: style,
@@ -822,6 +823,7 @@ function App() {
         },
         selectedModel,
         currentHistory,
+        currentSessionId || undefined,
         {
           responseStyle,
         }
@@ -904,6 +906,7 @@ function App() {
         },
         selectedModel,
         historyForReplay,
+        currentSessionId || undefined,
         {
           responseStyle,
           enableWebSearch: webSearchEnabled,
@@ -1073,6 +1076,7 @@ function App() {
           },
           modelId,
           comparisonContext.history,
+          currentSessionId || undefined,
           {
             responseStyle,
             enableWebSearch: webSearchEnabled,

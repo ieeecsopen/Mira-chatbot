@@ -4,6 +4,19 @@ import cors from 'cors';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import authHandler from '../api/auth';
 import chatHandler from '../api/chat';
+import embeddingsHandler from '../api/embeddings';
+
+// Handle Environment Variables
+if (!process.env.GEMINI_API_KEY && process.env.VITE_GEMINI_API_KEY) {
+	console.log('⚠️ GEMINI_API_KEY not found, using VITE_GEMINI_API_KEY');
+	process.env.GEMINI_API_KEY = process.env.VITE_GEMINI_API_KEY;
+}
+
+if (process.env.GEMINI_API_KEY) {
+	console.log('✅ GEMINI_API_KEY configured');
+} else {
+	console.error('❌ GEMINI_API_KEY not configured');
+}
 
 const app = express();
 const port = Number(process.env.API_PORT) || 8000;
@@ -68,6 +81,7 @@ function wrap(handler: VercelHandler) {
 
 app.all('/api/auth', wrap(authHandler));
 app.all('/api/chat', wrap(chatHandler));
+app.all('/api/embeddings', wrap(embeddingsHandler));
 
 app.get('/healthz', (_req, res) => {
 	res.json({ status: 'ok', timestamp: Date.now() });

@@ -1,10 +1,9 @@
 /**
  * Text Embeddings and Vector Similarity for MIRA
- * Provides semantic search using TF-IDF based embeddings
- * (Browser-compatible alternative to external embedding APIs)
+ * Uses Gemini API (via local proxy) for high-quality embeddings
  */
 
-const EMBEDDINGS_CACHE_KEY = 'mira-embeddings-cache';
+const EMBEDDINGS_CACHE_KEY = 'mira-embeddings-cache-v2';
 
 export interface TextEmbedding {
     id: string;
@@ -15,93 +14,7 @@ export interface TextEmbedding {
 
 export interface EmbeddingCache {
     embeddings: TextEmbedding[];
-    vocabulary: string[];
-    idf: Record<string, number>;
     version: number;
-}
-
-/**
- * Tokenize text into words (handles both English and Sinhala)
- */
-function tokenize(text: string): string[] {
-    // Split on whitespace and punctuation, filter empty
-    return text
-        .toLowerCase()
-        .replace(/[^\p{L}\p{N}\s]/gu, ' ')
-        .split(/\s+/)
-        .filter(word => word.length > 1);
-}
-
-/**
- * Calculate Term Frequency (TF)
- */
-function calculateTF(tokens: string[]): Record<string, number> {
-    const tf: Record<string, number> = {};
-    const totalTokens = tokens.length;
-
-    for (const token of tokens) {
-        tf[token] = (tf[token] || 0) + 1;
-    }
-
-    // Normalize by total tokens
-    for (const token in tf) {
-        tf[token] = tf[token] / totalTokens;
-    }
-
-    return tf;
-}
-
-/**
- * Calculate Inverse Document Frequency (IDF)
- */
-function calculateIDF(documents: string[][]): Record<string, number> {
-    const idf: Record<string, number> = {};
-    const numDocs = documents.length;
-
-    // Count document frequency for each term
-    const docFreq: Record<string, number> = {};
-    for (const doc of documents) {
-        const uniqueTokens = new Set(doc);
-        for (const token of uniqueTokens) {
-            docFreq[token] = (docFreq[token] || 0) + 1;
-        }
-    }
-
-    // Calculate IDF with smoothing
-    for (const token in docFreq) {
-        idf[token] = Math.log((numDocs + 1) / (docFreq[token] + 1)) + 1;
-    }
-
-    return idf;
-}
-
-/**
- * Create TF-IDF vector for text
- */
-function createTFIDFVector(
-    text: string,
-    vocabulary: string[],
-    idf: Record<string, number>
-): number[] {
-    const tokens = tokenize(text);
-    const tf = calculateTF(tokens);
-
-    const vector: number[] = [];
-    for (const term of vocabulary) {
-        const tfidf = (tf[term] || 0) * (idf[term] || 0);
-        vector.push(tfidf);
-    }
-
-    return normalizeVector(vector);
-}
-
-/**
- * Normalize a vector to unit length
- */
-function normalizeVector(vector: number[]): number[] {
-    const magnitude = Math.sqrt(vector.reduce((sum, v) => sum + v * v, 0));
-    if (magnitude === 0) return vector;
-    return vector.map(v => v / magnitude);
 }
 
 /**
@@ -111,11 +24,42 @@ export function cosineSimilarity(a: number[], b: number[]): number {
     if (a.length !== b.length) return 0;
 
     let dotProduct = 0;
+    let normA = 0;
+    let normB = 0;
+
     for (let i = 0; i < a.length; i++) {
         dotProduct += a[i] * b[i];
+        normA += a[i] * a[i];
+        normB += b[i] * b[i];
     }
 
-    return dotProduct; // Vectors are already normalized
+    if (normA === 0 || normB === 0) return 0;
+    return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
+}
+
+/**
+ * Fetch embedding from API
+ */
+async function fetchEmbedding(text: string, type: 'search_document' | 'search_query' = 'search_document'): Promise<number[]> {
+    try {
+        const response = await fetch('/api/embeddings', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ text, type }),
+        });
+
+        if (!response.ok) {
+            throw new Error(`Failed to fetch embedding: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        return data.embedding;
+    } catch (error) {
+        console.error('Embedding fetch error:', error);
+        throw error;
+    }
 }
 
 /**
@@ -152,128 +96,126 @@ class EmbeddingStore {
 
     constructor() {
         const stored = loadCache();
-        if (stored && stored.version === 1) {
+        if (stored && stored.version === 2) {
             this.cache = stored;
         } else {
             this.cache = {
                 embeddings: [],
-                vocabulary: [],
-                idf: {},
-                version: 1,
+                version: 2,
             };
         }
     }
 
     /**
-     * Build vocabulary and IDF from all documents
+     * Add a text to the embedding store (async)
      */
-    private rebuildVocabulary(): void {
-        const allTokens = this.cache.embeddings.flatMap(e => tokenize(e.text));
-        this.cache.vocabulary = [...new Set(allTokens)].slice(0, 1000); // Limit vocabulary size
+    async addAsync(id: string, text: string): Promise<TextEmbedding> {
+        // Check if already exists
+        const existing = this.cache.embeddings.find(e => e.id === id);
+        if (existing) {
+            // If text is different, update embedding
+            if (existing.text !== text) {
+                existing.text = text;
+                existing.vector = await fetchEmbedding(text, 'search_document');
+                saveCache(this.cache);
+            }
+            return existing;
+        }
 
-        const documents = this.cache.embeddings.map(e => tokenize(e.text));
-        this.cache.idf = calculateIDF(documents);
+        const vector = await fetchEmbedding(text, 'search_document');
 
-        // Rebuild all vectors with new vocabulary
-        for (const embedding of this.cache.embeddings) {
-            embedding.vector = createTFIDFVector(embedding.text, this.cache.vocabulary, this.cache.idf);
+        const embedding: TextEmbedding = {
+            id,
+            text,
+            vector,
+            createdAt: Date.now(),
+        };
+
+        this.cache.embeddings.push(embedding);
+        saveCache(this.cache);
+
+        return embedding;
+    }
+
+    /**
+     * Add multiple texts at once (async)
+     */
+    async addBatchAsync(items: Array<{ id: string; text: string }>): Promise<void> {
+        const newItems = [];
+
+        for (const { id, text } of items) {
+            const existing = this.cache.embeddings.find(e => e.id === id);
+            if (existing) {
+                if (existing.text !== text) {
+                    // Invalidate and re-fetch if text changed
+                    existing.text = text;
+                    // We'll queue for update
+                    newItems.push({ item: existing, text });
+                }
+            } else {
+                newItems.push({ id, text });
+            }
+        }
+
+        // Process in parallel with concurrency limit
+        const BATCH_SIZE = 5;
+        for (let i = 0; i < newItems.length; i += BATCH_SIZE) {
+            const batch = newItems.slice(i, i + BATCH_SIZE);
+            await Promise.all(batch.map(async (item: any) => {
+                try {
+                    const vector = await fetchEmbedding(item.text, 'search_document');
+
+                    if (item.item) {
+                        // Updating existing
+                        item.item.vector = vector;
+                    } else {
+                        // Creating new
+                        this.cache.embeddings.push({
+                            id: item.id,
+                            text: item.text,
+                            vector,
+                            createdAt: Date.now()
+                        });
+                    }
+                } catch (e) {
+                    console.error(`Failed to process embedding for ${item.id || item.item.id}:`, e);
+                }
+            }));
         }
 
         saveCache(this.cache);
     }
 
     /**
-     * Add a text to the embedding store
+     * Search for similar texts (async)
      */
-    add(id: string, text: string): TextEmbedding {
-        // Check if already exists
-        const existing = this.cache.embeddings.find(e => e.id === id);
-        if (existing) {
-            existing.text = text;
-            this.rebuildVocabulary();
-            return existing;
-        }
-
-        const embedding: TextEmbedding = {
-            id,
-            text,
-            vector: [],
-            createdAt: Date.now(),
-        };
-
-        this.cache.embeddings.push(embedding);
-        this.rebuildVocabulary();
-
-        return embedding;
-    }
-
-    /**
-     * Add multiple texts at once (more efficient)
-     */
-    addBatch(items: Array<{ id: string; text: string }>): void {
-        for (const { id, text } of items) {
-            const existing = this.cache.embeddings.find(e => e.id === id);
-            if (existing) {
-                existing.text = text;
-            } else {
-                this.cache.embeddings.push({
-                    id,
-                    text,
-                    vector: [],
-                    createdAt: Date.now(),
-                });
-            }
-        }
-        this.rebuildVocabulary();
-    }
-
-    /**
-     * Search for similar texts
-     */
-    search(query: string, limit: number = 5, minScore: number = 0.1): Array<{
+    async searchAsync(query: string, limit: number = 5, minScore: number = 0.5): Promise<Array<{
         id: string;
         text: string;
         score: number;
-    }> {
-        if (this.cache.embeddings.length === 0 || this.cache.vocabulary.length === 0) {
+    }>> {
+        if (this.cache.embeddings.length === 0) {
             return [];
         }
 
-        const queryVector = createTFIDFVector(query, this.cache.vocabulary, this.cache.idf);
+        try {
+            const queryVector = await fetchEmbedding(query, 'search_query');
 
-        const results = this.cache.embeddings
-            .map(embedding => ({
-                id: embedding.id,
-                text: embedding.text,
-                score: cosineSimilarity(queryVector, embedding.vector),
-            }))
-            .filter(r => r.score >= minScore)
-            .sort((a, b) => b.score - a.score)
-            .slice(0, limit);
+            const results = this.cache.embeddings
+                .map(embedding => ({
+                    id: embedding.id,
+                    text: embedding.text,
+                    score: cosineSimilarity(queryVector, embedding.vector),
+                }))
+                .filter(r => r.score >= minScore)
+                .sort((a, b) => b.score - a.score)
+                .slice(0, limit);
 
-        return results;
-    }
-
-    /**
-     * Get similar texts to an existing embedding
-     */
-    getSimilar(id: string, limit: number = 5): Array<{
-        id: string;
-        text: string;
-        score: number;
-    }> {
-        const embedding = this.cache.embeddings.find(e => e.id === id);
-        if (!embedding) return [];
-
-        return this.cache.embeddings
-            .filter(e => e.id !== id)
-            .map(e => ({
-                id: e.id,
-                text: e.text,
-                score: cosineSimilarity(embedding.vector, e.vector),
-            }))
-            .sort((a, b) => b.score - a.score)
-            .slice(0, limit);
+            return results;
+        } catch (e) {
+            console.error('Search failed:', e);
+            return [];
+        }
     }
 
     /**
@@ -283,7 +225,7 @@ class EmbeddingStore {
         const index = this.cache.embeddings.findIndex(e => e.id === id);
         if (index !== -1) {
             this.cache.embeddings.splice(index, 1);
-            this.rebuildVocabulary();
+            saveCache(this.cache);
             return true;
         }
         return false;
@@ -295,9 +237,7 @@ class EmbeddingStore {
     clear(): void {
         this.cache = {
             embeddings: [],
-            vocabulary: [],
-            idf: {},
-            version: 1,
+            version: 2,
         };
         saveCache(this.cache);
     }
@@ -307,16 +247,6 @@ class EmbeddingStore {
      */
     getAll(): TextEmbedding[] {
         return this.cache.embeddings;
-    }
-
-    /**
-     * Get stats
-     */
-    getStats(): { count: number; vocabularySize: number } {
-        return {
-            count: this.cache.embeddings.length,
-            vocabularySize: this.cache.vocabulary.length,
-        };
     }
 }
 
@@ -331,14 +261,4 @@ export function getEmbeddingStore(): EmbeddingStore {
         embeddingStore = new EmbeddingStore();
     }
     return embeddingStore;
-}
-
-/**
- * Quick semantic search
- */
-export function semanticSearch(
-    query: string,
-    limit: number = 5
-): Array<{ id: string; text: string; score: number }> {
-    return getEmbeddingStore().search(query, limit);
 }

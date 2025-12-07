@@ -1,11 +1,11 @@
 import { useState, useCallback, useRef, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-    FileText, 
-    Upload, 
-    X, 
-    Trash2, 
-    ChevronDown, 
+import {
+    FileText,
+    Upload,
+    X,
+    Trash2,
+    ChevronDown,
     ChevronUp,
     File,
     FileType,
@@ -65,7 +65,7 @@ function DocumentUploadBarComponent({ onDocumentsChange }: DocumentUploadBarProp
 
     const handleFileSelect = useCallback(async (files: FileList | File[]) => {
         const fileArray = Array.from(files);
-        
+
         // Filter supported files
         const supportedFiles = fileArray.filter(file => {
             const ext = '.' + file.name.split('.').pop()?.toLowerCase();
@@ -87,14 +87,14 @@ function DocumentUploadBarComponent({ onDocumentsChange }: DocumentUploadBarProp
         // Parse each file
         for (const file of supportedFiles) {
             try {
-                setUploadingFiles(prev => 
+                setUploadingFiles(prev =>
                     prev.map(u => u.file === file ? { ...u, status: 'parsing' as const, progress: 50 } : u)
                 );
 
                 const doc = await parseDocument(file);
-                store.add(doc);
-                
-                setUploadingFiles(prev => 
+                await store.addAsync(doc);
+
+                setUploadingFiles(prev =>
                     prev.map(u => u.file === file ? { ...u, status: 'done' as const, progress: 100 } : u)
                 );
 
@@ -107,11 +107,11 @@ function DocumentUploadBarComponent({ onDocumentsChange }: DocumentUploadBarProp
 
             } catch (error) {
                 console.error(`Failed to parse ${file.name}:`, error);
-                setUploadingFiles(prev => 
-                    prev.map(u => u.file === file ? { 
-                        ...u, 
-                        status: 'error' as const, 
-                        error: (error as Error).message 
+                setUploadingFiles(prev =>
+                    prev.map(u => u.file === file ? {
+                        ...u,
+                        status: 'error' as const,
+                        error: (error as Error).message
                     } : u)
                 );
             }
@@ -121,7 +121,7 @@ function DocumentUploadBarComponent({ onDocumentsChange }: DocumentUploadBarProp
     const handleDrop = useCallback((e: React.DragEvent) => {
         e.preventDefault();
         setIsDragging(false);
-        
+
         if (e.dataTransfer.files.length > 0) {
             handleFileSelect(e.dataTransfer.files);
         }
@@ -187,7 +187,7 @@ function DocumentUploadBarComponent({ onDocumentsChange }: DocumentUploadBarProp
             className={`transition-all ${isDragging ? 'ring-2 ring-orange-400' : ''}`}
         >
             {/* Compact bar showing document count */}
-            <div 
+            <div
                 onClick={() => setIsExpanded(!isExpanded)}
                 className="flex items-center gap-2 px-3 py-2 bg-[#161b22] border border-[#30363d] rounded-lg cursor-pointer hover:border-[#484f58] transition-colors"
             >
@@ -195,7 +195,7 @@ function DocumentUploadBarComponent({ onDocumentsChange }: DocumentUploadBarProp
                 <span className="text-sm text-[#c9d1d9]">
                     {documents.length} document{documents.length !== 1 ? 's' : ''} loaded
                 </span>
-                
+
                 {/* Uploading indicator */}
                 {uploadingFiles.length > 0 && (
                     <div className="flex items-center gap-1.5 text-[#8b949e]">
@@ -203,7 +203,7 @@ function DocumentUploadBarComponent({ onDocumentsChange }: DocumentUploadBarProp
                         <span className="text-xs">Processing...</span>
                     </div>
                 )}
-                
+
                 <div className="flex items-center gap-1 ml-auto">
                     <button
                         onClick={(e) => {
@@ -246,7 +246,7 @@ function DocumentUploadBarComponent({ onDocumentsChange }: DocumentUploadBarProp
                         <div className="mt-2 p-2 bg-[#161b22] border border-[#30363d] rounded-lg max-h-40 overflow-y-auto space-y-1">
                             {/* Uploading files */}
                             {uploadingFiles.map((uf, index) => (
-                                <div 
+                                <div
                                     key={`uploading-${index}`}
                                     className="flex items-center gap-2 px-2 py-1.5 bg-[#21262d] rounded"
                                 >
@@ -267,10 +267,10 @@ function DocumentUploadBarComponent({ onDocumentsChange }: DocumentUploadBarProp
                                     )}
                                 </div>
                             ))}
-                            
+
                             {/* Loaded documents */}
                             {documents.map((doc) => (
-                                <div 
+                                <div
                                     key={doc.id}
                                     className="flex items-center gap-2 px-2 py-1.5 bg-[#0d1117] hover:bg-[#21262d] rounded transition-colors group"
                                 >

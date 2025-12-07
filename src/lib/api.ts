@@ -249,7 +249,7 @@ export async function sendMessage(_userId: string, message: string): Promise<Cha
     // Preprocess the message
     const { processed, ragContext, directAnswer } = preprocessMessage(message);
 
-    const documentPlan = buildMultiHopDocumentContext(message, 2000);
+    const documentPlan = await buildMultiHopDocumentContext(message, 2000);
     const documentContext = documentPlan?.context || '';
 
     // If we have a direct answer from knowledge base, return it
@@ -366,6 +366,7 @@ export async function streamMessage(
     onError: (error: string) => void,
     selectedModelId?: string,
     conversationHistory?: Array<{ role: 'user' | 'assistant'; content: string }>,
+    sessionId?: string,
     options?: {
         enableWebSearch?: boolean;
         enableDocumentContext?: boolean;
@@ -390,9 +391,9 @@ export async function streamMessage(
 
     // Get document context via multi-hop retrieval if enabled
     let documentContext = '';
-    let documentPlan: ReturnType<typeof buildMultiHopDocumentContext> = null;
+    let documentPlan: Awaited<ReturnType<typeof buildMultiHopDocumentContext>> = null;
     if (options?.enableDocumentContext !== false) {
-        documentPlan = buildMultiHopDocumentContext(message, 2000);
+        documentPlan = await buildMultiHopDocumentContext(message, 2000);
         if (documentPlan) {
             documentContext = documentPlan.context;
             console.log('📄 Document context added (multi-hop)', documentPlan.hops.map(h => h.type));
@@ -531,6 +532,7 @@ export async function streamMessage(
                     message: enhancedMessage,
                     model: model.name,
                     history: conversationHistory || [],
+                    sessionId: sessionId,
                     options: {
                         enableWebSearch: useGeminiSearch,
                         responseStyle: options?.responseStyle,

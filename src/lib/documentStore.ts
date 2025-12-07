@@ -16,13 +16,13 @@ export interface DocumentMatch {
 
 export interface DocumentStore {
     documents: Map<string, ParsedDocument>;
-    add: (doc: ParsedDocument) => void;
+    addAsync: (doc: ParsedDocument) => Promise<void>;
     remove: (docId: string) => void;
     get: (docId: string) => ParsedDocument | undefined;
     getAll: () => ParsedDocument[];
-    search: (query: string, topK?: number) => DocumentMatch[];
+    searchAsync: (query: string, topK?: number) => Promise<DocumentMatch[]>;
     clear: () => void;
-    getContextForQuery: (query: string, maxTokens?: number) => string;
+    getContextForQueryAsync: (query: string, maxTokens?: number) => Promise<string>;
 }
 
 interface IntermediateMatch {
@@ -136,7 +136,7 @@ export function createDocumentStore(): DocumentStore {
     return {
         documents,
 
-        add(doc: ParsedDocument) {
+        async addAsync(doc: ParsedDocument) {
             documents.set(doc.id, doc);
             console.log(`📄 Document added: ${doc.name} (${doc.chunks.length} chunks)`);
 
@@ -147,7 +147,7 @@ export function createDocumentStore(): DocumentStore {
                     id: `${doc.id}_${chunk.id}`,
                     text: chunk.content,
                 }));
-                embeddingStore.addBatch(items);
+                await embeddingStore.addBatchAsync(items);
                 console.log(`🧠 Indexed ${items.length} chunks for semantic search`);
             } catch (e) {
                 console.warn('Failed to index document for semantic search:', e);
@@ -180,39 +180,42 @@ export function createDocumentStore(): DocumentStore {
             return Array.from(documents.values());
         },
 
-        search(query: string, topK = 5): DocumentMatch[] {
+        async searchAsync(query: string, topK = 5): Promise<DocumentMatch[]> {
             const intermediate = new Map<string, IntermediateMatch>();
             let maxLexicalScore = 0;
 
+            // TODO: optimize lexical search to run in worker or be faster?
+            // For now, it's fast enough for small documents
             for (const doc of documents.values()) {
                 for (const chunk of doc.chunks) {
                     const lexicalScore = calculateSimilarity(query, chunk.content);
-                    if (lexicalScore <= 0) continue;
 
-                    const chunkKey = `${doc.id}_${chunk.id}`;
-                    const highlights = extractHighlights(query, chunk.content);
+                    if (lexicalScore > 0) {
+                        const chunkKey = `${doc.id}_${chunk.id}`;
+                        const highlights = extractHighlights(query, chunk.content);
 
-                    const match: IntermediateMatch = intermediate.get(chunkKey) || {
-                        document: doc,
-                        chunk,
-                        lexicalScore: 0,
-                        semanticScore: 0,
-                        highlights,
-                    };
+                        const match: IntermediateMatch = intermediate.get(chunkKey) || {
+                            document: doc,
+                            chunk,
+                            lexicalScore: 0,
+                            semanticScore: 0,
+                            highlights,
+                        };
 
-                    match.lexicalScore = Math.max(match.lexicalScore, lexicalScore);
-                    match.highlights = match.highlights.length > 0 ? match.highlights : highlights;
-                    intermediate.set(chunkKey, match);
+                        match.lexicalScore = Math.max(match.lexicalScore, lexicalScore);
+                        match.highlights = match.highlights.length > 0 ? match.highlights : highlights;
+                        intermediate.set(chunkKey, match);
 
-                    if (match.lexicalScore > maxLexicalScore) {
-                        maxLexicalScore = match.lexicalScore;
+                        if (match.lexicalScore > maxLexicalScore) {
+                            maxLexicalScore = match.lexicalScore;
+                        }
                     }
                 }
             }
 
             try {
                 const embeddingStore = getEmbeddingStore();
-                const semanticResults = embeddingStore.search(query, topK * 3, 0.05);
+                const semanticResults = await embeddingStore.searchAsync(query, topK * 3, 0.45); // Higher threshold for real embeddings
 
                 for (const result of semanticResults) {
                     const resolved = resolveChunkFromKey(result.id, documents);
@@ -236,13 +239,24 @@ export function createDocumentStore(): DocumentStore {
                 console.warn('Semantic search failed, falling back to lexical only:', error);
             }
 
-            const lexicalWeight = 0.6;
-            const semanticWeight = 0.4;
+            const lexicalWeight = 0.4;
+            const semanticWeight = 0.6; // Give more weight to semantic search with real embeddings
 
             const ranked: DocumentMatch[] = Array.from(intermediate.values()).map(match => {
                 const normalizedLexical = maxLexicalScore > 0 ? match.lexicalScore / maxLexicalScore : 0;
-                const combinedScore = (normalizedLexical * lexicalWeight + match.semanticScore * semanticWeight)
-                    * getTierBoost(match.document.id);
+
+                // If only one score is present, use it directly (dampened)
+                let combinedScore = 0;
+
+                if (match.semanticScore > 0 && normalizedLexical > 0) {
+                    combinedScore = (normalizedLexical * lexicalWeight + match.semanticScore * semanticWeight);
+                } else if (match.semanticScore > 0) {
+                    combinedScore = match.semanticScore;
+                } else {
+                    combinedScore = normalizedLexical * 0.8; // Penalty for no semantic match
+                }
+
+                combinedScore *= getTierBoost(match.document.id);
 
                 return {
                     document: match.document,
@@ -270,8 +284,8 @@ export function createDocumentStore(): DocumentStore {
             console.log('🗑️ Document store cleared');
         },
 
-        getContextForQuery(query: string, maxTokens = 2000): string {
-            const matches = this.search(query, 10);
+        async getContextForQueryAsync(query: string, maxTokens = 2000): Promise<string> {
+            const matches = await this.searchAsync(query, 10);
 
             if (matches.length === 0) {
                 return '';
@@ -347,13 +361,13 @@ export function persistDocuments(store: DocumentStore): void {
 /**
  * Load documents from localStorage
  */
-export function loadPersistedDocuments(store: DocumentStore): void {
+export async function loadPersistedDocuments(store: DocumentStore): Promise<void> {
     try {
         const serialized = localStorage.getItem('mira_documents');
         if (serialized) {
             const docs: ParsedDocument[] = JSON.parse(serialized);
             for (const doc of docs) {
-                store.add(doc);
+                await store.addAsync(doc);
             }
             console.log(`📂 Loaded ${docs.length} documents from storage`);
         }

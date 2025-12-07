@@ -242,7 +242,8 @@ class ChatStorageManager {
     this.enforceLimit();
     this.saveToStorage();
 
-    // Create in MongoDB
+    // Create in MongoDB - Handled by api/chat.ts now
+    /*
     this.apiCall('/sessions', {
       method: 'POST',
       body: JSON.stringify({
@@ -251,6 +252,7 @@ class ChatStorageManager {
         model: session.model,
       }),
     });
+    */
 
     console.log(`📝 Created new chat session: ${id}`);
     return id;
@@ -325,6 +327,7 @@ class ChatStorageManager {
       session.title = this.generateTitle(content);
 
       // Update title in MongoDB
+      /*
       this.apiCall('/sessions', {
         method: 'PUT',
         body: JSON.stringify({
@@ -332,11 +335,13 @@ class ChatStorageManager {
           title: session.title,
         }),
       });
+      */
     }
 
     this.saveToStorage();
 
-    // Add message to MongoDB
+    // Add message to MongoDB - Handled by api/chat.ts now
+    /*
     this.apiCall('/messages', {
       method: 'POST',
       body: JSON.stringify({
@@ -346,6 +351,7 @@ class ChatStorageManager {
         content: message.content,
       }),
     });
+    */
   }
 
   /**
@@ -375,7 +381,8 @@ class ChatStorageManager {
     if (lastMessage && lastMessage.role === 'assistant') {
       this.saveToStorage();
 
-      // Update in MongoDB
+      // Update in MongoDB - Handled by api/chat.ts now
+      /*
       this.apiCall('/messages', {
         method: 'PUT',
         body: JSON.stringify({
@@ -383,6 +390,7 @@ class ChatStorageManager {
           content: lastMessage.content,
         }),
       });
+      */
     }
   }
 
