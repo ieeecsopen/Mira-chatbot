@@ -35,6 +35,8 @@ import { ModelComparisonPanel, type ComparisonRunState, type ComparisonResultSta
 import { showInfo } from './lib/toast';
 import { AuthModal } from './components/ui/AuthModal';
 import { PluginPanel } from './components/ui/PluginPanel';
+import { pluginManager, isPluginCommand } from './lib/plugins';
+import { registerBuiltInPlugins } from './lib/builtInPlugins';
 
 interface Message {
   id: string;
@@ -142,6 +144,12 @@ function App() {
       setHasStarted(true);
     }
   }, [getRecord]);
+
+  // Initialize plugins on mount
+  useEffect(() => {
+    registerBuiltInPlugins(pluginManager);
+    pluginManager.initializeEnabledPlugins();
+  }, []);
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -306,6 +314,55 @@ function App() {
       // Create a new session if starting fresh
       const newSessionId = chatStorage.createSession(selectedModel);
       setCurrentSessionId(newSessionId);
+    }
+
+    // Check if this is a plugin slash command
+    const pluginCmd = isPluginCommand(text);
+    if (pluginCmd) {
+      // Try to execute as plugin command
+      const result = await pluginManager.executeCommand(
+        pluginCmd.command,
+        pluginCmd.args,
+        {
+          userId,
+          sessionId: currentSessionId || undefined,
+          currentMessage: text,
+          conversationHistory: messages
+            .filter(m => m.content.length > 0)
+            .slice(-MAX_CONTEXT_MESSAGES)
+            .map(m => ({ role: m.role, content: m.content })),
+        }
+      );
+
+      if (result) {
+        // Plugin handled the command
+        const userMessage: Message = {
+          id: Date.now().toString(),
+          role: 'user',
+          content: text
+        };
+        setMessages(prev => [...prev, userMessage]);
+        chatStorage.addMessage('user', text);
+
+        // Add plugin response
+        const assistantMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          role: 'assistant',
+          content: result.content || result.message || (result.error ? `❌ Error: ${result.error}` : 'Command executed.')
+        };
+        setMessages(prev => [...prev, assistantMessage]);
+        chatStorage.addMessage('assistant', assistantMessage.content);
+        chatStorage.saveCurrentSession();
+        setChatSessions(chatStorage.getRecentSessions(20));
+
+        // If shouldContinue is true, also send to AI
+        if (result.shouldContinue) {
+          // Continue with the original text processing
+        } else {
+          return; // Plugin fully handled the command
+        }
+      }
+      // If no plugin handled it, continue with normal processing
     }
 
     // Check if this is an image generation request

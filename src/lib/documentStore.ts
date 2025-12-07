@@ -12,6 +12,15 @@ export interface DocumentMatch {
     chunk: DocumentChunk;
     score: number;
     highlights: string[];
+    // Citation metadata
+    citation: {
+        documentName: string;
+        pageNumber?: number;
+        sectionTitle?: string;
+        snippet: string;
+        relevanceScore: number;
+        matchType: 'semantic' | 'keyword' | 'hybrid';
+    };
 }
 
 export interface DocumentStore {
@@ -31,48 +40,67 @@ interface IntermediateMatch {
     lexicalScore: number;
     semanticScore: number;
     highlights: string[];
+    exactPhraseMatch: boolean;
 }
 
 /**
- * Simple TF-IDF like scoring for text similarity
+ * BM25-based scoring for text similarity
+ * Returns both score and whether an exact phrase match was found
  */
-function calculateSimilarity(query: string, text: string): number {
+function calculateSimilarity(query: string, text: string): { score: number; phraseMatch: boolean } {
     const queryWords = query.toLowerCase().split(/\s+/).filter(w => w.length > 2);
     const textLower = text.toLowerCase();
+    const textWords = textLower.split(/\s+/);
+    const avgDocLength = 500; // Approximate average document length
 
-    if (queryWords.length === 0) return 0;
+    if (queryWords.length === 0) return { score: 0, phraseMatch: false };
+
+    // BM25 parameters
+    const k1 = 1.5; // Term frequency saturation
+    const b = 0.75; // Length normalization
 
     let score = 0;
     let matchedWords = 0;
 
     for (const word of queryWords) {
-        // Exact word match
+        // Count term frequency in document
         const regex = new RegExp(`\\b${escapeRegex(word)}\\b`, 'gi');
         const matches = textLower.match(regex);
+        const tf = matches ? matches.length : 0;
 
-        if (matches) {
+        if (tf > 0) {
             matchedWords++;
-            // Score based on frequency and inverse document length
-            score += (matches.length * 10) / Math.log(text.length + 1);
-        }
+            // BM25 term frequency component
+            const lengthNorm = 1 - b + b * (textWords.length / avgDocLength);
+            const tfNorm = (tf * (k1 + 1)) / (tf + k1 * lengthNorm);
 
-        // Partial match (for longer words)
-        if (word.length > 4 && textLower.includes(word)) {
-            score += 2;
+            // Simple IDF approximation (assume query terms are relatively rare)
+            const idf = Math.log(1 + 1 / (0.5 + tf / textWords.length));
+
+            score += tfNorm * idf;
         }
     }
 
-    // Boost score if most query words matched
+    // Boost score based on query coverage
     const coverage = matchedWords / queryWords.length;
     score *= (1 + coverage);
 
-    // Bonus for phrase match
+    // Check for exact phrase match (strong signal)
     const queryPhrase = queryWords.join(' ');
-    if (textLower.includes(queryPhrase)) {
-        score *= 2;
+    const phraseMatch = textLower.includes(queryPhrase);
+    if (phraseMatch) {
+        score *= 2.5; // Strong boost for exact phrase
     }
 
-    return score;
+    // N-gram matching (bigrams for partial phrase matching)
+    for (let i = 0; i < queryWords.length - 1; i++) {
+        const bigram = queryWords[i] + ' ' + queryWords[i + 1];
+        if (textLower.includes(bigram)) {
+            score *= 1.3; // Moderate boost for bigram matches
+        }
+    }
+
+    return { score, phraseMatch };
 }
 
 /**
@@ -184,11 +212,14 @@ export function createDocumentStore(): DocumentStore {
             const intermediate = new Map<string, IntermediateMatch>();
             let maxLexicalScore = 0;
 
-            // TODO: optimize lexical search to run in worker or be faster?
-            // For now, it's fast enough for small documents
+            // Calculate query characteristics for dynamic weighting
+            const queryWords = query.toLowerCase().split(/\s+/).filter(w => w.length > 2);
+            const isShortQuery = queryWords.length <= 2;
+
+            // Lexical search with BM25 scoring
             for (const doc of documents.values()) {
                 for (const chunk of doc.chunks) {
-                    const lexicalScore = calculateSimilarity(query, chunk.content);
+                    const { score: lexicalScore, phraseMatch } = calculateSimilarity(query, chunk.content);
 
                     if (lexicalScore > 0) {
                         const chunkKey = `${doc.id}_${chunk.id}`;
@@ -200,9 +231,11 @@ export function createDocumentStore(): DocumentStore {
                             lexicalScore: 0,
                             semanticScore: 0,
                             highlights,
+                            exactPhraseMatch: false,
                         };
 
                         match.lexicalScore = Math.max(match.lexicalScore, lexicalScore);
+                        match.exactPhraseMatch = match.exactPhraseMatch || phraseMatch;
                         match.highlights = match.highlights.length > 0 ? match.highlights : highlights;
                         intermediate.set(chunkKey, match);
 
@@ -213,9 +246,10 @@ export function createDocumentStore(): DocumentStore {
                 }
             }
 
+            // Semantic search with embeddings
             try {
                 const embeddingStore = getEmbeddingStore();
-                const semanticResults = await embeddingStore.searchAsync(query, topK * 3, 0.45); // Higher threshold for real embeddings
+                const semanticResults = await embeddingStore.searchAsync(query, topK * 3, 0.45);
 
                 for (const result of semanticResults) {
                     const resolved = resolveChunkFromKey(result.id, documents);
@@ -229,6 +263,7 @@ export function createDocumentStore(): DocumentStore {
                         lexicalScore: 0,
                         semanticScore: 0,
                         highlights,
+                        exactPhraseMatch: false,
                     };
 
                     match.semanticScore = Math.max(match.semanticScore, result.score);
@@ -239,30 +274,54 @@ export function createDocumentStore(): DocumentStore {
                 console.warn('Semantic search failed, falling back to lexical only:', error);
             }
 
-            const lexicalWeight = 0.4;
-            const semanticWeight = 0.6; // Give more weight to semantic search with real embeddings
+            // Dynamic weighting based on query characteristics
+            // Short queries: favor keyword matching; Long queries: favor semantic
+            const lexicalWeight = isShortQuery ? 0.6 : 0.35;
+            const semanticWeight = isShortQuery ? 0.4 : 0.65;
 
             const ranked: DocumentMatch[] = Array.from(intermediate.values()).map(match => {
                 const normalizedLexical = maxLexicalScore > 0 ? match.lexicalScore / maxLexicalScore : 0;
 
-                // If only one score is present, use it directly (dampened)
+                // Determine match type for citation
+                let matchType: 'semantic' | 'keyword' | 'hybrid' = 'hybrid';
                 let combinedScore = 0;
 
                 if (match.semanticScore > 0 && normalizedLexical > 0) {
                     combinedScore = (normalizedLexical * lexicalWeight + match.semanticScore * semanticWeight);
+                    matchType = 'hybrid';
                 } else if (match.semanticScore > 0) {
                     combinedScore = match.semanticScore;
+                    matchType = 'semantic';
                 } else {
                     combinedScore = normalizedLexical * 0.8; // Penalty for no semantic match
+                    matchType = 'keyword';
+                }
+
+                // Boost for exact phrase matches
+                if (match.exactPhraseMatch) {
+                    combinedScore *= 1.3;
                 }
 
                 combinedScore *= getTierBoost(match.document.id);
+
+                // Create snippet for citation (first ~150 chars with highlights if available)
+                const snippet = match.highlights.length > 0
+                    ? match.highlights[0].replace(/\*\*/g, '').replace(/\.\.\./g, '').trim()
+                    : match.chunk.content.slice(0, 150) + '...';
 
                 return {
                     document: match.document,
                     chunk: match.chunk,
                     score: combinedScore,
                     highlights: match.highlights,
+                    citation: {
+                        documentName: match.document.name,
+                        pageNumber: match.chunk.pageNumber,
+                        sectionTitle: match.chunk.sectionTitle,
+                        snippet,
+                        relevanceScore: Math.round(combinedScore * 100) / 100,
+                        matchType,
+                    },
                 };
             });
 

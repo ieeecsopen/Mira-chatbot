@@ -32,9 +32,26 @@ function estimateTokens(text: string): number {
     return Math.ceil(text.length / TOKEN_RATIO);
 }
 
-function buildContextBlock(match: DocumentMatch): string {
-    const section = match.chunk.sectionTitle ? ` › ${match.chunk.sectionTitle}` : match.chunk.pageNumber ? ` (Page ${match.chunk.pageNumber})` : '';
-    return `**${match.document.name}${section}**\n${match.chunk.content}\n`;
+function buildContextBlock(match: DocumentMatch, citationNumber: number): string {
+    const { citation } = match;
+
+    // Build citation header with number and metadata
+    let header = `[${citationNumber}] **${citation.documentName}**`;
+
+    if (citation.pageNumber) {
+        header += ` (Page ${citation.pageNumber})`;
+    }
+    if (citation.sectionTitle) {
+        header += ` › ${citation.sectionTitle}`;
+    }
+
+    // Add match type indicator
+    const matchTypeIcon = citation.matchType === 'semantic' ? '🔍'
+        : citation.matchType === 'keyword' ? '📝'
+            : '🔀';
+    header += ` ${matchTypeIcon}`;
+
+    return `${header}\n${match.chunk.content}\n`;
 }
 
 export async function buildMultiHopDocumentContext(query: string, maxTokens = DEFAULT_MAX_TOKENS): Promise<MultiHopContext | null> {
@@ -66,6 +83,8 @@ export async function buildMultiHopDocumentContext(query: string, maxTokens = DE
 
     let tokenBudget = 0;
 
+    let citationCounter = 0;
+
     for (const candidate of dedupedCandidates) {
         const matches = await store.searchAsync(candidate.query, 4);
         if (matches.length === 0) continue;
@@ -82,7 +101,8 @@ export async function buildMultiHopDocumentContext(query: string, maxTokens = DE
                 break;
             }
 
-            contextParts.push(buildContextBlock(match));
+            citationCounter++;
+            contextParts.push(buildContextBlock(match, citationCounter));
             usedChunks.add(chunkKey);
             tokenBudget += chunkTokens;
         }
