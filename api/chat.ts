@@ -310,10 +310,20 @@ async function streamGeminiResponse(
 // Main handler
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Log environment check for debugging
-    console.log('[API] Handler started');
+    console.log('[API] Handler started, method:', req.method);
     console.log('[API] GROQ_API_KEY exists:', !!process.env.GROQ_API_KEY);
     console.log('[API] GEMINI_API_KEY exists:', !!process.env.GEMINI_API_KEY);
     console.log('[API] MONGODB_URI exists:', !!process.env.MONGODB_URI);
+
+    // CORS headers for all responses
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
+    // Handle preflight requests
+    if (req.method === 'OPTIONS') {
+        return res.status(200).end();
+    }
 
     // Only allow POST
     if (req.method !== 'POST') {
@@ -326,7 +336,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Check at least one API key is configured
     if (!GROQ_API_KEY && !GEMINI_API_KEY) {
         console.error('No API keys configured (GROQ_API_KEY or GEMINI_API_KEY)');
-        return res.status(500).json({ error: 'Server configuration error: No API keys' });
+        return res.status(500).json({ error: 'Server configuration error: No API keys configured. Please add GROQ_API_KEY or GEMINI_API_KEY to your environment variables.' });
     }
 
     try {
