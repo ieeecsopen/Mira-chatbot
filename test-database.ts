@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { connectToDatabase, getDatabase } from './api/db/connect.js';
+import { connectToDatabase } from './api/db/connect.js';
 import { ObjectId } from 'mongodb';
 
 interface TestSession {
@@ -48,7 +48,7 @@ async function testDatabase() {
             createdAt: new Date(),
             updatedAt: new Date()
         };
-        
+
         const sessionResult = await sessionsCollection.insertOne(testSession);
         console.log(`✅ Created test session with ID: ${sessionResult.insertedId}`);
         console.log(`   Session ID: ${testSessionId}\n`);
@@ -56,7 +56,7 @@ async function testDatabase() {
         // Test 4: Create test messages
         console.log('Test 4: Creating test messages...');
         const messagesCollection = db.collection<TestMessage>('messages');
-        
+
         const testMessages: TestMessage[] = [
             {
                 messageId: `msg-${Date.now()}-1`,
@@ -94,7 +94,7 @@ async function testDatabase() {
             .find({ sessionId: testSessionId })
             .sort({ timestamp: 1 })
             .toArray();
-        
+
         console.log(`✅ Retrieved ${retrievedMessages.length} messages:`);
         retrievedMessages.forEach((msg, idx) => {
             console.log(`   ${idx + 1}. [${msg.role}] ${msg.content.substring(0, 50)}...`);
@@ -105,11 +105,11 @@ async function testDatabase() {
         console.log('Test 7: Updating test session...');
         const updateResult = await sessionsCollection.updateOne(
             { sessionId: testSessionId },
-            { 
-                $set: { 
+            {
+                $set: {
                     title: 'Updated Test Session',
                     updatedAt: new Date()
-                } 
+                }
             }
         );
         console.log(`✅ Updated ${updateResult.modifiedCount} session(s)\n`);
@@ -134,7 +134,7 @@ async function testDatabase() {
         console.log('✅ Connection closed\n');
 
         console.log('🎉 All database tests passed successfully!');
-        
+
     } catch (error) {
         console.error('❌ Database test failed:', error);
         if (error instanceof Error) {

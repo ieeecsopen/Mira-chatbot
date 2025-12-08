@@ -64,7 +64,7 @@ export async function initPyodide(): Promise<PyodideInterface> {
  */
 export async function executePython(code: string): Promise<PythonExecutionResult> {
     const startTime = performance.now();
-    let stdout: string[] = [];
+    const stdout: string[] = [];
 
     try {
         const pyodide = await initPyodide();

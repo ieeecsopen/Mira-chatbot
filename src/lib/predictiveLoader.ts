@@ -72,7 +72,7 @@ interface ConversationContext {
 }
 
 let currentContext: ConversationContext | null = null;
-let prefetchQueue: Map<string, Promise<void>> = new Map();
+const prefetchQueue: Map<string, Promise<void>> = new Map();
 
 /**
  * Extract main topic/entity from message
