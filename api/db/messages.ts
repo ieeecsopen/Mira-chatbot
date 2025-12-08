@@ -38,6 +38,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     try {
         const db = await getDatabase();
+        if (!db) {
+            return res.status(503).json({ error: 'Database connection unavailable' });
+        }
         const collection = db.collection<DbMessage>(COLLECTION);
 
         // GET - Get messages for a session
@@ -83,11 +86,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 await collection.insertMany(docs);
 
                 // Update session's updatedAt
-                const sessionsCollection = db.collection('sessions');
-                await sessionsCollection.updateOne(
-                    { sessionId },
-                    { $set: { updatedAt: new Date() } }
-                );
+                if (db) {
+                    const sessionsCollection = db.collection('sessions');
+                    await sessionsCollection.updateOne(
+                        { sessionId },
+                        { $set: { updatedAt: new Date() } }
+                    );
+                }
 
                 console.log(`[DB] Inserted ${docs.length} messages for session: ${sessionId}`);
                 return res.status(201).json({ success: true, count: docs.length });
@@ -109,11 +114,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             await collection.insertOne(message);
 
             // Update session's updatedAt
-            const sessionsCollection = db.collection('sessions');
-            await sessionsCollection.updateOne(
-                { sessionId },
-                { $set: { updatedAt: new Date() } }
-            );
+            if (db) {
+                const sessionsCollection = db.collection('sessions');
+                await sessionsCollection.updateOne(
+                    { sessionId },
+                    { $set: { updatedAt: new Date() } }
+                );
+            }
 
             console.log(`[DB] Inserted message ${messageId} for session: ${sessionId}`);
             return res.status(201).json(message);
