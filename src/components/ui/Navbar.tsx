@@ -71,7 +71,7 @@ export function Navbar({
       try {
         const status = await getSyncStatus();
         setSyncStatus(status);
-      } catch (_e) {
+      } catch {
         // IndexedDB might not be ready yet
         setSyncStatus(prev => ({ ...prev, isOnline: navigator.onLine }));
       }
