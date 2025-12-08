@@ -1,4 +1,0 @@
-This is a test document for the Mira Chatbot RAG system.
-The secret code is MIRA-777.
-The release version is 1.0.0-beta.
-It uses Gemini for embeddings.
