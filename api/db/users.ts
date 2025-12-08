@@ -19,7 +19,7 @@ export interface User {
  */
 export async function createUser(db: Db, userData: Omit<User, '_id' | 'createdAt' | 'updatedAt'>): Promise<User> {
     const users = db.collection<User>('users');
-    
+
     // Check if user already exists
     const existingUser = await users.findOne({ email: userData.email });
     if (existingUser) {
@@ -65,10 +65,10 @@ export async function findOrCreateOAuthUser(
     avatar?: string
 ): Promise<User> {
     const users = db.collection<User>('users');
-    
+
     // Try to find existing user
-    let user = await users.findOne({ email });
-    
+    const user = await users.findOne({ email });
+
     if (user) {
         // Update last login and provider info if needed
         await users.updateOne(
@@ -151,6 +151,6 @@ export async function updateUserProfile(
         },
         { returnDocument: 'after' }
     );
-    
+
     return result ?? null;
 }
