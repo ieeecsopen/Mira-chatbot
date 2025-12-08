@@ -309,44 +309,60 @@ async function streamGeminiResponse(
 
 // Main handler
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-    // Log environment check for debugging
-    console.log('[API] Handler started, method:', req.method);
-    console.log('[API] GROQ_API_KEY exists:', !!process.env.GROQ_API_KEY);
-    console.log('[API] GEMINI_API_KEY exists:', !!process.env.GEMINI_API_KEY);
-    console.log('[API] MONGODB_URI exists:', !!process.env.MONGODB_URI);
-
-    // CORS headers for all responses
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-
-    // Handle preflight requests
-    if (req.method === 'OPTIONS') {
-        return res.status(200).end();
-    }
-
-    // Only allow POST
-    if (req.method !== 'POST') {
-        return res.status(405).json({ error: 'Method not allowed' });
-    }
-
-    const GROQ_API_KEY = process.env.GROQ_API_KEY;
-    const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-
-    // Check at least one API key is configured
-    if (!GROQ_API_KEY && !GEMINI_API_KEY) {
-        console.error('No API keys configured (GROQ_API_KEY or GEMINI_API_KEY)');
-        return res.status(500).json({ error: 'Server configuration error: No API keys configured. Please add GROQ_API_KEY or GEMINI_API_KEY to your environment variables.' });
-    }
-
+    // Wrap everything in try-catch to catch any early errors
     try {
+        // Log environment check for debugging
+        console.log('[API] Handler started, method:', req.method);
+        console.log('[API] GROQ_API_KEY exists:', !!process.env.GROQ_API_KEY);
+        console.log('[API] GEMINI_API_KEY exists:', !!process.env.GEMINI_API_KEY);
+        console.log('[API] MONGODB_URI exists:', !!process.env.MONGODB_URI);
+
+        // CORS headers for all responses
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
+        // Handle preflight requests
+        if (req.method === 'OPTIONS') {
+            return res.status(200).end();
+        }
+
+        // Only allow POST
+        if (req.method !== 'POST') {
+            return res.status(405).json({ error: 'Method not allowed' });
+        }
+
+        const GROQ_API_KEY = process.env.GROQ_API_KEY;
+        const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+
+        // Check at least one API key is configured
+        if (!GROQ_API_KEY && !GEMINI_API_KEY) {
+            console.error('No API keys configured (GROQ_API_KEY or GEMINI_API_KEY)');
+            return res.status(500).json({ error: 'Server configuration error: No API keys configured. Please add GROQ_API_KEY or GEMINI_API_KEY to your environment variables.' });
+        }
+
+        // Parse body if it's a string (Vercel sometimes sends it as string)
+        let body: ChatRequestBody;
+        if (typeof req.body === 'string') {
+            try {
+                body = JSON.parse(req.body);
+            } catch {
+                return res.status(400).json({ error: 'Invalid JSON in request body' });
+            }
+        } else if (req.body && typeof req.body === 'object') {
+            body = req.body as ChatRequestBody;
+        } else {
+            return res.status(400).json({ error: 'Request body is required' });
+        }
+
         const {
             message,
             model = 'auto',
             history = [],
             sessionId,
             options = {}
-        } = req.body;
+        } = body;
+
 
         if (!message) {
             return res.status(400).json({ error: 'Message is required' });
