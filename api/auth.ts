@@ -122,7 +122,11 @@ async function handleSignup(req: VercelRequest, res: VercelResponse) {
         return res.status(400).json({ error: 'Password must be at least 6 characters' });
     }
 
-    const { db } = await connectToDatabase();
+    const connection = await connectToDatabase();
+    if (!connection) {
+        return res.status(503).json({ error: 'Database connection unavailable' });
+    }
+    const { db } = connection;
 
     // Check if user exists
     const existingUser = await findUserByEmail(db, email);
@@ -163,7 +167,11 @@ async function handleSignin(req: VercelRequest, res: VercelResponse) {
         return res.status(400).json({ error: 'Email and password are required' });
     }
 
-    const { db } = await connectToDatabase();
+    const connection = await connectToDatabase();
+    if (!connection) {
+        return res.status(503).json({ error: 'Database connection unavailable' });
+    }
+    const { db } = connection;
 
     // Find user
     const user = await findUserByEmail(db, email);
@@ -235,7 +243,11 @@ async function handleGoogleAuth(req: VercelRequest, res: VercelResponse) {
             return res.status(400).json({ error: 'Email and name are required from Google' });
         }
 
-        const { db } = await connectToDatabase();
+        const connection = await connectToDatabase();
+        if (!connection) {
+            return res.status(503).json({ error: 'Database connection unavailable' });
+        }
+        const { db } = connection;
 
         // Find or create user
         const user = await findOrCreateOAuthUser(db, email, name, 'google', googleId, picture);
@@ -342,7 +354,11 @@ async function handleGitHubCallback(req: VercelRequest, res: VercelResponse) {
             return res.status(400).json({ error: 'Unable to get email from GitHub' });
         }
 
-        const { db } = await connectToDatabase();
+        const connection = await connectToDatabase();
+        if (!connection) {
+            return res.status(503).json({ error: 'Database connection unavailable' });
+        }
+        const { db } = connection;
 
         // Find or create user
         const user = await findOrCreateOAuthUser(
@@ -388,7 +404,11 @@ async function handleVerifyToken(req: VercelRequest, res: VercelResponse) {
         return res.status(401).json({ error: 'Invalid or expired token' });
     }
 
-    const { db } = await connectToDatabase();
+    const connection = await connectToDatabase();
+    if (!connection) {
+        return res.status(503).json({ error: 'Database connection unavailable' });
+    }
+    const { db } = connection;
     const user = await findUserById(db, decoded.userId);
 
     if (!user) {
@@ -421,7 +441,11 @@ async function handleGetProfile(req: VercelRequest, res: VercelResponse) {
         return res.status(401).json({ error: 'Invalid or expired token' });
     }
 
-    const { db } = await connectToDatabase();
+    const connection = await connectToDatabase();
+    if (!connection) {
+        return res.status(503).json({ error: 'Database connection unavailable' });
+    }
+    const { db } = connection;
     const user = await findUserById(db, decoded.userId);
 
     if (!user) {

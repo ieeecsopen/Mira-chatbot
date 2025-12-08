@@ -39,6 +39,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     try {
         const db = await getDatabase();
+        if (!db) {
+            return res.status(503).json({ error: 'Database connection unavailable' });
+        }
         const collection = db.collection<DbSession>(COLLECTION);
 
         // GET - List all sessions or get single session
@@ -127,8 +130,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             await collection.deleteOne({ sessionId });
 
             // Also delete all messages for this session
-            const messagesCollection = db.collection('messages');
-            await messagesCollection.deleteMany({ sessionId });
+            if (db) {
+                const messagesCollection = db.collection('messages');
+                await messagesCollection.deleteMany({ sessionId });
+            }
 
             console.log(`[DB] Deleted session and messages: ${sessionId}`);
             return res.status(200).json({ success: true, sessionId });
