@@ -1,19 +1,33 @@
 import type { IncomingMessage, ServerResponse } from 'http';
 import { connectToDatabase } from './db/connect';
-import { ObjectId } from 'mongodb';
+
+// Request body interface for chat endpoint
+interface ChatRequestBody {
+    message: string;
+    model?: string;
+    history?: Array<{ role: string; content: string }>;
+    sessionId?: string;
+    options?: {
+        responseStyle?: 'concise' | 'detailed';
+        deepThink?: boolean;
+        memoryContext?: string;
+        documentContext?: string;
+        enableWebSearch?: boolean;
+    };
+}
 
 // Vercel serverless function types
 interface VercelRequest extends IncomingMessage {
-    body: any;
+    body: ChatRequestBody;
     query: { [key: string]: string | string[] };
     method?: string;
 }
 
 interface VercelResponse extends ServerResponse {
     status: (statusCode: number) => VercelResponse;
-    json: (body: any) => void;
+    json: (body: Record<string, unknown>) => void;
     setHeader: (name: string, value: string) => this;
-    end: (chunk?: any) => this;
+    end: (chunk?: unknown) => this;
 }
 
 // Get API key from server environment (not exposed to client)
@@ -104,8 +118,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 );
                 console.log('✅ Pending User message saved to DB');
             }
-        } catch (error) {
-            console.warn('⚠️ Failed to save user message to DB:', error);
+        } catch (_error) {
+            console.warn('⚠️ Failed to save user message to DB:', _error);
             // Continue execution - don't fail chat if DB is down
         }
 
@@ -147,7 +161,7 @@ Format your response as:
         }
 
         // Build request body
-        const requestBody: any = {
+        const requestBody: Record<string, unknown> = {
             system_instruction: {
                 parts: [{ text: fullSystemInstruction }]
             },
@@ -214,7 +228,7 @@ Format your response as:
                             const data = JSON.parse(jsonStr);
                             const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
                             if (text) accumulatedResponse += text;
-                        } catch (e) {
+                        } catch {
                             // ignore parse errors for partial chunks
                         }
                     }
@@ -223,9 +237,9 @@ Format your response as:
                 // Forward the SSE data directly
                 res.write(chunk);
             }
-        } catch (streamError) {
-            console.error('[API] Stream reading error:', streamError);
-            throw streamError; // Re-throw to be caught by outer catch
+        } catch (_streamError) {
+            console.error('[API] Stream reading error:', _streamError);
+            throw _streamError; // Re-throw to be caught by outer catch
         } finally {
             reader.releaseLock();
         }

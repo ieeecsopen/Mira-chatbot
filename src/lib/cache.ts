@@ -342,8 +342,8 @@ export class ResponseCache<T> {
         const response = await fetchFunction(query);
         this.set(query, response);
         warmed++;
-      } catch (error) {
-        console.warn(`⚠️ Failed to warm cache for: "${query}"`, error);
+      } catch (_error) {
+        console.warn(`⚠️ Failed to warm cache for: "${query}"`, _error);
       }
     }
 
@@ -355,9 +355,9 @@ export class ResponseCache<T> {
    * Get cache statistics
    */
   getStats(): CacheStats {
-    let totalEntryHits = 0;
+    let _totalEntryHits = 0;
     for (const entry of this.cache.values()) {
-      totalEntryHits += entry.hits;
+      _totalEntryHits += entry.hits;
     }
 
     const topQueries = this.getTopQueries(5).map(q => ({
@@ -387,8 +387,8 @@ export class ResponseCache<T> {
     try {
       const entries = Array.from(this.cache.entries());
       localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
-    } catch (e) {
-      console.warn('Failed to save cache to storage:', e);
+    } catch (_e) {
+      console.warn('Failed to save cache to storage:', _e);
     }
   }
 
@@ -409,8 +409,8 @@ export class ResponseCache<T> {
         }
         console.log(`📥 Loaded ${this.cache.size} cached responses from storage`);
       }
-    } catch (e) {
-      console.warn('Failed to load cache from storage:', e);
+    } catch (_e) {
+      console.warn('Failed to load cache from storage:', _e);
     }
   }
 
@@ -423,8 +423,8 @@ export class ResponseCache<T> {
     try {
       const entries = Array.from(this.queryFrequency.entries());
       localStorage.setItem(FREQUENCY_STORAGE_KEY, JSON.stringify(entries));
-    } catch (e) {
-      console.warn('Failed to save frequency data:', e);
+    } catch (_e) {
+      console.warn('Failed to save frequency data:', _e);
     }
   }
 
@@ -441,8 +441,8 @@ export class ResponseCache<T> {
         this.queryFrequency = new Map(entries);
         console.log(`📊 Loaded frequency data for ${this.queryFrequency.size} queries`);
       }
-    } catch (e) {
-      console.warn('Failed to load frequency data:', e);
+    } catch (_e) {
+      console.warn('Failed to load frequency data:', _e);
     }
   }
 }
@@ -656,8 +656,8 @@ export class ConversationManager {
         currentId: this.currentId,
       };
       localStorage.setItem(CONVERSATIONS_STORAGE_KEY, JSON.stringify(data));
-    } catch (e) {
-      console.warn('Failed to save conversations:', e);
+    } catch (_e) {
+      console.warn('Failed to save conversations:', _e);
     }
   }
 
@@ -673,8 +673,8 @@ export class ConversationManager {
         this.currentId = data.currentId || null;
         console.log(`📥 Loaded ${this.conversations.size} conversations from storage`);
       }
-    } catch (e) {
-      console.warn('Failed to load conversations:', e);
+    } catch (_e) {
+      console.warn('Failed to load conversations:', _e);
     }
   }
 }

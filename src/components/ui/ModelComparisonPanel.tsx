@@ -223,7 +223,7 @@ export function ModelComparisonPanel({
                                                 <ReactMarkdown
                                                     remarkPlugins={[remarkGfm]}
                                                     components={{
-                                                        code({ node, inline, className, children, ...props }: any) {
+                                                        code({ node: _node, inline, className, children, ...props }: { node?: unknown; inline?: boolean; className?: string; children?: React.ReactNode }) {
                                                             const match = /language-(\w+)/.exec(className || '');
                                                             const codeContent = String(children).replace(/\n$/, '');
 

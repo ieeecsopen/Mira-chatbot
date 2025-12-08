@@ -27,7 +27,7 @@ export async function connectToDatabase(): Promise<MongoConnection> {
             // Ping to verify connection is still alive
             await cachedDb.admin().ping();
             return { client: cachedClient, db: cachedDb };
-        } catch (error) {
+        } catch {
             console.warn('⚠️ Cached MongoDB connection is stale, reconnecting...');
             // Clear stale cache
             cachedClient = null;

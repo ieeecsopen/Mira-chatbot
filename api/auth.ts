@@ -42,10 +42,10 @@ function generateToken(user: User): string {
 /**
  * Verify JWT token
  */
-export function verifyToken(token: string): any {
+export function verifyToken(token: string): { userId: string; email: string; name: string } | null {
     try {
-        return jwt.verify(token, JWT_SECRET);
-    } catch (error) {
+        return jwt.verify(token, JWT_SECRET) as { userId: string; email: string; name: string };
+    } catch {
         return null;
     }
 }
@@ -54,7 +54,7 @@ export function verifyToken(token: string): any {
  * Create sanitized user response (without password)
  */
 function sanitizeUser(user: User) {
-    const { password, ...sanitized } = user;
+    const { password: _password, ...sanitized } = user;
     return {
         ...sanitized,
         id: user._id?.toString(),
@@ -334,7 +334,7 @@ async function handleGitHubCallback(req: VercelRequest, res: VercelResponse) {
                 },
             });
             const emails = await emailResponse.json();
-            const primaryEmail = emails.find((e: any) => e.primary && e.verified);
+            const primaryEmail = emails.find((e: { primary: boolean; verified: boolean; email: string }) => e.primary && e.verified);
             email = primaryEmail?.email;
         }
 
