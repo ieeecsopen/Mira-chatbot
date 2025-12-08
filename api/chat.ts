@@ -30,22 +30,24 @@ interface VercelResponse extends ServerResponse {
     end: (chunk?: unknown) => this;
 }
 
-// Get API key from server environment (not exposed to client)
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-    // Log environment check for debugging
-    console.log('[API] Handler started');
-    console.log('[API] GEMINI_API_KEY exists:', !!process.env.GEMINI_API_KEY);
-    console.log('[API] MONGODB_URI exists:', !!process.env.MONGODB_URI);
+// Model mapping from frontend models to Groq models
+const GROQ_MODEL_MAP: Record<string, string> = {
+    'gemini-2.0-flash': 'llama-3.3-70b-versatile',
+    'gemini-2.0-flash-thinking': 'llama-3.3-70b-versatile',
+    'gemini-2.5-flash': 'llama-3.3-70b-versatile',
+    'gemini-2.5-flash-lite': 'llama-3.1-8b-instant',
+    'gemini-2.5-pro': 'llama-3.3-70b-versatile',
+    'gemini-2.0-flash-exp': 'llama-3.3-70b-versatile',
+    'gemini-2.0-flash-thinking-exp': 'deepseek-r1-distill-llama-70b',
+    'learnlm-2.0-flash-experimental': 'llama-3.1-70b-versatile',
+    'gemini-1.5-pro': 'llama-3.3-70b-versatile',
+    'gemini-1.5-flash': 'llama-3.1-8b-instant',
+    'auto': 'llama-3.3-70b-versatile',
+    'default': 'llama-3.3-70b-versatile'
+};
 
-    // Only allow POST
-    if (req.method !== 'POST') {
-        return res.status(405).json({ error: 'Method not allowed' });
-    }
-
-    const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-
-    // System instruction (same as frontend)
-    const SYSTEM_INSTRUCTION = `ඔබ "මීරා" (MIRA) නම් සිංහල භාෂා සහායකයෙකි.
+// System instruction
+const SYSTEM_INSTRUCTION = `ඔබ "මීරා" (MIRA) නම් සිංහල භාෂා සහායකයෙකි.
 
 ## ඔබේ අනන්‍යතාවය:
 - ඔබේ නම "මීරා" (MIRA - Multilingual Intelligent Response Assistant)
@@ -69,10 +71,216 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 - ශ්‍රී ලංකාවට අදාළ කරුණු (නීති, සංඛ්‍යාලේඛන) ගැන කතා කරන විට ඉතා සැලකිලිමත් වන්න.
 - පරිශීලකයාගේ ප්‍රශ්නයට කෙලින්ම පිළිතුරු දෙන්න. අනවශ්‍ය තොරතුරු එකතු නොකරන්න.`;
 
-    // Check API key
-    if (!GEMINI_API_KEY) {
-        console.error('GEMINI_API_KEY not configured');
-        return res.status(500).json({ error: 'Server configuration error' });
+/**
+ * Call Groq API with streaming
+ */
+async function callGroqAPI(
+    groqApiKey: string,
+    model: string,
+    systemInstruction: string,
+    message: string,
+    history: Array<{ role: string; content: string }>
+): Promise<Response> {
+    const groqModel = GROQ_MODEL_MAP[model] || GROQ_MODEL_MAP['default'];
+
+    const messages = [
+        { role: 'system', content: systemInstruction },
+        ...history.map(msg => ({
+            role: msg.role === 'assistant' ? 'assistant' : 'user',
+            content: msg.content
+        })),
+        { role: 'user', content: message }
+    ];
+
+    console.log(`[API] Calling Groq API with model: ${groqModel}`);
+
+    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${groqApiKey}`
+        },
+        body: JSON.stringify({
+            model: groqModel,
+            messages,
+            stream: true,
+            temperature: 0.7,
+            max_tokens: 4096
+        })
+    });
+
+    return response;
+}
+
+/**
+ * Call Gemini API with streaming
+ */
+async function callGeminiAPI(
+    geminiApiKey: string,
+    model: string,
+    systemInstruction: string,
+    message: string,
+    history: Array<{ role: string; content: string }>,
+    enableWebSearch: boolean
+): Promise<Response> {
+    const historyContents = history.map((msg) => ({
+        role: msg.role === 'assistant' ? 'model' : 'user',
+        parts: [{ text: msg.content }]
+    }));
+
+    const requestBody: Record<string, unknown> = {
+        system_instruction: {
+            parts: [{ text: systemInstruction }]
+        },
+        contents: [
+            ...historyContents,
+            {
+                role: 'user',
+                parts: [{ text: message }]
+            }
+        ],
+    };
+
+    if (enableWebSearch) {
+        requestBody.tools = [{ googleSearch: {} }];
+    }
+
+    console.log(`[API] Calling Gemini API with model: ${model}`);
+
+    const streamUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse&key=${geminiApiKey}`;
+
+    const response = await fetch(streamUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody),
+    });
+
+    return response;
+}
+
+/**
+ * Stream Groq response (OpenAI-compatible SSE format)
+ */
+async function streamGroqResponse(
+    response: Response,
+    res: VercelResponse
+): Promise<string> {
+    const reader = response.body?.getReader();
+    if (!reader) {
+        throw new Error('Failed to read Groq response');
+    }
+
+    const decoder = new TextDecoder();
+    let accumulatedResponse = '';
+
+    try {
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            const chunk = decoder.decode(value, { stream: true });
+            const lines = chunk.split('\n');
+
+            for (const line of lines) {
+                if (line.startsWith('data:')) {
+                    const jsonStr = line.slice(5).trim();
+                    if (!jsonStr || jsonStr === '[DONE]') continue;
+
+                    try {
+                        const data = JSON.parse(jsonStr);
+                        const text = data.choices?.[0]?.delta?.content;
+                        if (text) {
+                            accumulatedResponse += text;
+                            // Convert to Gemini-like SSE format for frontend compatibility
+                            const geminiFormat = {
+                                candidates: [{
+                                    content: {
+                                        parts: [{ text }]
+                                    }
+                                }]
+                            };
+                            res.write(`data: ${JSON.stringify(geminiFormat)}\n\n`);
+                        }
+                    } catch {
+                        // Ignore parse errors for partial chunks
+                    }
+                }
+            }
+        }
+    } finally {
+        reader.releaseLock();
+    }
+
+    return accumulatedResponse;
+}
+
+/**
+ * Stream Gemini response
+ */
+async function streamGeminiResponse(
+    response: Response,
+    res: VercelResponse
+): Promise<string> {
+    const reader = response.body?.getReader();
+    if (!reader) {
+        throw new Error('Failed to read Gemini response');
+    }
+
+    const decoder = new TextDecoder();
+    let accumulatedResponse = '';
+
+    try {
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            const chunk = decoder.decode(value, { stream: true });
+            const lines = chunk.split('\n');
+
+            for (const line of lines) {
+                if (line.startsWith('data:')) {
+                    const jsonStr = line.slice(5).trim();
+                    if (!jsonStr) continue;
+                    try {
+                        const data = JSON.parse(jsonStr);
+                        const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+                        if (text) accumulatedResponse += text;
+                    } catch {
+                        // Ignore parse errors for partial chunks
+                    }
+                }
+            }
+
+            // Forward the SSE data directly
+            res.write(chunk);
+        }
+    } finally {
+        reader.releaseLock();
+    }
+
+    return accumulatedResponse;
+}
+
+// Main handler
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+    // Log environment check for debugging
+    console.log('[API] Handler started');
+    console.log('[API] GROQ_API_KEY exists:', !!process.env.GROQ_API_KEY);
+    console.log('[API] GEMINI_API_KEY exists:', !!process.env.GEMINI_API_KEY);
+    console.log('[API] MONGODB_URI exists:', !!process.env.MONGODB_URI);
+
+    // Only allow POST
+    if (req.method !== 'POST') {
+        return res.status(405).json({ error: 'Method not allowed' });
+    }
+
+    const GROQ_API_KEY = process.env.GROQ_API_KEY;
+    const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+
+    // Check at least one API key is configured
+    if (!GROQ_API_KEY && !GEMINI_API_KEY) {
+        console.error('No API keys configured (GROQ_API_KEY or GEMINI_API_KEY)');
+        return res.status(500).json({ error: 'Server configuration error: No API keys' });
     }
 
     try {
@@ -90,13 +298,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         console.log(`[API] Request: model=${model}, sessionId=${sessionId}, messageLength=${message.length}`);
 
-        // Connect to MongoDB
+        // Connect to MongoDB (optional - won't fail if not configured)
         let db = null;
         try {
             const connection = await connectToDatabase();
             db = connection?.db ?? null;
 
-            // 1. Save USER message if sessionId is present
+            // Save USER message if sessionId is present
             if (sessionId && db) {
                 const messagesCollection = db.collection('messages');
                 await messagesCollection.insertOne({
@@ -105,10 +313,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     role: 'user',
                     content: message,
                     timestamp: new Date(),
-                    model // Track which model was requested
+                    model
                 });
 
-                // Update session timestamp
                 await db.collection('sessions').updateOne(
                     { sessionId },
                     {
@@ -121,18 +328,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     },
                     { upsert: true }
                 );
-                console.log('✅ Pending User message saved to DB');
+                console.log('✅ User message saved to DB');
             }
         } catch (_error) {
             console.warn('⚠️ Failed to save user message to DB:', _error);
-            // Continue execution - don't fail chat if DB is down
         }
-
-        // Build conversation history
-        const historyContents = history.map((msg: { role: string; content: string }) => ({
-            role: msg.role === 'assistant' ? 'model' : 'user',
-            parts: [{ text: msg.content }]
-        }));
 
         // Build system instruction with options
         let fullSystemInstruction = SYSTEM_INSTRUCTION;
@@ -165,92 +365,85 @@ Format your response as:
             fullSystemInstruction += `\n\n[DOCUMENT CONTEXT]\n${options.documentContext}\n[END DOCUMENT CONTEXT]`;
         }
 
-        // Build request body
-        const requestBody: Record<string, unknown> = {
-            system_instruction: {
-                parts: [{ text: fullSystemInstruction }]
-            },
-            contents: [
-                ...historyContents,
-                {
-                    role: 'user',
-                    parts: [{ text: message }]
-                }
-            ],
-        };
-
-        // Add Google Search tool if enabled
-        if (options.enableWebSearch) {
-            requestBody.tools = [{ googleSearch: {} }];
-        }
-
-        // Make streaming request to Gemini
-        const streamUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse&key=${GEMINI_API_KEY}`;
-
-        const geminiResponse = await fetch(streamUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(requestBody),
-        });
-
-        if (!geminiResponse.ok) {
-            const error = await geminiResponse.json();
-            console.error('[API] Gemini error:', error);
-            return res.status(geminiResponse.status).json({
-                error: error.error?.message || 'Gemini API error'
-            });
-        }
-
         // Set headers for SSE streaming
         res.setHeader('Content-Type', 'text/event-stream');
         res.setHeader('Cache-Control', 'no-cache');
         res.setHeader('Connection', 'keep-alive');
         res.setHeader('Access-Control-Allow-Origin', '*');
 
-        // Stream the response
-        const reader = geminiResponse.body?.getReader();
-        if (!reader) {
-            return res.status(500).json({ error: 'Failed to read response' });
-        }
-
-        const decoder = new TextDecoder();
         let accumulatedResponse = '';
+        let usedProvider = '';
 
-        try {
-            while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
+        // Try Groq first (prioritized), then fallback to Gemini
+        if (GROQ_API_KEY) {
+            try {
+                console.log('[API] Attempting Groq API...');
+                const groqResponse = await callGroqAPI(
+                    GROQ_API_KEY,
+                    model,
+                    fullSystemInstruction,
+                    message,
+                    history
+                );
 
-                const chunk = decoder.decode(value, { stream: true });
-
-                // Save accumulation logic
-                const lines = chunk.split('\n');
-                for (const line of lines) {
-                    if (line.startsWith('data:')) {
-                        const jsonStr = line.slice(5).trim();
-                        if (!jsonStr) continue;
-                        try {
-                            const data = JSON.parse(jsonStr);
-                            const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-                            if (text) accumulatedResponse += text;
-                        } catch {
-                            // ignore parse errors for partial chunks
-                        }
-                    }
+                if (groqResponse.ok) {
+                    usedProvider = 'groq';
+                    accumulatedResponse = await streamGroqResponse(groqResponse, res);
+                    console.log('[API] ✅ Groq API succeeded');
+                } else {
+                    const errorData = await groqResponse.json();
+                    console.warn('[API] ⚠️ Groq API failed:', errorData);
+                    throw new Error(errorData.error?.message || 'Groq API error');
                 }
+            } catch (groqError) {
+                console.warn('[API] Groq failed, trying Gemini fallback...', groqError);
 
-                // Forward the SSE data directly
-                res.write(chunk);
+                // Fallback to Gemini if available
+                if (GEMINI_API_KEY) {
+                    const geminiResponse = await callGeminiAPI(
+                        GEMINI_API_KEY,
+                        model,
+                        fullSystemInstruction,
+                        message,
+                        history,
+                        options.enableWebSearch || false
+                    );
+
+                    if (geminiResponse.ok) {
+                        usedProvider = 'gemini';
+                        accumulatedResponse = await streamGeminiResponse(geminiResponse, res);
+                        console.log('[API] ✅ Gemini fallback succeeded');
+                    } else {
+                        const error = await geminiResponse.json();
+                        throw new Error(error.error?.message || 'Both APIs failed');
+                    }
+                } else {
+                    throw groqError;
+                }
             }
-        } catch (_streamError) {
-            console.error('[API] Stream reading error:', _streamError);
-            throw _streamError; // Re-throw to be caught by outer catch
-        } finally {
-            reader.releaseLock();
+        } else if (GEMINI_API_KEY) {
+            // Only Gemini available
+            console.log('[API] Using Gemini API (Groq not configured)...');
+            const geminiResponse = await callGeminiAPI(
+                GEMINI_API_KEY,
+                model,
+                fullSystemInstruction,
+                message,
+                history,
+                options.enableWebSearch || false
+            );
+
+            if (geminiResponse.ok) {
+                usedProvider = 'gemini';
+                accumulatedResponse = await streamGeminiResponse(geminiResponse, res);
+                console.log('[API] ✅ Gemini API succeeded');
+            } else {
+                const error = await geminiResponse.json();
+                throw new Error(error.error?.message || 'Gemini API error');
+            }
         }
 
-        // 2. Save ASSISTANT message to DB after stream completes
-        // CRITICAL: This MUST complete before res.end() is called
+        // Save assistant message to DB
         if (sessionId && db && accumulatedResponse) {
             try {
                 const messagesCollection = db.collection('messages');
@@ -260,10 +453,10 @@ Format your response as:
                     role: 'assistant',
                     content: accumulatedResponse,
                     timestamp: new Date(),
-                    model
+                    model,
+                    provider: usedProvider
                 });
 
-                // Update session timestamp again
                 await db.collection('sessions').updateOne(
                     { sessionId },
                     { $set: { updatedAt: new Date() } }
@@ -272,11 +465,9 @@ Format your response as:
                 console.log('✅ Assistant message saved to DB');
             } catch (dbError) {
                 console.error('⚠️ Failed to save assistant message to DB:', dbError);
-                // Don't throw - we already streamed the response successfully
             }
         }
 
-        // End response AFTER all async operations complete
         res.end();
 
     } catch (error) {
