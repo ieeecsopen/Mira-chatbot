@@ -156,7 +156,7 @@ You: "ආයුබෝවන්! කෘත්‍රිම බුද්ධිය (
 තවත් ප්‍රශ්න ඇත්නම් අසන්න!"`;
 
 // Get appropriate system instruction based on provider
-function getSystemInstruction(provider: 'gemini' | 'groq'): string {
+function _getSystemInstruction(provider: 'gemini' | 'groq'): string {
     return provider === 'groq' ? GROQ_SYSTEM_INSTRUCTION : SYSTEM_INSTRUCTION;
 }
 

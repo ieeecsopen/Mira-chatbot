@@ -515,7 +515,6 @@ export async function streamMessage(
             // Get memory context
             const memoryContext = getMemoryContext();
 
-            let response: Response;
             let attempts = 1;
             let totalTimeMs = 0;
             const fetchStart = Date.now();
@@ -548,7 +547,7 @@ export async function streamMessage(
             if (!result.success || !result.data) {
                 throw result.error || new Error('Request failed');
             }
-            response = result.data;
+            const response = result.data;
             attempts = result.attempts;
             totalTimeMs = result.totalTimeMs;
 
