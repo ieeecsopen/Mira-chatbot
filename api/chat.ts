@@ -30,21 +30,58 @@ interface VercelResponse extends ServerResponse {
     end: (chunk?: unknown) => this;
 }
 
-// Model mapping from frontend models to Groq models
-const GROQ_MODEL_MAP: Record<string, string> = {
-    'gemini-2.0-flash': 'llama-3.3-70b-versatile',
-    'gemini-2.0-flash-thinking': 'llama-3.3-70b-versatile',
-    'gemini-2.5-flash': 'llama-3.3-70b-versatile',
-    'gemini-2.5-flash-lite': 'llama-3.1-8b-instant',
-    'gemini-2.5-pro': 'llama-3.3-70b-versatile',
-    'gemini-2.0-flash-exp': 'llama-3.3-70b-versatile',
-    'gemini-2.0-flash-thinking-exp': 'deepseek-r1-distill-llama-70b',
-    'learnlm-2.0-flash-experimental': 'llama-3.1-70b-versatile',
-    'gemini-1.5-pro': 'llama-3.3-70b-versatile',
-    'gemini-1.5-flash': 'llama-3.1-8b-instant',
-    'auto': 'llama-3.3-70b-versatile',
-    'default': 'llama-3.3-70b-versatile'
-};
+// Groq native models - these are used directly with Groq API
+const GROQ_MODELS = [
+    'llama-3.3-70b-versatile',
+    'llama-3.1-70b-versatile',
+    'llama-3.1-8b-instant',
+    'llama3-70b-8192',
+    'llama3-8b-8192',
+    'mixtral-8x7b-32768',
+    'gemma2-9b-it',
+    'deepseek-r1-distill-llama-70b'
+];
+
+// Default Groq model for 'auto' selection
+const DEFAULT_GROQ_MODEL = 'llama-3.3-70b-versatile';
+
+// Gemini models - used as fallback when Groq fails or when explicitly selected
+const GEMINI_MODELS = [
+    'gemini-2.0-flash',
+    'gemini-2.0-flash-thinking',
+    'gemini-2.5-flash',
+    'gemini-2.5-flash-lite',
+    'gemini-2.5-pro',
+    'gemini-2.0-flash-exp',
+    'gemini-2.0-flash-thinking-exp',
+    'learnlm-2.0-flash-experimental',
+    'gemini-1.5-pro',
+    'gemini-1.5-flash'
+];
+
+// Default Gemini model for fallback
+const DEFAULT_GEMINI_MODEL = 'gemini-2.0-flash';
+
+// Helper to check if a model is a Groq model
+function isGroqModel(model: string): boolean {
+    return GROQ_MODELS.includes(model) || model === 'auto';
+}
+
+// Helper to check if a model is a Gemini model
+function isGeminiModel(model: string): boolean {
+    return GEMINI_MODELS.includes(model);
+}
+
+// Get the actual Groq model to use
+function getGroqModel(model: string): string {
+    if (model === 'auto') return DEFAULT_GROQ_MODEL;
+    return GROQ_MODELS.includes(model) ? model : DEFAULT_GROQ_MODEL;
+}
+
+// Get the actual Gemini model to use (for fallback)
+function getGeminiModel(model: string): string {
+    return GEMINI_MODELS.includes(model) ? model : DEFAULT_GEMINI_MODEL;
+}
 
 // System instruction
 const SYSTEM_INSTRUCTION = `ඔබ "මීරා" (MIRA) නම් සිංහල භාෂා සහායකයෙකි.
@@ -81,7 +118,7 @@ async function callGroqAPI(
     message: string,
     history: Array<{ role: string; content: string }>
 ): Promise<Response> {
-    const groqModel = GROQ_MODEL_MAP[model] || GROQ_MODEL_MAP['default'];
+    const groqModel = getGroqModel(model);
 
     const messages = [
         { role: 'system', content: systemInstruction },
@@ -286,7 +323,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     try {
         const {
             message,
-            model = 'gemini-2.0-flash',
+            model = 'auto',
             history = [],
             sessionId,
             options = {}
@@ -374,12 +411,37 @@ Format your response as:
         let accumulatedResponse = '';
         let usedProvider = '';
 
-        // Try Groq first (prioritized), then fallback to Gemini
-        if (GROQ_API_KEY) {
+        // Determine which API to use based on model selection
+        const useGroqPrimary = isGroqModel(model) && GROQ_API_KEY;
+        const useGeminiPrimary = isGeminiModel(model) && GEMINI_API_KEY;
+
+        if (useGeminiPrimary) {
+            // User explicitly selected a Gemini model - use Gemini directly
+            console.log(`[API] Using Gemini API for model: ${model}`);
+            const geminiResponse = await callGeminiAPI(
+                GEMINI_API_KEY!,
+                model,
+                fullSystemInstruction,
+                message,
+                history,
+                options.enableWebSearch || false
+            );
+
+            if (geminiResponse.ok) {
+                usedProvider = 'gemini';
+                accumulatedResponse = await streamGeminiResponse(geminiResponse, res);
+                console.log('[API] ✅ Gemini API succeeded');
+            } else {
+                const error = await geminiResponse.json();
+                throw new Error(error.error?.message || 'Gemini API error');
+            }
+        } else if (useGroqPrimary) {
+            // Groq model or 'auto' - use Groq with Gemini fallback
             try {
-                console.log('[API] Attempting Groq API...');
+                const groqModel = getGroqModel(model);
+                console.log(`[API] Using Groq API with model: ${groqModel}`);
                 const groqResponse = await callGroqAPI(
-                    GROQ_API_KEY,
+                    GROQ_API_KEY!,
                     model,
                     fullSystemInstruction,
                     message,
@@ -400,9 +462,11 @@ Format your response as:
 
                 // Fallback to Gemini if available
                 if (GEMINI_API_KEY) {
+                    const fallbackModel = getGeminiModel(model);
+                    console.log(`[API] Falling back to Gemini with model: ${fallbackModel}`);
                     const geminiResponse = await callGeminiAPI(
                         GEMINI_API_KEY,
-                        model,
+                        fallbackModel,
                         fullSystemInstruction,
                         message,
                         history,
@@ -422,11 +486,12 @@ Format your response as:
                 }
             }
         } else if (GEMINI_API_KEY) {
-            // Only Gemini available
-            console.log('[API] Using Gemini API (Groq not configured)...');
+            // Fallback: No Groq key but Gemini is available
+            const fallbackModel = getGeminiModel(model);
+            console.log(`[API] Using Gemini API (Groq not configured) with model: ${fallbackModel}`);
             const geminiResponse = await callGeminiAPI(
                 GEMINI_API_KEY,
-                model,
+                fallbackModel,
                 fullSystemInstruction,
                 message,
                 history,
@@ -441,6 +506,8 @@ Format your response as:
                 const error = await geminiResponse.json();
                 throw new Error(error.error?.message || 'Gemini API error');
             }
+        } else {
+            throw new Error('No suitable API available for the requested model');
         }
 
         // Save assistant message to DB

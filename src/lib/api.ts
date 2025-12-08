@@ -10,23 +10,21 @@ interface ModelConfig {
 }
 
 const AVAILABLE_MODELS: ModelConfig[] = [
-    // Fast models - high throughput
-    { name: 'gemini-2.0-flash', rpm: 15, tpm: 1000000, priority: 1, category: 'balanced' },
+    // Groq models - Primary (high performance, fast)
+    { name: 'llama-3.3-70b-versatile', rpm: 30, tpm: 20000, priority: 1, category: 'balanced' },
+    { name: 'llama-3.1-70b-versatile', rpm: 30, tpm: 20000, priority: 2, category: 'balanced' },
+    { name: 'llama-3.1-8b-instant', rpm: 30, tpm: 20000, priority: 3, category: 'fast' },
+    { name: 'deepseek-r1-distill-llama-70b', rpm: 30, tpm: 20000, priority: 4, category: 'quality' },
+    { name: 'mixtral-8x7b-32768', rpm: 30, tpm: 20000, priority: 5, category: 'balanced' },
+    { name: 'gemma2-9b-it', rpm: 30, tpm: 20000, priority: 6, category: 'fast' },
 
-    // Balanced models
-    { name: 'gemini-2.5-flash', rpm: 10, tpm: 250000, priority: 2, category: 'balanced' },
-    { name: 'gemini-2.5-flash-lite', rpm: 15, tpm: 250000, priority: 3, category: 'fast' },
-
-    // Quality models - for complex queries
-    { name: 'gemini-2.5-pro', rpm: 2, tpm: 125000, priority: 4, category: 'quality' },
-
-    // Experimental/Other
-    { name: 'gemini-2.0-flash-exp', rpm: 10, tpm: 1000000, priority: 5, category: 'balanced' },
-    { name: 'gemini-2.0-flash-thinking-exp', rpm: 10, tpm: 500000, priority: 5, category: 'quality' },
-    { name: 'learnlm-2.0-flash-experimental', rpm: 15, tpm: 500000, priority: 6, category: 'balanced' },
-
-    // Local Models
-    // { name: 'sin-llama', rpm: 60, tpm: 1000000, priority: 1, category: 'quality' },
+    // Gemini models - Fallback
+    { name: 'gemini-2.0-flash', rpm: 15, tpm: 1000000, priority: 10, category: 'balanced' },
+    { name: 'gemini-2.5-flash', rpm: 10, tpm: 250000, priority: 11, category: 'balanced' },
+    { name: 'gemini-2.5-flash-lite', rpm: 15, tpm: 250000, priority: 12, category: 'fast' },
+    { name: 'gemini-2.5-pro', rpm: 2, tpm: 125000, priority: 13, category: 'quality' },
+    { name: 'gemini-1.5-pro', rpm: 2, tpm: 125000, priority: 14, category: 'quality' },
+    { name: 'gemini-1.5-flash', rpm: 15, tpm: 500000, priority: 15, category: 'balanced' },
 ];
 
 // Track model usage for load balancing
@@ -514,6 +512,7 @@ export async function streamMessage(
         try {
             console.log(`🤖 Trying streaming with: ${model.name}${conversationHistory && conversationHistory.length > 0 ? ` (with ${conversationHistory.length} history messages)` : ''}${options?.deepThink ? ' [DEEP THINK MODE]' : ''}`);
 
+            // Always use backend API (supports both local and production)
             // Detect if running on Vercel (production) or locally
             const isProduction = import.meta.env.PROD && !window.location.hostname.includes('localhost');
 
@@ -525,115 +524,37 @@ export async function streamMessage(
             let totalTimeMs = 0;
             const fetchStart = Date.now();
 
-            if (isProduction) {
-                // Use our backend proxy on Vercel - hides API key
-                const streamUrl = '/api/chat';
-                const requestBody = {
-                    message: enhancedMessage,
-                    model: model.name,
-                    history: conversationHistory || [],
-                    sessionId: sessionId,
-                    options: {
-                        enableWebSearch: useGeminiSearch,
-                        responseStyle: options?.responseStyle,
-                        deepThink: options?.deepThink,
-                        memoryContext: memoryContext || undefined,
-                        documentContext: documentContext || undefined,
-                    }
-                };
-
-                const result = await withRetry(
-                    () => fetch(streamUrl, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(requestBody),
-                    }),
-                    { maxAttempts: 3, initialDelayMs: 500 }
-                );
-
-                if (!result.success || !result.data) {
-                    throw result.error || new Error('Request failed');
+            // Always use our backend proxy - works with Groq
+            const streamUrl = '/api/chat';
+            const requestBody = {
+                message: enhancedMessage,
+                model: model.name,
+                history: conversationHistory || [],
+                sessionId: sessionId,
+                options: {
+                    enableWebSearch: useGeminiSearch,
+                    responseStyle: options?.responseStyle,
+                    deepThink: options?.deepThink,
+                    memoryContext: memoryContext || undefined,
+                    documentContext: documentContext || undefined,
                 }
-                response = result.data;
-                attempts = result.attempts;
-                totalTimeMs = result.totalTimeMs;
-            } else {
-                // Direct Gemini call for local development
-                console.log('📡 Direct Gemini API call (local development)');
+            };
 
-                // Build conversation history for Gemini format
-                const historyContents = (conversationHistory || []).map((msg) => ({
-                    role: msg.role === 'assistant' ? 'model' : 'user',
-                    parts: [{ text: msg.content }]
-                }));
+            const result = await withRetry(
+                () => fetch(streamUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(requestBody),
+                }),
+                { maxAttempts: 3, initialDelayMs: 500 }
+            );
 
-                // Build system instruction with all options
-                let fullSystemInstruction = SYSTEM_INSTRUCTION;
-
-                if (options?.responseStyle === 'concise') {
-                    fullSystemInstruction += '\n\nRespond concisely in 2-3 sentences focusing on the key answer.';
-                } else if (options?.responseStyle === 'detailed') {
-                    fullSystemInstruction += '\n\nProvide a detailed, step-by-step explanation.';
-                }
-
-                if (options?.deepThink) {
-                    fullSystemInstruction += `\n\n## DEEP THINKING MODE ACTIVATED:
-You must think carefully and thoroughly before answering.
-
-Format your response as:
-<thinking>
-[Write your detailed reasoning process here]
-</thinking>
-
-<answer>
-[Provide your final answer here]
-</answer>`;
-                }
-
-                if (memoryContext) {
-                    fullSystemInstruction += `\n\n${memoryContext}`;
-                }
-
-                if (documentContext) {
-                    fullSystemInstruction += `\n\n[DOCUMENT CONTEXT]\n${documentContext}\n[END DOCUMENT CONTEXT]`;
-                }
-
-                const requestBody: Record<string, unknown> = {
-                    system_instruction: {
-                        parts: [{ text: fullSystemInstruction }]
-                    },
-                    contents: [
-                        ...historyContents,
-                        {
-                            role: 'user',
-                            parts: [{ text: enhancedMessage }]
-                        }
-                    ],
-                };
-
-                // Add Google Search tool if enabled
-                if (useGeminiSearch) {
-                    requestBody.tools = [{ googleSearch: {} }];
-                }
-
-                const streamUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model.name}:streamGenerateContent?alt=sse&key=${GEMINI_API_KEY}`;
-
-                const result = await withRetry(
-                    () => fetch(streamUrl, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(requestBody),
-                    }),
-                    { maxAttempts: 3, initialDelayMs: 500 }
-                );
-
-                if (!result.success || !result.data) {
-                    throw result.error || new Error('Request failed');
-                }
-                response = result.data;
-                attempts = result.attempts;
-                totalTimeMs = result.totalTimeMs;
+            if (!result.success || !result.data) {
+                throw result.error || new Error('Request failed');
             }
+            response = result.data;
+            attempts = result.attempts;
+            totalTimeMs = result.totalTimeMs;
 
             totalTimeMs = Date.now() - fetchStart;
 

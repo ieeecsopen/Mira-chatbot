@@ -794,7 +794,7 @@ function App() {
       }
       case 'creative': {
         // Switch to a creative model if available
-        const creativeModel = MIRA_MODELS.find(m => m.id.includes('creative') || m.id.includes('gemini-2'));
+        const creativeModel = MIRA_MODELS.find(m => m.id.includes('creative') || m.id.includes('pro') || m.id.includes('thinking'));
         if (creativeModel) setSelectedModel(creativeModel.id);
         break;
       }

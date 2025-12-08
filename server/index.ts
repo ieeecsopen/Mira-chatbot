@@ -12,10 +12,21 @@ if (!process.env.GEMINI_API_KEY && process.env.VITE_GEMINI_API_KEY) {
 	process.env.GEMINI_API_KEY = process.env.VITE_GEMINI_API_KEY;
 }
 
+if (!process.env.GROQ_API_KEY && process.env.VITE_GROQ_API_KEY) {
+	console.log('⚠️ GROQ_API_KEY not found, using VITE_GROQ_API_KEY');
+	process.env.GROQ_API_KEY = process.env.VITE_GROQ_API_KEY;
+}
+
+if (process.env.GROQ_API_KEY) {
+	console.log('✅ GROQ_API_KEY configured');
+} else {
+	console.log('⚠️ GROQ_API_KEY not configured - Groq models will not work');
+}
+
 if (process.env.GEMINI_API_KEY) {
 	console.log('✅ GEMINI_API_KEY configured');
 } else {
-	console.error('❌ GEMINI_API_KEY not configured');
+	console.log('⚠️ GEMINI_API_KEY not configured - Gemini fallback will not work');
 }
 
 const app = express();
