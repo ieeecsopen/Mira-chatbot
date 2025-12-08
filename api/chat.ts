@@ -30,31 +30,7 @@ interface VercelResponse extends ServerResponse {
     end: (chunk?: unknown) => this;
 }
 
-// Groq native models - these are used directly with Groq API
-const GROQ_MODELS = [
-    // High-performance models
-    'llama-3.3-70b-versatile',           // 30 rpm, 1K req/day, 12K context
-    'llama-3.1-8b-instant',              // 30 rpm, 14.4K req/day, 6K context
-
-    // LLaMA 4 models
-    'meta-llama/llama-4-maverick-17b-128e-instruct',  // 30 rpm, 6K context
-    'meta-llama/llama-4-scout-17b-16e-instruct',      // 30 rpm, 30K context
-
-    // Kimi models (higher rate limits)
-    'moonshotai/kimi-k2-instruct',       // 60 rpm, 10K context
-
-    // Qwen model
-    'qwen/qwen3-32b',                    // 60 rpm, 6K context
-
-    // OpenAI OSS models
-    'openai/gpt-oss-120b',               // 30 rpm, 8K context
-    'openai/gpt-oss-20b',                // 30 rpm, 8K context
-];
-
-// Default Groq model for 'auto' selection
-const DEFAULT_GROQ_MODEL = 'llama-3.3-70b-versatile';
-
-// Gemini models - used as fallback when Groq fails or when explicitly selected
+// Gemini models - Primary (used by default)
 const GEMINI_MODELS = [
     'gemini-2.0-flash',
     'gemini-2.0-flash-thinking',
@@ -68,28 +44,43 @@ const GEMINI_MODELS = [
     'gemini-1.5-flash'
 ];
 
-// Default Gemini model for fallback
+// Default Gemini model for 'auto' selection
 const DEFAULT_GEMINI_MODEL = 'gemini-2.0-flash';
 
-// Helper to check if a model is a Groq model
-function isGroqModel(model: string): boolean {
-    return GROQ_MODELS.includes(model) || model === 'auto';
-}
+// Groq models - Fallback when Gemini fails
+const GROQ_MODELS = [
+    'llama-3.3-70b-versatile',
+    'llama-3.1-8b-instant',
+    'meta-llama/llama-4-maverick-17b-128e-instruct',
+    'meta-llama/llama-4-scout-17b-16e-instruct',
+    'moonshotai/kimi-k2-instruct',
+    'qwen/qwen3-32b',
+    'openai/gpt-oss-120b',
+    'openai/gpt-oss-20b',
+];
+
+// Default Groq model for fallback
+const DEFAULT_GROQ_MODEL = 'llama-3.3-70b-versatile';
 
 // Helper to check if a model is a Gemini model
 function isGeminiModel(model: string): boolean {
-    return GEMINI_MODELS.includes(model);
+    return GEMINI_MODELS.includes(model) || model === 'auto';
 }
 
-// Get the actual Groq model to use
-function getGroqModel(model: string): string {
-    if (model === 'auto') return DEFAULT_GROQ_MODEL;
-    return GROQ_MODELS.includes(model) ? model : DEFAULT_GROQ_MODEL;
+// Helper to check if a model is a Groq model
+function isGroqModel(model: string): boolean {
+    return GROQ_MODELS.includes(model);
 }
 
-// Get the actual Gemini model to use (for fallback)
+// Get the actual Gemini model to use
 function getGeminiModel(model: string): string {
+    if (model === 'auto') return DEFAULT_GEMINI_MODEL;
     return GEMINI_MODELS.includes(model) ? model : DEFAULT_GEMINI_MODEL;
+}
+
+// Get the actual Groq model to use (for fallback)
+function getGroqModel(model: string): string {
+    return GROQ_MODELS.includes(model) ? model : DEFAULT_GROQ_MODEL;
 }
 
 // System instruction
@@ -447,99 +438,98 @@ Format your response as:
         let usedProvider = '';
 
         // Determine which API to use based on model selection
-        const useGroqPrimary = isGroqModel(model) && GROQ_API_KEY;
         const useGeminiPrimary = isGeminiModel(model) && GEMINI_API_KEY;
+        const useGroqPrimary = isGroqModel(model) && GROQ_API_KEY;
 
         if (useGeminiPrimary) {
-            // User explicitly selected a Gemini model - use Gemini directly
-            console.log(`[API] Using Gemini API for model: ${model}`);
-            const geminiResponse = await callGeminiAPI(
-                GEMINI_API_KEY!,
-                model,
-                fullSystemInstruction,
-                message,
-                history,
-                options.enableWebSearch || false
-            );
-
-            if (geminiResponse.ok) {
-                usedProvider = 'gemini';
-                accumulatedResponse = await streamGeminiResponse(geminiResponse, res);
-                console.log('[API] ✅ Gemini API succeeded');
-            } else {
-                const error = await geminiResponse.json();
-                throw new Error(error.error?.message || 'Gemini API error');
-            }
-        } else if (useGroqPrimary) {
-            // Groq model or 'auto' - use Groq with Gemini fallback
+            // Gemini model or 'auto' - use Gemini with Groq fallback
             try {
-                const groqModel = getGroqModel(model);
-                console.log(`[API] Using Groq API with model: ${groqModel}`);
-                const groqResponse = await callGroqAPI(
-                    GROQ_API_KEY!,
-                    model,
+                const geminiModel = getGeminiModel(model);
+                console.log(`[API] Using Gemini API with model: ${geminiModel}`);
+                const geminiResponse = await callGeminiAPI(
+                    GEMINI_API_KEY!,
+                    geminiModel,
                     fullSystemInstruction,
                     message,
-                    history
+                    history,
+                    options.enableWebSearch || false
                 );
 
-                if (groqResponse.ok) {
-                    usedProvider = 'groq';
-                    accumulatedResponse = await streamGroqResponse(groqResponse, res);
-                    console.log('[API] ✅ Groq API succeeded');
+                if (geminiResponse.ok) {
+                    usedProvider = 'gemini';
+                    accumulatedResponse = await streamGeminiResponse(geminiResponse, res);
+                    console.log('[API] ✅ Gemini API succeeded');
                 } else {
-                    const errorData = await groqResponse.json();
-                    console.warn('[API] ⚠️ Groq API failed:', errorData);
-                    throw new Error(errorData.error?.message || 'Groq API error');
+                    const errorData = await geminiResponse.json();
+                    console.warn('[API] ⚠️ Gemini API failed:', errorData);
+                    throw new Error(errorData.error?.message || 'Gemini API error');
                 }
-            } catch (groqError) {
-                console.warn('[API] Groq failed, trying Gemini fallback...', groqError);
+            } catch (geminiError) {
+                console.warn('[API] Gemini failed, trying Groq fallback...', geminiError);
 
-                // Fallback to Gemini if available
-                if (GEMINI_API_KEY) {
-                    const fallbackModel = getGeminiModel(model);
-                    console.log(`[API] Falling back to Gemini with model: ${fallbackModel}`);
-                    const geminiResponse = await callGeminiAPI(
-                        GEMINI_API_KEY,
+                // Fallback to Groq if available
+                if (GROQ_API_KEY) {
+                    const fallbackModel = getGroqModel(model);
+                    console.log(`[API] Falling back to Groq with model: ${fallbackModel}`);
+                    const groqResponse = await callGroqAPI(
+                        GROQ_API_KEY,
                         fallbackModel,
                         fullSystemInstruction,
                         message,
-                        history,
-                        options.enableWebSearch || false
+                        history
                     );
 
-                    if (geminiResponse.ok) {
-                        usedProvider = 'gemini';
-                        accumulatedResponse = await streamGeminiResponse(geminiResponse, res);
-                        console.log('[API] ✅ Gemini fallback succeeded');
+                    if (groqResponse.ok) {
+                        usedProvider = 'groq';
+                        accumulatedResponse = await streamGroqResponse(groqResponse, res);
+                        console.log('[API] ✅ Groq fallback succeeded');
                     } else {
-                        const error = await geminiResponse.json();
+                        const error = await groqResponse.json();
                         throw new Error(error.error?.message || 'Both APIs failed');
                     }
                 } else {
-                    throw groqError;
+                    throw geminiError;
                 }
             }
-        } else if (GEMINI_API_KEY) {
-            // Fallback: No Groq key but Gemini is available
-            const fallbackModel = getGeminiModel(model);
-            console.log(`[API] Using Gemini API (Groq not configured) with model: ${fallbackModel}`);
-            const geminiResponse = await callGeminiAPI(
-                GEMINI_API_KEY,
+        } else if (useGroqPrimary) {
+            // User explicitly selected a Groq model - use Groq directly
+            const groqModel = getGroqModel(model);
+            console.log(`[API] Using Groq API for model: ${groqModel}`);
+            const groqResponse = await callGroqAPI(
+                GROQ_API_KEY!,
+                groqModel,
+                fullSystemInstruction,
+                message,
+                history
+            );
+
+            if (groqResponse.ok) {
+                usedProvider = 'groq';
+                accumulatedResponse = await streamGroqResponse(groqResponse, res);
+                console.log('[API] ✅ Groq API succeeded');
+            } else {
+                const error = await groqResponse.json();
+                throw new Error(error.error?.message || 'Groq API error');
+            }
+        } else if (GROQ_API_KEY) {
+            // Fallback: No Gemini key but Groq is available
+            const fallbackModel = getGroqModel(model);
+            console.log(`[API] Using Groq API (Gemini not configured) with model: ${fallbackModel}`);
+            const groqResponse = await callGroqAPI(
+                GROQ_API_KEY,
                 fallbackModel,
                 fullSystemInstruction,
                 message,
-                history,
-                options.enableWebSearch || false
+                history
             );
 
-            if (geminiResponse.ok) {
-                usedProvider = 'gemini';
-                accumulatedResponse = await streamGeminiResponse(geminiResponse, res);
-                console.log('[API] ✅ Gemini API succeeded');
+            if (groqResponse.ok) {
+                usedProvider = 'groq';
+                accumulatedResponse = await streamGroqResponse(groqResponse, res);
+                console.log('[API] ✅ Groq API succeeded');
             } else {
-                const error = await geminiResponse.json();
-                throw new Error(error.error?.message || 'Gemini API error');
+                const error = await groqResponse.json();
+                throw new Error(error.error?.message || 'Groq API error');
             }
         } else {
             throw new Error('No suitable API available for the requested model');

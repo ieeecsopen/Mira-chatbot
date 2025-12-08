@@ -10,23 +10,21 @@ interface ModelConfig {
 }
 
 const AVAILABLE_MODELS: ModelConfig[] = [
-    // Groq models - Primary (high performance, fast)
-    { name: 'llama-3.3-70b-versatile', rpm: 30, tpm: 100000, priority: 1, category: 'quality' },
-    { name: 'meta-llama/llama-4-scout-17b-16e-instruct', rpm: 30, tpm: 500000, priority: 2, category: 'balanced' },
-    { name: 'meta-llama/llama-4-maverick-17b-128e-instruct', rpm: 30, tpm: 500000, priority: 3, category: 'balanced' },
-    { name: 'moonshotai/kimi-k2-instruct', rpm: 60, tpm: 300000, priority: 4, category: 'quality' },
-    { name: 'qwen/qwen3-32b', rpm: 60, tpm: 500000, priority: 5, category: 'balanced' },
-    { name: 'llama-3.1-8b-instant', rpm: 30, tpm: 500000, priority: 6, category: 'fast' },
-    { name: 'openai/gpt-oss-120b', rpm: 30, tpm: 200000, priority: 7, category: 'quality' },
-    { name: 'openai/gpt-oss-20b', rpm: 30, tpm: 200000, priority: 8, category: 'fast' },
+    // Gemini models - Primary
+    { name: 'gemini-2.0-flash', rpm: 15, tpm: 1000000, priority: 1, category: 'balanced' },
+    { name: 'gemini-2.5-flash', rpm: 10, tpm: 250000, priority: 2, category: 'balanced' },
+    { name: 'gemini-2.5-flash-lite', rpm: 15, tpm: 250000, priority: 3, category: 'fast' },
+    { name: 'gemini-2.5-pro', rpm: 2, tpm: 125000, priority: 4, category: 'quality' },
+    { name: 'gemini-1.5-pro', rpm: 2, tpm: 125000, priority: 5, category: 'quality' },
+    { name: 'gemini-1.5-flash', rpm: 15, tpm: 500000, priority: 6, category: 'balanced' },
 
-    // Gemini models - Fallback
-    { name: 'gemini-2.0-flash', rpm: 15, tpm: 1000000, priority: 10, category: 'balanced' },
-    { name: 'gemini-2.5-flash', rpm: 10, tpm: 250000, priority: 11, category: 'balanced' },
-    { name: 'gemini-2.5-flash-lite', rpm: 15, tpm: 250000, priority: 12, category: 'fast' },
-    { name: 'gemini-2.5-pro', rpm: 2, tpm: 125000, priority: 13, category: 'quality' },
-    { name: 'gemini-1.5-pro', rpm: 2, tpm: 125000, priority: 14, category: 'quality' },
-    { name: 'gemini-1.5-flash', rpm: 15, tpm: 500000, priority: 15, category: 'balanced' },
+    // Groq models - Fallback
+    { name: 'llama-3.3-70b-versatile', rpm: 30, tpm: 100000, priority: 10, category: 'quality' },
+    { name: 'meta-llama/llama-4-scout-17b-16e-instruct', rpm: 30, tpm: 500000, priority: 11, category: 'balanced' },
+    { name: 'meta-llama/llama-4-maverick-17b-128e-instruct', rpm: 30, tpm: 500000, priority: 12, category: 'balanced' },
+    { name: 'moonshotai/kimi-k2-instruct', rpm: 60, tpm: 300000, priority: 13, category: 'quality' },
+    { name: 'qwen/qwen3-32b', rpm: 60, tpm: 500000, priority: 14, category: 'balanced' },
+    { name: 'llama-3.1-8b-instant', rpm: 30, tpm: 500000, priority: 15, category: 'fast' },
 ];
 
 // Track model usage for load balancing
