@@ -32,14 +32,23 @@ interface VercelResponse extends ServerResponse {
 
 // Groq native models - these are used directly with Groq API
 const GROQ_MODELS = [
-    'llama-3.3-70b-versatile',
-    'llama-3.1-70b-versatile',
-    'llama-3.1-8b-instant',
-    'llama3-70b-8192',
-    'llama3-8b-8192',
-    'mixtral-8x7b-32768',
-    'gemma2-9b-it',
-    'deepseek-r1-distill-llama-70b'
+    // High-performance models
+    'llama-3.3-70b-versatile',           // 30 rpm, 1K req/day, 12K context
+    'llama-3.1-8b-instant',              // 30 rpm, 14.4K req/day, 6K context
+
+    // LLaMA 4 models
+    'meta-llama/llama-4-maverick-17b-128e-instruct',  // 30 rpm, 6K context
+    'meta-llama/llama-4-scout-17b-16e-instruct',      // 30 rpm, 30K context
+
+    // Kimi models (higher rate limits)
+    'moonshotai/kimi-k2-instruct',       // 60 rpm, 10K context
+
+    // Qwen model
+    'qwen/qwen3-32b',                    // 60 rpm, 6K context
+
+    // OpenAI OSS models
+    'openai/gpt-oss-120b',               // 30 rpm, 8K context
+    'openai/gpt-oss-20b',                // 30 rpm, 8K context
 ];
 
 // Default Groq model for 'auto' selection
