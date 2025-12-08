@@ -26,7 +26,11 @@ async function testDatabase() {
     try {
         // Test 1: Connection
         console.log('Test 1: Testing database connection...');
-        const { client, db } = await connectToDatabase();
+        const connection = await connectToDatabase();
+        if (!connection) {
+            throw new Error('Failed to connect to MongoDB - MONGODB_URI may not be configured');
+        }
+        const { client, db } = connection;
         console.log('✅ Successfully connected to MongoDB');
         console.log(`   Database: ${db.databaseName}\n`);
 
@@ -34,7 +38,7 @@ async function testDatabase() {
         console.log('Test 2: Listing collections...');
         const collections = await db.listCollections().toArray();
         console.log(`✅ Found ${collections.length} collections:`);
-        collections.forEach(col => console.log(`   - ${col.name}`));
+        collections.forEach((col: { name: string }) => console.log(`   - ${col.name}`));
         console.log();
 
         // Test 3: Create test session
@@ -96,7 +100,7 @@ async function testDatabase() {
             .toArray();
 
         console.log(`✅ Retrieved ${retrievedMessages.length} messages:`);
-        retrievedMessages.forEach((msg, idx) => {
+        retrievedMessages.forEach((msg: TestMessage, idx: number) => {
             console.log(`   ${idx + 1}. [${msg.role}] ${msg.content.substring(0, 50)}...`);
         });
         console.log();

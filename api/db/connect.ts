@@ -20,7 +20,7 @@ export interface MongoConnection {
  * Connect to MongoDB Atlas
  * Uses connection pooling for serverless functions
  */
-export async function connectToDatabase(): Promise<MongoConnection> {
+export async function connectToDatabase(): Promise<MongoConnection | null> {
     // Return cached connection if exists
     if (cachedClient && cachedDb) {
         try {
@@ -36,7 +36,8 @@ export async function connectToDatabase(): Promise<MongoConnection> {
     }
 
     if (!MONGODB_URI) {
-        throw new Error('MONGODB_URI environment variable is not configured');
+        console.warn('⚠️ MONGODB_URI not configured, skipping database connection');
+        return null;
     }
 
     try {
@@ -65,14 +66,15 @@ export async function connectToDatabase(): Promise<MongoConnection> {
         // Clear any partial cache
         cachedClient = null;
         cachedDb = null;
-        throw error;
+        // Return null instead of throwing - allows chat to work without DB
+        return null;
     }
 }
 
 /**
  * Get database instance (for when you only need db, not client)
  */
-export async function getDatabase(): Promise<Db> {
-    const { db } = await connectToDatabase();
-    return db;
+export async function getDatabase(): Promise<Db | null> {
+    const connection = await connectToDatabase();
+    return connection?.db ?? null;
 }

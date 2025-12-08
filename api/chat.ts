@@ -32,6 +32,11 @@ interface VercelResponse extends ServerResponse {
 
 // Get API key from server environment (not exposed to client)
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+    // Log environment check for debugging
+    console.log('[API] Handler started');
+    console.log('[API] GEMINI_API_KEY exists:', !!process.env.GEMINI_API_KEY);
+    console.log('[API] MONGODB_URI exists:', !!process.env.MONGODB_URI);
+
     // Only allow POST
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Method not allowed' });
@@ -89,7 +94,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         let db = null;
         try {
             const connection = await connectToDatabase();
-            db = connection.db;
+            db = connection?.db ?? null;
 
             // 1. Save USER message if sessionId is present
             if (sessionId && db) {
