@@ -83,7 +83,7 @@ function getGroqModel(model: string): string {
     return GROQ_MODELS.includes(model) ? model : DEFAULT_GROQ_MODEL;
 }
 
-// System instruction
+// System instruction for Gemini (primary)
 const SYSTEM_INSTRUCTION = `ඔබ "මීරා" (MIRA) නම් සිංහල භාෂා සහායකයෙකි.
 
 ## ඔබේ අනන්‍යතාවය:
@@ -107,6 +107,58 @@ const SYSTEM_INSTRUCTION = `ඔබ "මීරා" (MIRA) නම් සිංහ�
 - අන්තර්ජාලයෙන් හෝ ලේඛනවලින් තොරතුරු ලබාගත් විට, මූලාශ්‍ර සඳහන් කරන්න (උදා: [1], [2]).
 - ශ්‍රී ලංකාවට අදාළ කරුණු (නීති, සංඛ්‍යාලේඛන) ගැන කතා කරන විට ඉතා සැලකිලිමත් වන්න.
 - පරිශීලකයාගේ ප්‍රශ්නයට කෙලින්ම පිළිතුරු දෙන්න. අනවශ්‍ය තොරතුරු එකතු නොකරන්න.`;
+
+// Enhanced system instruction for Groq/LLaMA models (fallback)
+// More explicit and detailed to help these models generate better Sinhala responses
+const GROQ_SYSTEM_INSTRUCTION = `You are "MIRA" (මීරා), a Sinhala language AI assistant from Sri Lanka.
+
+## CRITICAL INSTRUCTIONS:
+1. **ALWAYS respond in Sinhala (සිංහල)** - Use Sinhala Unicode script (අ, ආ, ඉ, ඊ, උ, ඌ, එ, ඒ, ඔ, ඕ, ක, ඛ, ග, ඝ, etc.)
+2. **NEVER respond in English** - Even if the user writes in English, respond in Sinhala
+3. **NEVER use Romanized Sinhala** - Don't write "ayubowan", write "ආයුබෝවන්"
+
+## Your Identity:
+- Your name is "මීරා" (MIRA - Multilingual Intelligent Response Assistant)
+- You are a Sri Lankan AI assistant
+- You are NOT Google, Gemini, ChatGPT, LLaMA, or any other AI
+- If asked who you are, say: "මම මීරා. මම සිංහල භාෂාවෙන් උදව් කිරීමට සැලසුම් කර ඇති AI සහායකයෙක්."
+
+## Language Guidelines:
+Use Sinhala equivalents for English technical terms:
+- Computer → පරිගණකය
+- Internet → අන්තර්ජාලය
+- Software → මෘදුකාංගය
+- Download → බාගත කරන්න
+- Website → වෙබ් අඩවිය
+- Email → විද්‍යුත් තැපෑල
+- Password → මුරපදය
+- File → ගොනුව
+- Search → සෙවීම
+- Phone → දුරකථනය
+- Application → යෙදුම
+- Message → පණිවිඩය
+
+## Response Format:
+- Be friendly and respectful (use "ඔබ" not "ඔයා")
+- Keep responses clear and well-structured
+- Use bullet points (•) for lists
+- Start greetings with "ආයුබෝවන්!"
+- End with helpful phrases like "තවත් උදව් අවශ්‍ය නම් අසන්න."
+
+## Example Response Format:
+User: "What is AI?"
+You: "ආයුබෝවන්! කෘත්‍රිම බුද්ධිය (AI) යනු පරිගණක පද්ධති මගින් මිනිස් බුද්ධියට සමාන කාර්යයන් සිදු කිරීමේ හැකියාවයි. මෙයට ඇතුළත් වන්නේ:
+• ඉගෙනීම
+• තීරණ ගැනීම
+• ගැටලු විසඳීම
+• භාෂාව තේරුම් ගැනීම
+
+තවත් ප්‍රශ්න ඇත්නම් අසන්න!"`;
+
+// Get appropriate system instruction based on provider
+function getSystemInstruction(provider: 'gemini' | 'groq'): string {
+    return provider === 'groq' ? GROQ_SYSTEM_INSTRUCTION : SYSTEM_INSTRUCTION;
+}
 
 /**
  * Call Groq API with streaming
@@ -397,17 +449,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             console.warn('⚠️ Failed to save user message to DB:', _error);
         }
 
-        // Build system instruction with options
+        // Build system instruction with options (for Gemini - primary)
         let fullSystemInstruction = SYSTEM_INSTRUCTION;
+        // Build enhanced system instruction for Groq (fallback)
+        let groqFullSystemInstruction = GROQ_SYSTEM_INSTRUCTION;
 
         if (options.responseStyle === 'concise') {
             fullSystemInstruction += '\n\nRespond concisely in 2-3 sentences focusing on the key answer.';
+            groqFullSystemInstruction += '\n\n## RESPONSE STYLE: CONCISE\nRespond concisely in 2-3 sentences focusing on the key answer. Keep it brief but informative.';
         } else if (options.responseStyle === 'detailed') {
             fullSystemInstruction += '\n\nProvide a detailed, step-by-step explanation.';
+            groqFullSystemInstruction += '\n\n## RESPONSE STYLE: DETAILED\nProvide a detailed, step-by-step explanation in Sinhala. Be thorough and comprehensive.';
         }
 
         if (options.deepThink) {
-            fullSystemInstruction += `\n\n## DEEP THINKING MODE ACTIVATED:
+            const deepThinkPrompt = `\n\n## DEEP THINKING MODE ACTIVATED:
 You must think carefully and thoroughly before answering.
 
 Format your response as:
@@ -418,14 +474,18 @@ Format your response as:
 <answer>
 [Provide your final answer here]
 </answer>`;
+            fullSystemInstruction += deepThinkPrompt;
+            groqFullSystemInstruction += deepThinkPrompt;
         }
 
         if (options.memoryContext) {
             fullSystemInstruction += `\n\n${options.memoryContext}`;
+            groqFullSystemInstruction += `\n\n${options.memoryContext}`;
         }
 
         if (options.documentContext) {
             fullSystemInstruction += `\n\n[DOCUMENT CONTEXT]\n${options.documentContext}\n[END DOCUMENT CONTEXT]`;
+            groqFullSystemInstruction += `\n\n[DOCUMENT CONTEXT - Use this information to answer in Sinhala]\n${options.documentContext}\n[END DOCUMENT CONTEXT]`;
         }
 
         // Set headers for SSE streaming
@@ -474,7 +534,7 @@ Format your response as:
                     const groqResponse = await callGroqAPI(
                         GROQ_API_KEY,
                         fallbackModel,
-                        fullSystemInstruction,
+                        groqFullSystemInstruction,
                         message,
                         history
                     );
@@ -498,7 +558,7 @@ Format your response as:
             const groqResponse = await callGroqAPI(
                 GROQ_API_KEY!,
                 groqModel,
-                fullSystemInstruction,
+                groqFullSystemInstruction,
                 message,
                 history
             );
@@ -518,7 +578,7 @@ Format your response as:
             const groqResponse = await callGroqAPI(
                 GROQ_API_KEY,
                 fallbackModel,
-                fullSystemInstruction,
+                groqFullSystemInstruction,
                 message,
                 history
             );
