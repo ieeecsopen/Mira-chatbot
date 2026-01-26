@@ -1,0 +1,187 @@
+{
+  "@clerk/clerk-react": {
+    "wanted": "5.59.6",
+    "latest": "5.59.6",
+    "dependent": "Mira-chatbot"
+  },
+  "@radix-ui/react-slot": {
+    "wanted": "1.2.4",
+    "latest": "1.2.4",
+    "dependent": "Mira-chatbot"
+  },
+  "@react-oauth/google": {
+    "wanted": "0.12.2",
+    "latest": "0.13.4",
+    "dependent": "Mira-chatbot"
+  },
+  "@tailwindcss/vite": {
+    "wanted": "4.1.18",
+    "latest": "4.1.18",
+    "dependent": "Mira-chatbot"
+  },
+  "@tanstack/react-query": {
+    "wanted": "5.90.20",
+    "latest": "5.90.20",
+    "dependent": "Mira-chatbot"
+  },
+  "@types/bcryptjs": {
+    "wanted": "2.4.6",
+    "latest": "2.4.6",
+    "dependent": "Mira-chatbot"
+  },
+  "@types/jsonwebtoken": {
+    "wanted": "9.0.10",
+    "latest": "9.0.10",
+    "dependent": "Mira-chatbot"
+  },
+  "@types/prismjs": {
+    "wanted": "1.26.5",
+    "latest": "1.26.5",
+    "dependent": "Mira-chatbot"
+  },
+  "@types/react-syntax-highlighter": {
+    "wanted": "15.5.13",
+    "latest": "15.5.13",
+    "dependent": "Mira-chatbot"
+  },
+  "axios": {
+    "wanted": "1.13.3",
+    "latest": "1.13.3",
+    "dependent": "Mira-chatbot"
+  },
+  "bcryptjs": {
+    "wanted": "3.0.3",
+    "latest": "3.0.3",
+    "dependent": "Mira-chatbot"
+  },
+  "cheerio": {
+    "wanted": "1.2.0",
+    "latest": "1.2.0",
+    "dependent": "Mira-chatbot"
+  },
+  "class-variance-authority": {
+    "wanted": "0.7.1",
+    "latest": "0.7.1",
+    "dependent": "Mira-chatbot"
+  },
+  "clsx": {
+    "wanted": "2.1.1",
+    "latest": "2.1.1",
+    "dependent": "Mira-chatbot"
+  },
+  "cmdk": {
+    "wanted": "1.1.1",
+    "latest": "1.1.1",
+    "dependent": "Mira-chatbot"
+  },
+  "cors": {
+    "wanted": "2.8.6",
+    "latest": "2.8.6",
+    "dependent": "Mira-chatbot"
+  },
+  "express": {
+    "wanted": "4.22.1",
+    "latest": "5.2.1",
+    "dependent": "Mira-chatbot"
+  },
+  "framer-motion": {
+    "wanted": "12.29.0",
+    "latest": "12.29.0",
+    "dependent": "Mira-chatbot"
+  },
+  "google-auth-library": {
+    "wanted": "10.5.0",
+    "latest": "10.5.0",
+    "dependent": "Mira-chatbot"
+  },
+  "jsonwebtoken": {
+    "wanted": "9.0.3",
+    "latest": "9.0.3",
+    "dependent": "Mira-chatbot"
+  },
+  "lucide-react": {
+    "wanted": "0.555.0",
+    "latest": "0.563.0",
+    "dependent": "Mira-chatbot"
+  },
+  "mammoth": {
+    "wanted": "1.11.0",
+    "latest": "1.11.0",
+    "dependent": "Mira-chatbot"
+  },
+  "mongodb": {
+    "wanted": "7.0.0",
+    "latest": "7.0.0",
+    "dependent": "Mira-chatbot"
+  },
+  "pdfjs-dist": {
+    "wanted": "5.4.530",
+    "latest": "5.4.530",
+    "dependent": "Mira-chatbot"
+  },
+  "prismjs": {
+    "wanted": "1.30.0",
+    "latest": "1.30.0",
+    "dependent": "Mira-chatbot"
+  },
+  "pyodide": {
+    "wanted": "0.29.2",
+    "latest": "0.29.2",
+    "dependent": "Mira-chatbot"
+  },
+  "react": {
+    "wanted": "19.2.3",
+    "latest": "19.2.3",
+    "dependent": "Mira-chatbot"
+  },
+  "react-dom": {
+    "wanted": "19.2.3",
+    "latest": "19.2.3",
+    "dependent": "Mira-chatbot"
+  },
+  "react-markdown": {
+    "wanted": "10.1.0",
+    "latest": "10.1.0",
+    "dependent": "Mira-chatbot"
+  },
+  "react-router-dom": {
+    "wanted": "7.13.0",
+    "latest": "7.13.0",
+    "dependent": "Mira-chatbot"
+  },
+  "react-syntax-highlighter": {
+    "wanted": "16.1.0",
+    "latest": "16.1.0",
+    "dependent": "Mira-chatbot"
+  },
+  "react-window": {
+    "wanted": "2.2.5",
+    "latest": "2.2.5",
+    "dependent": "Mira-chatbot"
+  },
+  "remark-gfm": {
+    "wanted": "4.0.1",
+    "latest": "4.0.1",
+    "dependent": "Mira-chatbot"
+  },
+  "sonner": {
+    "wanted": "2.0.7",
+    "latest": "2.0.7",
+    "dependent": "Mira-chatbot"
+  },
+  "tailwind-merge": {
+    "wanted": "3.4.0",
+    "latest": "3.4.0",
+    "dependent": "Mira-chatbot"
+  },
+  "tailwindcss": {
+    "wanted": "4.1.18",
+    "latest": "4.1.18",
+    "dependent": "Mira-chatbot"
+  },
+  "tw-animate-css": {
+    "wanted": "1.4.0",
+    "latest": "1.4.0",
+    "dependent": "Mira-chatbot"
+  }
+}
