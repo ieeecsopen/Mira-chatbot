@@ -1,0 +1,41 @@
+[build]
+  # Build command for the backend
+  command = "npm run build:backend"
+  
+  # Publish directory - not needed for functions-only deployment
+  publish = "public"
+  
+  # Functions directory for serverless functions
+  functions = "netlify/functions"
+
+[build.environment]
+  NODE_VERSION = "20"
+  NPM_FLAGS = "--legacy-peer-deps"
+
+# Redirect all API requests to the serverless function
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/:splat"
+  status = 200
+  force = true
+
+# Health check endpoint
+[[redirects]]
+  from = "/healthz"
+  to = "/.netlify/functions/health"
+  status = 200
+
+# Headers for CORS
+[[headers]]
+  for = "/api/*"
+  [headers.values]
+    Access-Control-Allow-Origin = "*"
+    Access-Control-Allow-Methods = "GET, POST, PUT, DELETE, OPTIONS"
+    Access-Control-Allow-Headers = "Content-Type, Authorization"
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "no-referrer-when-downgrade"

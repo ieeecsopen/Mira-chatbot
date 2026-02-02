@@ -45,9 +45,9 @@ export async function connectToDatabase(): Promise<MongoConnection | null> {
         const client = new MongoClient(MONGODB_URI, {
             maxPoolSize: 10,
             minPoolSize: 1,
-            serverSelectionTimeoutMS: 10000, // Increased from 5000
-            socketTimeoutMS: 45000,
-            connectTimeoutMS: 10000,
+            serverSelectionTimeoutMS: 3000, // Reduced to 3s for Vercel fast fail
+            socketTimeoutMS: 30000,
+            connectTimeoutMS: 5000,
             retryWrites: true,
             retryReads: true,
         });
