@@ -53,7 +53,7 @@ jobs:
           fi
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v3
         with:
           files: mira-chatbot-${{ github.ref_name }}.zip
           body_path: CHANGELOG.md
